@@ -1,6 +1,6 @@
 {
  "app": "campfire-firo-pwa",
- "version": "0.1.9",
+ "version": "0.1.10",
  "files": [
   {
    "path": "app.js",
@@ -384,8 +384,8 @@
   },
   {
    "path": "lib/firo/backend.js",
-   "sha256": "9a44c5b1ea8f1f175157c64789025bcd15cc77815d2532a619284078d46a0f94",
-   "size": 175038
+   "sha256": "c3fbd51c1e66e795401dfb4c3dd6b13d4f843a54edf13911cd40733683cd40d3",
+   "size": 175199
   },
   {
    "path": "lib/firo/bytes.js",
@@ -394,8 +394,8 @@
   },
   {
    "path": "lib/firo/electrum.js",
-   "sha256": "6d74457ff337251b9f8599eb792c338032419cc0de8554b1a8d0ea45648f7f70",
-   "size": 30113
+   "sha256": "9fb86e43f9b3d9bf7c0530eba1dc5aee0f11f646125db8eb8e7f96d324126803",
+   "size": 30529
   },
   {
    "path": "lib/firo/history.js",
@@ -744,8 +744,8 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "71e20001d838458cac0d1516e4508cde4dbc59f11f290a4730e58857a5f8df24",
-   "size": 1085
+   "sha256": "6581b3e93a927ec4b9c034266429c7ce660bab58917628cd144814bf928093b2",
+   "size": 1086
   },
   {
    "path": "lib/wallet.js",
