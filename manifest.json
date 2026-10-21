@@ -1,16 +1,16 @@
 {
  "app": "campfire-firo-pwa",
- "version": "0.1.10",
+ "version": "0.1.11",
  "files": [
   {
    "path": "app.js",
-   "sha256": "3c744df63224095a9d6fca20b0c6532be92d49a2e7572085d488cdae164b31ab",
-   "size": 21160
+   "sha256": "7d02321d37086e19da07bf227a7222a18e695e76b0183fd81f733f294cbab4ba",
+   "size": 21519
   },
   {
    "path": "css/app.css",
-   "sha256": "c1a62cc3e38d4855e516cb8ceaa8cde96db0303259dc4c7da84fbd5b8133c926",
-   "size": 49740
+   "sha256": "6cb444bc85a61eb68e05775a3273c06e4fa8639d0067c64358504cca6bf39967",
+   "size": 49897
   },
   {
    "path": "css/payments.css",
@@ -109,8 +109,8 @@
   },
   {
    "path": "lib/backend_fake.js",
-   "sha256": "ea209b419879e2f0366eba828e706ff1142b5547549de7e453ec93183b67e70f",
-   "size": 42773
+   "sha256": "6ae36c048ac393a95acc53f6aaa278bdfcbb2bff2ed32b43f45024fa70769150",
+   "size": 43946
   },
   {
    "path": "lib/backup_file.js",
@@ -384,8 +384,8 @@
   },
   {
    "path": "lib/firo/backend.js",
-   "sha256": "c3fbd51c1e66e795401dfb4c3dd6b13d4f843a54edf13911cd40733683cd40d3",
-   "size": 175199
+   "sha256": "a06aad4a4870f97b4c5017194af32809a9cecdcba07e1c072627c6b811d528d2",
+   "size": 180023
   },
   {
    "path": "lib/firo/bytes.js",
@@ -516,6 +516,11 @@
    "path": "lib/kdf.js",
    "sha256": "a6def4f19cc6e40bfd4f0545d35e35e5d047ca73038d61bcfff4ea7f32be5bcc",
    "size": 3045
+  },
+  {
+   "path": "lib/keep_awake.js",
+   "sha256": "e7ffa35711c037ac5f8a1646462633a073f00c246adef09942dd8f2fc3530595",
+   "size": 3408
   },
   {
    "path": "lib/loader.js",
@@ -744,13 +749,13 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "6581b3e93a927ec4b9c034266429c7ce660bab58917628cd144814bf928093b2",
+   "sha256": "e0162775c75ed2257ee63f0eccd6fb810259bcf1d6cdc4b85adf64219303aec2",
    "size": 1086
   },
   {
    "path": "lib/wallet.js",
-   "sha256": "a6e95666f946b4e2b89c57b76b37832e49ba26a539672b9b0651294e826e8760",
-   "size": 18963
+   "sha256": "20ca2ea1bcc17f728b4627d1eecc493e417fcd7956006d32782dc8ea12785c1d",
+   "size": 19284
   },
   {
    "path": "lib/wallet_scope.js",
@@ -954,8 +959,8 @@
   },
   {
    "path": "screens/home.js",
-   "sha256": "127968e86ec7eeda9aa66a0418d012dd4278adb5a0e8cbeb9e5dbb501871cf8b",
-   "size": 21010
+   "sha256": "5a2209a34bb01a36b11d832d103fc7c62e09ab50aa7f14baa7d12ee864d2e4ad",
+   "size": 25207
   },
   {
    "path": "screens/install.js",
@@ -1094,8 +1099,8 @@
   },
   {
    "path": "screens/send.js",
-   "sha256": "6af6cb22a351c406fd2b980a1d62cb135382d6e51ca717dbe92c93ff5fd89642",
-   "size": 16380
+   "sha256": "bf329e0108ccb570c6fc1b891fb496d27fe459aaa826c5d7c1e6d782b0528445",
+   "size": 17580
   },
   {
    "path": "screens/send_extras.js",
@@ -1104,8 +1109,8 @@
   },
   {
    "path": "screens/servers.js",
-   "sha256": "012506f67faf19634052ad4ec5d9abb05f62ee9b058483031e30fd4558a82919",
-   "size": 9896
+   "sha256": "84f273a6a926accf672d452bea42d9fb26c353538d0cef0f9c18766b78fa05f4",
+   "size": 12064
   },
   {
    "path": "screens/set_password.js",
@@ -1134,8 +1139,8 @@
   },
   {
    "path": "screens/wallets.js",
-   "sha256": "da49aa2a5391cf4289da47941d4882222569baddb92e5af11fade590b1db6ad3",
-   "size": 10314
+   "sha256": "5deb7702e2882669541a852462011f1a06e7bac12ab4c5d08a3ef8028afd4c1e",
+   "size": 10515
   },
   {
    "path": "screens/watch.js",
