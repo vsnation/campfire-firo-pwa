@@ -3,7 +3,7 @@
 Your FIRO, private by default, on any phone or computer. Install it from a web page in one tap:
 no app store can remove it, no account, no server that holds your keys.
 
-> **Beta.** The test build runs at **https://pwa.buyfiro.app**. Use small amounts until it leaves beta.
+> **Live** at **https://pwa.buyfiro.app**.
 
 <p>
   <img src="docs/screenshots/phone-01-welcome.png" width="200" alt="Welcome">
@@ -19,7 +19,7 @@ no app store can remove it, no account, no server that holds your keys.
 
 <img src="docs/screenshots/desktop-02-home.png" width="820" alt="Home on a computer">
 
-*Real screenshots of the live test build with a new, empty wallet (no staged data); on Receive the QR
+*Real screenshots of the live app with a new, empty wallet (no staged data); on Receive the QR
 code and the address are blurred, so no one pays into a throwaway wallet. A new wallet shows
 "Catching up with the network" while it downloads Firo's private coin sets.*
 
