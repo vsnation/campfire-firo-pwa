@@ -16519,14 +16519,26 @@
       "screens/problem.js"
     ]
   },
+  "Open {name}": {
+    "where": [
+      "screens/problem.js",
+      "screens/wallets.js"
+    ],
+    "placeholders": [
+      "name"
+    ]
+  },
   "This is a copy Firo PWA updates from, not a place to run it. ": {
     "where": [
       "screens/problem.js"
     ]
   },
-  "Pages from many people share this address, and any of them could read a wallet kept here, so it does not open.": {
+  "Other pages on {host} share its storage, so the wallet opens at its own address only. Nothing was saved or sent here.": {
     "where": [
       "screens/problem.js"
+    ],
+    "placeholders": [
+      "host"
     ]
   },
   "Open Firo PWA from its own address instead, and add it to your Home Screen from there.": {
@@ -19204,14 +19216,6 @@
   "open now": {
     "where": [
       "screens/wallets.js"
-    ]
-  },
-  "Open {name}": {
-    "where": [
-      "screens/wallets.js"
-    ],
-    "placeholders": [
-      "name"
     ]
   },
   "Rename": {

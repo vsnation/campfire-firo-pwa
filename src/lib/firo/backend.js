@@ -433,6 +433,8 @@ export class FiroBackend {
     this.opened = false;
     this._closed = false;
     this.tip = null;
+    this._lastTip = null; // the tip before a move to another node: the balance is counted at it meanwhile
+    this._retry = { timer: null, n: 0 }; // a sync again soon after one that failed (see _syncOnce)
     this.syncState = { phase: 'connecting', done: 0, total: 0 };
     this.ownCoins = new Map(); // lTagHash → record
     this.progress = null;
@@ -554,7 +556,7 @@ export class FiroBackend {
         this.transparent
           ?.onStatus(sh, status)
           .then((changed) => changed && this._emit())
-          .catch(() => {});
+          .catch(() => this._retryLater());
       }),
     ];
   }
@@ -623,6 +625,7 @@ export class FiroBackend {
   /** Disconnects and forgets every key held in memory. */
   async close() {
     this._closed = true;
+    clearTimeout(this._retry.timer);
     for (const off of this._offs) off();
     this.client?.close();
     // Second opinions in flight end now (release re-audit 5 RE5-5): nothing more is asked, and the
@@ -665,7 +668,9 @@ export class FiroBackend {
   // ------------------------------------------------------------ state
 
   getState() {
-    const tipH = this.tip?.height ?? null;
+    // Moving to another node, the tip is not known until it answers: the public balance is counted at
+    // the last one meanwhile (it read 0 FIRO, the private balance as it was).
+    const tipH = this.tip?.height ?? this._lastTip?.height ?? null;
     const pub = this.transparent && tipH !== null ? this.transparent.balance(tipH) : { available: 0n, pending: 0n };
     const priv = this._privateBalance();
     return {
@@ -844,6 +849,17 @@ export class FiroBackend {
     });
   }
 
+  /** A sync again soon after one that failed or was partly answered: 5 s, doubling up to 5 minutes. */
+  _retryLater() {
+    if (this._closed || this._retry.timer) return;
+    const ms = Math.min(300000, 5000 * 2 ** this._retry.n++);
+    this._retry.timer = setTimeout(() => {
+      this._retry.timer = null;
+      this._requestSync();
+    }, ms);
+    this._retry.timer.unref?.();
+  }
+
   /** Waits for the current sync run (tests and the UI's pull-to-refresh). */
   async waitForSync() {
     while (this._running) await this._running;
@@ -855,6 +871,7 @@ export class FiroBackend {
   }
 
   async _syncOnce() {
+    let pubFailed = 0;
     try {
       if (!this.client.connected) {
         this._phase('connecting');
@@ -866,7 +883,10 @@ export class FiroBackend {
       }
       if (this.transparent) {
         this._phase('transparent');
-        await this.transparent.sync({ onProgress: (p) => this._phase('transparent', p.done, p.total ?? 0) });
+        const pub = await this.transparent.sync({ onProgress: (p) => this._phase('transparent', p.done, p.total ?? 0) });
+        // Some addresses or payments not answered: the rest is counted and proven, those are asked
+        // again soon, and until then the wallet is not up to date (sending waits, see lib/sync.js).
+        pubFailed = pub?.failed ?? 0;
         await this._proveReceipts().catch(() => {});
         await this._checkCollateral().catch(() => {});
         await this._followPending().catch(() => {});
@@ -878,7 +898,12 @@ export class FiroBackend {
         await this._forgetRefusedSets().catch(() => {});
       }
       if (this.sparkSync) await this._syncSpark();
-      this._phase('done', 1, 1);
+      this.syncState = { phase: 'done', done: 1, total: 1, ...(pubFailed ? { partial: pubFailed } : {}) };
+      this._emit();
+      // Backed off until a whole sync is answered (release audit of 0.1.13: reset after the public
+      // part alone, a private part that kept failing was asked again every 5 s).
+      if (pubFailed) this._retryLater();
+      else this._retry.n = 0;
       const sc = this.serverCheck;
       if (!sc || now() - sc.at >= (noSecond(sc) ? NO_SECOND_RETRY_S : 300)) await this._checkTip().catch(() => {});
       // How long no second node could be asked, in syncs: the sync line says so after a few (RE3-2:
@@ -898,6 +923,8 @@ export class FiroBackend {
       // Let go of for a Rescan: the next sync (already asked for) does its look.
       if (e && e.code === 'superseded') return;
       const a = apiError(e);
+      // Asked again soon, not only at the next block (a lost connection reconnects and syncs by itself).
+      if (a.code !== 'offline') this._retryLater();
       this._phase(a.code === 'offline' ? 'connecting' : 'error', 0, 0, a.message);
     }
   }
@@ -3375,7 +3402,14 @@ export class FiroBackend {
   async rescan({ fromHeight } = {}) {
     void fromHeight;
     if (this.transparent) {
-      for (const k of await this.store.keys('w/t/')) await this.store.del(k);
+      // The person's own choices stay (public audit of 0.1.13: a Rescan made frozen coins spendable,
+      // locked a 1,000 FIRO coin unlocked to spend, and forgot the coins a payment let go of must be
+      // spent first by the next one, so it and a resend could both be paid).
+      const KEEP = ['w/t/frozen', 'w/t/mnSpendable', 'w/t/conflicts'];
+      // A public sync under way on the old records ends first: it would write a status after the
+      // history it belongs to was deleted.
+      await this.transparent._turn;
+      for (const k of await this.store.keys('w/t/')) if (!KEEP.includes(k)) await this.store.del(k);
       this.transparent = new TransparentWallet({ net: this.net, keys: this.keys, client: this.client, store: prefixStore(this.store, 'w/') });
       await this.transparent.load();
     }
@@ -3455,7 +3489,9 @@ export class FiroBackend {
     this.client = new ElectrumClient({ servers: this.servers, WebSocket: this.WebSocket, ...this.electrumOpts });
     if (this.transparent) this.transparent.client = this.client;
     if (this.sparkSync) this.sparkSync.client = this.client;
+    this._lastTip = this.tip ?? this._lastTip;
     this.tip = null;
+    this._retry.n = 0;
     this._names = null;
     this.tagCheck = null; // the new server's used tags are compared on its first sync (D-12)
     // And its tip (D-11) at its first sync (release re-audit R1-6: the old node's 'agree' spoke for

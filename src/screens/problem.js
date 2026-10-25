@@ -97,14 +97,18 @@ function noLoader() {
   return { el };
 }
 
-/* Opened from a copy on a host many people's pages share (GitHub Pages, a CDN): the wallet's storage
- * would be shared with all of them, so it does not open here (H9). The copies serve updates only. */
+/* Opened from a copy Firo PWA updates from (GitHub Pages, raw GitHub, jsDelivr): other pages on that
+ * host name share its storage, and the loader's record of the checked copy is kept there unsigned, so
+ * one of them could change what it serves (release audit of 0.1.13). It opens at its own address,
+ * one tap away. The words say only that (owner, 2026-10-25: the earlier "pages from many people …
+ * could read a wallet kept here" said more than is so). */
+const OWN_ADDRESS = 'https://pwa.buyfiro.app/';
+
 function sharedHostProblem() {
   const el = screen(
-    { title: t('Open Firo PWA from its own address') },
-    h('div', { 'data-testid': 'shared-host' }, notice('warn', h('strong', { text: t('This is a copy Firo PWA updates from, not a place to run it. ') }), t('Pages from many people share this address, and any of them could read a wallet kept here, so it does not open.'))),
+    { title: t('Open Firo PWA from its own address'), actions: [primary(t('Open {name}', { name: 'pwa.buyfiro.app' }), () => location.assign(OWN_ADDRESS), { 'data-testid': 'shared-host-open' })] },
+    h('div', { 'data-testid': 'shared-host' }, notice('info', h('strong', { text: t('This is a copy Firo PWA updates from, not a place to run it. ') }), t('Other pages on {host} share its storage, so the wallet opens at its own address only. Nothing was saved or sent here.', { host: location.hostname }))),
     h('p', { class: 'lead', text: t('Open Firo PWA from its own address instead, and add it to your Home Screen from there.') }),
   );
   return { el };
 }
-

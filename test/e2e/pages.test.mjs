@@ -191,8 +191,12 @@ async function publicRelease(dir) {
       mkdirSync(dirname(join(dir, f.path)), { recursive: true });
       writeFileSync(join(dir, f.path), b);
     }
+    // Since 0.1.12 a published build leaves out the test hooks (tools/build.mjs): this suite cannot
+    // drive it, so an older build of this tree stands in.
+    if (!readFileSync(join(dir, 'app.js'), 'utf8').includes('__campfire')) throw new Error(`${release.version} has no test hooks`);
     return { version: release.version, files: manifest.files.length };
   } catch (e) {
+    rmSync(dir, { recursive: true, force: true });
     console.log(`# no public release to start from (${e.message}); an older build of this tree stands in`);
     return null;
   }
