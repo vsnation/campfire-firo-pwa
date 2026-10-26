@@ -162,6 +162,7 @@ export default function settings(app) {
       'div',
       { class: 'card list' },
       row('person', t('Address book'), t('People you pay, with their address'), () => app.go('contacts'), { 'data-testid': 'contacts-row' }),
+      row('receive', t('My addresses'), t('Find one, or check that an address is yours'), () => app.go('addresses'), { 'data-testid': 'my-addresses-row' }),
       notificationsRow(app),
       priceSettings(app),
       explorerSel ? inline('external', t('Block explorer'), t('Where a payment’s link opens'), explorerSel, 'explorer-row') : null,

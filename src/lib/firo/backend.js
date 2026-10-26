@@ -60,7 +60,7 @@
 //     set is checked in the background by every wallet alike; older ones only at payment time,
 //     when the payment itself names them.
 
-import { network as getNetwork, sparkSpendTxVersion, SPARK_CHANGE_DIVERSIFIER, SPARK_KEY_INDEX, isValidSparkName } from './params.js';
+import { network as getNetwork, sparkSpendTxVersion, SPARK_CHANGE_DIVERSIFIER, SPARK_KEY_INDEX, isValidSparkName, CHAIN_CHANGE } from './params.js';
 import { FiroKeys, generateMnemonic, validateMnemonic, wipe } from './keys.js';
 import { classifyAddress as classify, addressToScript, isSparkAddressShape, scriptToAddress } from './address.js';
 import { ElectrumClient, ElectrumError } from './electrum.js';
@@ -73,6 +73,7 @@ import { serializeTx, decodeTx, SEQUENCE_FINAL, TxError, proRegCollateral, lTagH
 import { opReturnScript, OP, sparkNameFeeScript } from './script.js';
 import { hexToBytes, bytesToHex, sha256d, base64ToBytes, bytesToBase64, concatBytes, hashToHex, hashFromHex } from './bytes.js';
 import { requireSpark, sparkHas } from './spark_iface.js';
+import { claimedDiversifier } from './spark_owner.js';
 import { t, tk, lazyWords } from '../i18n.js';
 
 function err(code, message) {
@@ -88,6 +89,8 @@ export const MAX_PAYMENT_FEE = 5000000n;
 const formatSats = (sats) => (Number(BigInt(sats)) / 1e8).toLocaleString('en-US', { maximumFractionDigits: 8 });
 
 const inFlightRefusal = () => err('in-flight', t('Another payment from this wallet is still being sent, so this one was not sent. Nothing left your wallet: try again once that one has left.'));
+/** A money action while a Rescan replaces the public records (audit of 0.1.15, R1): nothing is done. */
+const rescanRefusal = () => err('in-flight', t('A Rescan is starting, so nothing was sent or changed. Nothing left your wallet: try again in a moment.'));
 
 /** A payment that may have left (audit FM-1), in the screens' words. */
 export const UNSURE_WORDS = tk("Your payment may have left. Don't send it again yet: Firo PWA is checking.");
@@ -368,6 +371,7 @@ export class FiroBackend {
     this.cacheStore = sharedStore ?? prefixStore(this.store, 'cache/');
     // Payments between send() and the end of their broadcast (audit FE-4: the app does not lock then).
     this._inFlight = 0;
+    this._rescanning = false; // a Rescan replacing the public records: money actions wait (R1)
     this.spark = spark;
     this.WebSocket = WebSocket;
     this.electrumOpts = electrum;
@@ -429,6 +433,7 @@ export class FiroBackend {
     this.sparkSync = null;
     this._sparkKey = null; // 32 bytes at m/44'/136'/0'/6/1
     this._fvk = null; // serialized full view key (view-only)
+    this._ownFvk = null; // the same, derived from the spend key for whoseAddress (wiped at Lock)
     this.viewOnly = false;
     this.opened = false;
     this._closed = false;
@@ -637,7 +642,7 @@ export class FiroBackend {
       // ignore
     }
     this.keys?.wipe();
-    wipe(this._sparkKey, this._fvk);
+    wipe(this._sparkKey, this._fvk, this._ownFvk);
     // The Spark client is one per page and outlives this engine: the view keys it derived go with
     // the Lock (a full view key shows every private payment: public audit, PN).
     this.spark?.forgetKeys?.();
@@ -1560,8 +1565,20 @@ export class FiroBackend {
    * answer for is not either ('offline'). As any payment given up, it is back if the network shows
    * it after all. -> {txid, letGo: true}
    */
+  /** As _letGo, counted as a payment under way, so a Rescan waits for it (audit of 0.1.15, L-A). */
   async letGo(txid) {
     if (this._closed || !this.opened || !this.client) throw err('not-open', t('The wallet is locked.'));
+    if (this._rescanning) throw rescanRefusal();
+    if (this._inFlight > 0) throw inFlightRefusal();
+    this._inFlight++;
+    try {
+      return await this._letGo(txid);
+    } finally {
+      this._inFlight--;
+    }
+  }
+
+  async _letGo(txid) {
     const item = this.transparent;
     const p = item?.pending.get(txid) ?? null;
     const s = p ? null : this.sends.get(txid) ?? null;
@@ -1940,6 +1957,88 @@ export class FiroBackend {
     const e = await this.transparent.newReceiveAddress();
     this._emit();
     return e.address;
+  }
+
+  /** The serialized full view key, kept until Lock (wiped with the others in close). */
+  async _viewKey() {
+    if (this._fvk) return this._fvk;
+    if (this._ownFvk) return this._ownFvk;
+    const key = this._sparkKey;
+    const fvk = await this.spark.getFullViewKey({ keyData: key, index: SPARK_KEY_INDEX });
+    // Locked meanwhile: the key goes with the Lock, never into the closed engine (audit of 0.1.15, L1).
+    if (this._sparkKey !== key || !key) {
+      wipe(fvk);
+      throw err('not-open', t('The wallet is locked.'));
+    }
+    this._ownFvk = fvk;
+    return fvk;
+  }
+
+  /**
+   * For My addresses (owner, 2026-10-26): this wallet's addresses with what each holds now and how
+   * many payments arrived. Spark: every one handed out here (1 to the one Receive shows) and every
+   * one a payment arrived at, which another wallet of the same words may have handed out. Public:
+   * transparent.addressBook.
+   * -> {spark: [{address, diversifier, current, payments, holds}], transparent: [...]}
+   */
+  async myAddresses() {
+    const spark = [];
+    if (this._sparkEnabled()) {
+      const by = new Map();
+      for (const c of this.ownCoins.values()) {
+        if (c.isChange || !Number.isSafeInteger(c.diversifier)) continue;
+        const e = by.get(c.diversifier) ?? { txids: new Set(), holds: 0n };
+        e.txids.add(c.txid);
+        // As the balance: not one already being spent (audit of 0.1.15, L3).
+        if (!c.spentTxid && !c.pendingSpentTxid && !c.mempool) e.holds += c.value;
+        by.set(c.diversifier, e);
+      }
+      const ds = new Set(by.keys());
+      for (let d = 1; d <= this.sparkAddr.diversifier; d++) if (d !== SPARK_CHANGE_DIVERSIFIER) ds.add(d);
+      for (const d of [...ds].sort((a, b) => a - b)) {
+        const e = by.get(d);
+        spark.push({ address: await this._sparkAddress(d), diversifier: d, current: d === this.sparkAddr.diversifier, payments: e ? e.txids.size : 0, holds: String(e ? e.holds : 0n) });
+      }
+    }
+    return { spark, transparent: this.transparent ? this.transparent.addressBook(this.tip?.height ?? null) : [] };
+  }
+
+  /**
+   * Whose `text` is. A Spark address: its diversifier is read with the view key (spark_owner.js)
+   * and the address for it made again and compared, so one of this wallet's is found whoever
+   * handed it out, and no other passes. A public one: an address of this wallet's two chains, also
+   * past the ones derived so far (another wallet may have handed out more); one found there is
+   * followed from then on (TransparentWallet.follow). unknown: this wallet cannot tell (no Spark
+   * side, no public side, an exchange address): nothing may be said either way (audit of 0.1.15, L2).
+   * -> {kind: 'spark'|'transparent'|'exchange'|'spark-name'|'invalid', mine: boolean, unknown?,
+   *     diversifier?, change?, chain?: 'receive'|'change', index?}
+   */
+  async whoseAddress(text) {
+    const c = classify(text, this.net);
+    if (c.kind === 'spark') {
+      if (!this._sparkEnabled()) return { kind: 'spark', mine: false, unknown: true };
+      const d = await claimedDiversifier(c.address, await this._viewKey(), this.net);
+      const mine = d !== null && (await this._sparkAddress(d)) === c.address;
+      return mine ? { kind: 'spark', mine: true, diversifier: d, ...(d === SPARK_CHANGE_DIVERSIFIER ? { change: true } : {}) } : { kind: 'spark', mine: false };
+    }
+    if (c.kind === 'transparent') {
+      if (!this.transparent) return { kind: 'transparent', mine: false, unknown: true };
+      const tw = this.transparent;
+      let e = tw.ownEntryForScript(addressToScript(c.address, this.net));
+      if (!e) {
+        e = tw.findBeyond(c.address);
+        if (e) {
+          await tw.follow(e);
+          // A Rescan replaced the wallet meanwhile (the old one writes nothing): the new one follows it.
+          if (this.transparent && this.transparent !== tw) await this.transparent.follow(e);
+          this._requestSync();
+        }
+      }
+      return e ? { kind: 'transparent', mine: true, chain: e.chain === CHAIN_CHANGE ? 'change' : 'receive', index: e.index } : { kind: 'transparent', mine: false };
+    }
+    // An exchange address is never followed here, whoever's key it is.
+    if (c.kind === 'exchange') return { kind: 'exchange', mine: false, unknown: true };
+    return { kind: c.kind, mine: false };
   }
 
   // ------------------------------------------------------------ anonymity sets (audit D-09)
@@ -2566,6 +2665,7 @@ export class FiroBackend {
   async _freeze(id, frozen) {
     const m = /^([0-9a-f]{64}):(\d+)$/.exec(String(id));
     if (!m) throw notYet(t('Freezing Spark coins'));
+    if (this._rescanning) throw rescanRefusal();
     await this.transparent.setFrozen(m[1], Number(m[2]), !!frozen);
     this._emit();
   }
@@ -3024,6 +3124,7 @@ export class FiroBackend {
     // code. Two at once could be the same intent twice (a screen left during "Sending…" and opened
     // again), and their coins are not kept from each other until the first is written down.
     if (this._inFlight > 0) throw inFlightRefusal();
+    if (this._rescanning) throw rescanRefusal();
     this._inFlight++;
     try {
       let built;
@@ -3417,6 +3518,7 @@ export class FiroBackend {
     const built = { spark: false, txid: d.txid, hex: typeof hex === 'string' ? hex.toLowerCase() : bytesToHex(hex) };
     // One payment at a time, as send() (release verification 0.1.8).
     if (this._inFlight > 0) throw inFlightRefusal();
+    if (this._rescanning) throw rescanRefusal();
     this._inFlight++;
     try {
       // Built outside this guard (buildTransparentTx): its coins are looked at again now, when no
@@ -3485,13 +3587,31 @@ export class FiroBackend {
       // The person's own choices stay (public audit of 0.1.13: a Rescan made frozen coins spendable,
       // locked a 1,000 FIRO coin unlocked to spend, and forgot the coins a payment let go of must be
       // spent first by the next one, so it and a resend could both be paid).
-      const KEEP = ['w/t/frozen', 'w/t/mnSpendable', 'w/t/conflicts'];
-      // A public sync under way on the old records ends first: it would write a status after the
-      // history it belongs to was deleted.
-      await this.transparent._turn;
-      for (const k of await this.store.keys('w/t/')) if (!KEEP.includes(k)) await this.store.del(k);
-      this.transparent = new TransparentWallet({ net: this.net, keys: this.keys, client: this.client, store: prefixStore(this.store, 'w/') });
-      await this.transparent.load();
+      const KEEP = ['w/t/frozen', 'w/t/mnSpendable', 'w/t/conflicts', 'w/t/followed'];
+      // Not while a payment is being sent, and no payment, freeze or let-go until the new records'
+      // wallet has taken over (audit of 0.1.15, R1: a payment written down meanwhile was lost to the
+      // new wallet, so a resend could pay twice).
+      if (this._rescanning) throw err('in-flight', t('A Rescan is already under way.'));
+      if (this._inFlight > 0) throw err('in-flight', t('A payment is still being sent. Try again once it has left.'));
+      this._rescanning = true;
+      const old = this.transparent;
+      try {
+        // The old records' wallet writes none of the records deleted here (audit of 0.1.15, N1), and a
+        // public sync under way on them ends first: it would write a status after its history was deleted.
+        this.transparent.retire((k) => k.startsWith('t/') && !KEEP.includes(`w/${k}`));
+        await this.transparent._turn;
+        for (const k of await this.store.keys('w/t/')) if (!KEEP.includes(k)) await this.store.del(k);
+        const tw = new TransparentWallet({ net: this.net, keys: this.keys, client: this.client, store: prefixStore(this.store, 'w/') });
+        await tw.load();
+        // Locked meanwhile: nothing more (the next Unlock loads what is stored).
+        if (this._closed || !this.opened) throw err('not-open', t('The wallet was locked.'));
+        for (const e of old.lateFollows ?? []) await tw.follow(e); // pasted during the Rescan
+        // What the old one wrote while this one loaded (a sync's conflict check, say) is read again.
+        await tw.reloadKept();
+        this.transparent = tw;
+      } finally {
+        this._rescanning = false;
+      }
     }
     if (this.progress) {
       // A look under way stops before it writes anything more (sixth audit P1: it went on writing

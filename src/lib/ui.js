@@ -7,7 +7,7 @@ export function topbar({ title, back, brand = false, right = null }) {
   return h(
     'header',
     { class: 'topbar' },
-    back ? h('button', { class: 'icon-btn', 'aria-label': t('Back'), onclick: back }, icon('back')) : null,
+    back ? h('button', { class: 'icon-btn', 'aria-label': t('Back'), 'data-nav': 'back', onclick: back }, icon('back')) : null,
     // brand: true for the app's name, or an element of its own (Home: the open wallet's name).
     brand instanceof Node ? brand : brand ? h('div', { class: 'brand' }, h('img', { src: 'img/logo.svg', alt: '' }), h('span', { text: 'Firo PWA' })) : h('h1', { text: title || '' }), // i18n-ignore: a name, the same in every language
     right,

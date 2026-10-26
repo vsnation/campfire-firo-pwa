@@ -39,6 +39,7 @@ import send from './screens/send.js';
 import review from './screens/review.js';
 import txStatus from './screens/tx_status.js';
 import receive from './screens/receive.js';
+import addresses from './screens/addresses.js';
 import privatize from './screens/privatize.js';
 import activity from './screens/activity.js';
 import settings from './screens/settings.js';
@@ -72,7 +73,7 @@ applyTheme(readTheme());
 
 const SCREENS = {
   welcome, watch, backup, confirmWords, restore, restoreFile, setPassword, passkeySetup, ipNotice, unlock,
-  home, send, review, txStatus, receive, privatize, bridge, activity, settings, servers, rescan, viewKey, names, nameRegister, coins, masternodes, changePassword, about, deleteWallet, problem, install,
+  home, send, review, txStatus, receive, addresses, privatize, bridge, activity, settings, servers, rescan, viewKey, names, nameRegister, coins, masternodes, changePassword, about, deleteWallet, problem, install,
   contacts, notifications,
   ...ETH_SCREENS,
   ...BUY_SCREENS,
@@ -86,7 +87,7 @@ const SCREENS = {
 const SETTINGS_SCREENS = new Set(['servers', 'rescan', 'viewKey', 'names', 'nameRegister', 'coins', 'masternodes', 'changePassword', 'deleteWallet', 'notifications', 'wallets', 'backup']);
 const SECTION_OF = { contacts: 'contacts', about: 'about', activity: 'activity' };
 // Screens that need an unlocked, running wallet.
-const NEEDS_WALLET = new Set(['wallets', 'home', 'send', 'review', 'txStatus', 'receive', 'privatize', 'bridge', 'activity', 'settings', 'servers', 'rescan', 'viewKey', 'names', 'nameRegister', 'coins', 'masternodes', 'changePassword', 'about', 'contacts', 'notifications', ...Object.keys(ETH_SCREENS), ...Object.keys(BUY_SCREENS), ...Object.keys(SELL_SCREENS)]);
+const NEEDS_WALLET = new Set(['wallets', 'home', 'send', 'review', 'txStatus', 'receive', 'addresses', 'privatize', 'bridge', 'activity', 'settings', 'servers', 'rescan', 'viewKey', 'names', 'nameRegister', 'coins', 'masternodes', 'changePassword', 'about', 'contacts', 'notifications', ...Object.keys(ETH_SCREENS), ...Object.keys(BUY_SCREENS), ...Object.keys(SELL_SCREENS)]);
 
 const root = document.getElementById('app');
 

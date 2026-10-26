@@ -211,3 +211,30 @@ test('on a screen still loading, Back waits for its Back; more Backs meanwhile c
   await sleep(150);
   assert.equal(clicks, 1);
 });
+
+test('in a Home Screen app the roots stay: no page to go back to, and leaving restarted the app at Unlock', () => {
+  for (const s of ['home', 'welcome', 'unlock']) assert.equal(backAction({ overlays: [], backButton: null, screenName: s, standalone: true }), 'stay', s);
+  assert.equal(backAction({ overlays: [], backButton: {}, screenName: 'about', standalone: true }), 'button');
+  for (const media of [{ navigator: { standalone: true } }, { matchMedia: (q) => ({ matches: q === '(display-mode: standalone)' }) }]) {
+    const app = { currentName: 'home', go() {} };
+    const win = Object.assign(fakeWindow(() => ({})), media);
+    installBack(app, win);
+    win.fire('pointerdown');
+    win.back();
+    win.back();
+    assert.equal(win.left(), false, 'still in the app');
+    assert.equal(win.entriesAbove(), 2, 'topped up');
+  }
+});
+
+test('the Back is found by data-nav, so it works in every language (its label is translated)', () => {
+  let clicks = 0;
+  const button = { click: () => clicks++ };
+  const app = { currentName: 'about', go() {} };
+  const win = fakeWindow(() => ({}));
+  win.document.getElementById = () => ({ querySelector: (sel) => (sel === '.topbar button[data-nav="back"]' ? button : null) });
+  installBack(app, win);
+  win.fire('pointerdown');
+  win.back();
+  assert.equal(clicks, 1);
+});

@@ -803,6 +803,7 @@
       "lib/buy/words.js",
       "lib/intents/words.js",
       "lib/sell/words.js",
+      "screens/addresses.js",
       "screens/buy_firo.js",
       "screens/coins.js",
       "screens/contacts.js",
@@ -3461,6 +3462,11 @@
       "lib/firo/backend.js"
     ]
   },
+  "A Rescan is starting, so nothing was sent or changed. Nothing left your wallet: try again in a moment.": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
   "Your payment may have left. Don't send it again yet: Firo PWA is checking.": {
     "where": [
       "lib/firo/backend.js",
@@ -4025,6 +4031,16 @@
     ]
   },
   "Exporting the xpub of a Spark-only view-only wallet": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
+  "A Rescan is already under way.": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
+  "A payment is still being sent. Try again once it has left.": {
     "where": [
       "lib/firo/backend.js"
     ]
@@ -5946,6 +5962,43 @@
   "Firo PWA is open in another tab.": {
     "where": [
       "lib/one_tab.js"
+    ]
+  },
+  "Spark change address": {
+    "where": [
+      "lib/own_address.js"
+    ]
+  },
+  "Spark address {n}": {
+    "where": [
+      "lib/own_address.js"
+    ],
+    "placeholders": [
+      "n"
+    ]
+  },
+  "Change address {n}": {
+    "where": [
+      "lib/own_address.js"
+    ],
+    "placeholders": [
+      "n"
+    ]
+  },
+  "Public address {n}": {
+    "where": [
+      "lib/own_address.js"
+    ],
+    "placeholders": [
+      "n"
+    ]
+  },
+  "It is one of your addresses: {name}. The payment stays in this wallet.": {
+    "where": [
+      "lib/own_address.js"
+    ],
+    "placeholders": [
+      "name"
     ]
   },
   "Campfire Firo wallet": {
@@ -8300,6 +8353,7 @@
   "Close": {
     "where": [
       "screens/activity.js",
+      "screens/addresses.js",
       "screens/buy_firo.js",
       "screens/eth_swap.js",
       "screens/eth_swap_parts.js",
@@ -8421,6 +8475,165 @@
       "screens/contacts.js",
       "screens/name_register.js"
     ]
+  },
+  "Search or paste an address": {
+    "where": [
+      "screens/addresses.js"
+    ]
+  },
+  "Address type": {
+    "where": [
+      "screens/addresses.js",
+      "screens/receive.js"
+    ]
+  },
+  "Holds {amount} {UNIT}": {
+    "where": [
+      "screens/addresses.js"
+    ],
+    "placeholders": [
+      "UNIT",
+      "amount"
+    ]
+  },
+  "Holds nothing now": {
+    "where": [
+      "screens/addresses.js"
+    ]
+  },
+  "too many payments to count": {
+    "where": [
+      "screens/addresses.js"
+    ]
+  },
+  "Copy address": {
+    "where": [
+      "screens/addresses.js",
+      "screens/buy_order.js",
+      "screens/eth_home.js",
+      "screens/eth_receive.js",
+      "screens/near_intents_deposit.js",
+      "screens/receive.js",
+      "screens/sell_order.js"
+    ]
+  },
+  "Address copied": {
+    "where": [
+      "screens/addresses.js",
+      "screens/buy_order.js",
+      "screens/contacts.js",
+      "screens/eth_home.js",
+      "screens/eth_receive.js",
+      "screens/near_intents_deposit.js",
+      "screens/receive.js",
+      "screens/sell_order.js"
+    ]
+  },
+  "Address": {
+    "where": [
+      "screens/addresses.js",
+      "screens/buy_firo.js",
+      "screens/near_intents.js",
+      "screens/review.js",
+      "screens/servers.js"
+    ]
+  },
+  "On Receive": {
+    "where": [
+      "screens/addresses.js"
+    ]
+  },
+  "Transparent": {
+    "where": [
+      "screens/addresses.js",
+      "screens/receive.js"
+    ]
+  },
+  "Yes, this address belongs to the wallet you are watching: {name}.": {
+    "where": [
+      "screens/addresses.js"
+    ],
+    "placeholders": [
+      "name"
+    ]
+  },
+  "Yes, this address is yours: {name}. Payments to it come to this wallet.": {
+    "where": [
+      "screens/addresses.js"
+    ],
+    "placeholders": [
+      "name"
+    ]
+  },
+  "This is an exchange (EX) address. This wallet does not follow those, so it cannot say whose it is.": {
+    "where": [
+      "screens/addresses.js"
+    ]
+  },
+  "This wallet cannot check this kind of address, so it cannot say whose it is.": {
+    "where": [
+      "screens/addresses.js"
+    ]
+  },
+  "This Spark address is not one of this wallet’s. Payments to it go to someone else.": {
+    "where": [
+      "screens/addresses.js"
+    ]
+  },
+  "This address is not one this wallet follows. Payments to it do not come here.": {
+    "where": [
+      "screens/addresses.js"
+    ]
+  },
+  "Only this wallet can tell that these Spark addresses are its own. To everyone else they are unrelated.": {
+    "where": [
+      "screens/addresses.js"
+    ]
+  },
+  "Public addresses and what they hold can be seen by anyone. Change addresses hold what came back to you from your own public payments.": {
+    "where": [
+      "screens/addresses.js"
+    ]
+  },
+  "No address of this list has “{q}” in it.": {
+    "where": [
+      "screens/addresses.js"
+    ],
+    "placeholders": [
+      "q"
+    ]
+  },
+  "No addresses yet. Receive shows the first one.": {
+    "where": [
+      "screens/addresses.js"
+    ]
+  },
+  "Your addresses could not be read: {message}": {
+    "where": [
+      "screens/addresses.js"
+    ],
+    "placeholders": [
+      "message"
+    ]
+  },
+  "My addresses": {
+    "where": [
+      "screens/addresses.js",
+      "screens/receive.js",
+      "screens/settings.js"
+    ]
+  },
+  "{n} payments": {
+    "where": [
+      "screens/addresses.js"
+    ],
+    "placeholders": [
+      "n"
+    ],
+    "count": {
+      "one": "{n} payment",
+      "other": "{n} payments"
+    }
   },
   "Tap to show the words": {
     "where": [
@@ -9724,14 +9937,6 @@
       "symbol"
     ]
   },
-  "Address": {
-    "where": [
-      "screens/buy_firo.js",
-      "screens/near_intents.js",
-      "screens/review.js",
-      "screens/servers.js"
-    ]
-  },
   "Your Ethereum wallet’s address, filled in for you.": {
     "where": [
       "screens/buy_firo.js"
@@ -9799,17 +10004,6 @@
     "where": [
       "screens/buy_order.js",
       "screens/near_intents_deposit.js",
-      "screens/sell_order.js"
-    ]
-  },
-  "Address copied": {
-    "where": [
-      "screens/buy_order.js",
-      "screens/contacts.js",
-      "screens/eth_home.js",
-      "screens/eth_receive.js",
-      "screens/near_intents_deposit.js",
-      "screens/receive.js",
       "screens/sell_order.js"
     ]
   },
@@ -10088,16 +10282,6 @@
   "Start a new buy": {
     "where": [
       "screens/buy_order.js"
-    ]
-  },
-  "Copy address": {
-    "where": [
-      "screens/buy_order.js",
-      "screens/eth_home.js",
-      "screens/eth_receive.js",
-      "screens/near_intents_deposit.js",
-      "screens/receive.js",
-      "screens/sell_order.js"
     ]
   },
   "Make it private": {
@@ -16556,17 +16740,7 @@
       "screens/receive.js"
     ]
   },
-  "Transparent": {
-    "where": [
-      "screens/receive.js"
-    ]
-  },
   "Public: anyone can see what arrives at this address. For exchanges and wallets that cannot pay Spark yet. Privatize it afterwards from Home.": {
-    "where": [
-      "screens/receive.js"
-    ]
-  },
-  "Address type": {
     "where": [
       "screens/receive.js"
     ]
@@ -18216,11 +18390,6 @@
       "screens/send.js"
     ]
   },
-  " It is one of your own addresses.": {
-    "where": [
-      "screens/send.js"
-    ]
-  },
   "That's more than can be sent privately now ({amount} {UNIT}).": {
     "where": [
       "screens/send.js"
@@ -18754,6 +18923,11 @@
     ]
   },
   "People you pay, with their address": {
+    "where": [
+      "screens/settings.js"
+    ]
+  },
+  "Find one, or check that an address is yours": {
     "where": [
       "screens/settings.js"
     ]

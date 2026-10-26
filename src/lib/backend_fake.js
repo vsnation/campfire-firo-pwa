@@ -17,7 +17,8 @@
 // Test controls (this module only, so only where the fake runs): globalThis.__firoFake =
 // { credit({to, amount, memo, unproven}), offline(bool), mine(), speed(ms), state(), renameTo(name, address),
 // refuseSets(code), slowCoinCheck(ms), nodeDown(host, down), unsureNext({arrives}), refuseNext(message),
-// hold(on), feeChangeNext(sats), noSecond(syncs), slowSwitch(ms), proving(sats, done, total) } on the open wallet. slowSwitch(ms): the next change of
+// hold(on), feeChangeNext(sats), noSecond(syncs), slowSwitch(ms), proving(sats, done, total), unlistedAddress(kind, n),
+// otherAddress(kind) } on the open wallet. slowSwitch(ms): the next change of
 // node takes that long, as the real engine's does while a sync it waits for ends. hold(true): no fake block comes by itself (mine()
 // still makes one). feeChangeNext(sats): from the next send() on, the fee is that much higher (as
 // when a coin arrives during Face ID); a send() given the figures Review showed (expect) is then
@@ -494,6 +495,28 @@ class FakeBackend {
     return this.s.receive.spark;
   }
 
+  /** As the real engine's: the addresses handed out, the current one's holding the balance. */
+  async myAddresses() {
+    this.need();
+    const b = this.balances();
+    const paid = (kind) => this.all.filter((t) => this.visible(t) && t.direction === 'in' && t.kind === kind).length;
+    const spark = [];
+    for (let n = 0; n <= this.s.spark; n++) spark.push({ address: sparkAddress(this.id, n), diversifier: n + 1, current: n === this.s.spark, payments: n === 0 ? paid('spark') : 0, holds: n === 0 ? str(b.private.available) : '0' });
+    const transparent = [];
+    for (let i = 0; i <= this.s.transparent; i++) transparent.push({ address: transparentAddress(this.id, i), chain: 'receive', index: i, current: i === this.s.transparent, payments: i === 0 ? paid('transparent') : 0, holds: i === 0 ? str(b.public.available) : '0' });
+    return { spark, transparent };
+  }
+
+  /** As the real engine's. Addresses up to 50 past the last one handed out are this wallet's too, as
+   *  ones another wallet of the same words handed out would be. */
+  async whoseAddress(text) {
+    this.need();
+    const a = String(text ?? '').trim();
+    for (let n = 0; n <= this.s.spark + 50; n++) if (a.toLowerCase() === sparkAddress(this.id, n)) return { kind: 'spark', mine: true, diversifier: n + 1 };
+    for (let i = 0; i <= this.s.transparent + 50; i++) if (a === transparentAddress(this.id, i)) return { kind: 'transparent', mine: true, chain: 'receive', index: i };
+    return { kind: /^s[a-z]1/i.test(a) ? 'spark' : /^a/.test(a) ? 'transparent' : 'invalid', mine: false };
+  }
+
   need() {
     if (!this.id) throw fail('not-open', 'The wallet is not open.');
   }
@@ -861,6 +884,10 @@ globalThis.__firoFake = Object.freeze({
     return tickMs;
   },
   state: () => (current ? current.getState() : null),
+  // An address of the open wallet not handed out here (as another wallet of the same words would),
+  // n past the last one, or another wallet's: for My addresses.
+  unlistedAddress: (kind = 'spark', n = 10) => (current ? (kind === 'spark' ? sparkAddress(current.id, current.s.spark + n) : transparentAddress(current.id, current.s.transparent + n)) : null),
+  otherAddress: (kind = 'spark') => (kind === 'spark' ? sparkAddress('someone-else', 1) : transparentAddress('someone-else', 1)),
   // A server that now answers a different address for a Spark name.
   renameTo: (name, address) => current && current.setNameForTest(name, address),
   // The next private payment is stopped as when a server's coin list does not check out (D-09).

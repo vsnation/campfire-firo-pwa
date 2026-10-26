@@ -8,6 +8,7 @@
  *   - "Is this address safe to share?" -> yes, and a new one is one tap away.
  *   - "The address is huge" -> QR code first; copy and share buttons, no manual selection.
  *   - "Does the app need to stay open?" -> no: a Firo payment arrives with the app closed.
+ *   - "Which addresses did I give out?" -> My addresses lists them all, with a search.
  */
 import { h, svg, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -111,7 +112,7 @@ export default function receive(app, params = {}) {
   show();
   const off = wallet.onChange(() => show());
   const el = screen(
-    { title: t('Receive FIRO'), back: () => app.back('home'), actions: [shareBtn, copyBtn, textButton(t('Make a new address'), fresh, { 'data-testid': 'new-address' })] },
+    { title: t('Receive FIRO'), back: () => app.back('home'), actions: [shareBtn, copyBtn, h('div', { class: 'btn-row' }, textButton(t('Make a new address'), fresh, { 'data-testid': 'new-address' }), textButton(t('My addresses'), () => app.go('addresses', { kind }), { 'data-testid': 'my-addresses' }))] },
     kindBox,
     qrBox,
     h('div', { class: 'address-box' }, addrText),

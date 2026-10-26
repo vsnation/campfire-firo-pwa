@@ -354,6 +354,16 @@ export class Wallet {
     return this.need().newTransparentAddress();
   }
 
+  /** This wallet's addresses for My addresses: {spark: [...], transparent: [...]} (backend myAddresses). */
+  myAddresses() {
+    return this.need().myAddresses();
+  }
+
+  /** Whose an address is: {kind, mine, diversifier?, chain?, index?} (backend whoseAddress). */
+  whoseAddress(text) {
+    return this.need().whoseAddress(String(text ?? ''));
+  }
+
   rescan(fromHeight = null) {
     return this.need().rescan(Number.isSafeInteger(fromHeight) ? { fromHeight } : {});
   }

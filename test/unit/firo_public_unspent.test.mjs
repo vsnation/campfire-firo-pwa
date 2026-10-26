@@ -553,3 +553,108 @@ test('M-2: a payment from an address the node will not list, dropped, then mined
   assert.equal(pub(w.backend).available, String(3n * COIN));
   await w.backend.close();
 });
+
+// My addresses (owner, 2026-10-26): the public list and whose an address is.
+test('My addresses: receive addresses handed out and paid ones, with what each holds; whose an address is, also past the derived ones', async () => {
+  const w = world();
+  fund(w.chain, A0.address, 3n * COIN, 20);
+  fund(w.chain, W.addresses[1].address, 2n * COIN, 20);
+  fund(w.chain, W.addresses[3].address, COIN / 2n, 20); // change chain, index 0
+  await w.backend.open({ mnemonic: W.mnemonic, birthdayHeight: w.chain.height });
+  await w.backend.waitForSync();
+  const book = (await w.backend.myAddresses()).transparent;
+  assert.deepEqual(
+    book.map((a) => [a.chain, a.index, a.current, a.payments, a.holds]),
+    [['receive', 0, false, 1, String(3n * COIN)], ['receive', 1, false, 1, String(2n * COIN)], ['receive', 2, true, 0, '0'], ['change', 0, false, 1, String(COIN / 2n)]],
+    'paid ones, and the one Receive shows; not the unpaid ones derived ahead',
+  );
+  assert.equal(book[0].address, A0.address);
+  assert.deepEqual(await w.backend.whoseAddress(A0.address), { kind: 'transparent', mine: true, chain: 'receive', index: 0 });
+  assert.deepEqual(await w.backend.whoseAddress(W.addresses[4].address), { kind: 'transparent', mine: true, chain: 'change', index: 1 });
+  assert.deepEqual(await w.backend.whoseAddress(OTHER.address), { kind: 'transparent', mine: false });
+  // Handed out by another wallet of the same words, past what this one derived: said to be this
+  // wallet's and followed from then on, so a payment to it counts, after a Rescan too (audit of 0.1.15, M1).
+  const keys = await FiroKeys.fromMnemonic(W.mnemonic, '', MAIN);
+  const derived = w.backend.transparent.addr.chains[0].derived;
+  const tooFar = keys.address(0, derived + 150).address;
+  assert.equal((await w.backend.whoseAddress(tooFar)).mine, false, 'only so far: 100 past the derived ones');
+  const far = keys.address(0, derived + 60).address;
+  assert.deepEqual(await w.backend.whoseAddress(far), { kind: 'transparent', mine: true, chain: 'receive', index: derived + 60 });
+  assert.notEqual(w.backend.transparent.ownEntryForScript(addressToScript(far, MAIN)), null, 'followed');
+  await w.backend.waitForSync();
+  w.chain.height++;
+  fund(w.chain, far, COIN, 1);
+  await w.mine();
+  await w.tell(far);
+  await w.backend.waitForSync();
+  const total = (b) => BigInt(pub(b).available) + BigInt(pub(b).pending);
+  assert.equal(total(w.backend), 3n * COIN + 2n * COIN + COIN / 2n + COIN, 'the payment to it counts');
+  await w.backend.rescan({});
+  await w.backend.waitForSync();
+  assert.notEqual(w.backend.transparent.ownEntryForScript(addressToScript(far, MAIN)), null, 'still followed after a Rescan');
+  assert.equal(total(w.backend), 3n * COIN + 2n * COIN + COIN / 2n + COIN, 'and still counted');
+  await w.backend.close();
+});
+
+// Audit of 0.1.15, N1: an own address pasted while a Rescan deletes the public records wrote the old
+// address records back after they were deleted, and the new wallet never asked for the deleted
+// histories (3 FIRO shown as 0). The old wallet writes nothing once Rescan starts; the new one follows.
+test('an own far address pasted during a Rescan: nothing is lost, and the new wallet follows it', async () => {
+  const mem = createMemoryStore();
+  let slow = false;
+  const store = { ...mem, del: async (k) => { if (slow) await new Promise((r) => setTimeout(r, 25)); return mem.del(k); } };
+  const w = world({ store });
+  fund(w.chain, A0.address, 3n * COIN, 6);
+  await w.backend.open({ mnemonic: W.mnemonic, birthdayHeight: w.chain.height - 10 });
+  await w.backend.waitForSync();
+  const total = (b) => BigInt(pub(b).available) + BigInt(pub(b).pending);
+  assert.equal(total(w.backend), 3n * COIN);
+  const keys = await FiroKeys.fromMnemonic(W.mnemonic, '', MAIN);
+  const index = w.backend.transparent.addr.chains[0].derived + 30;
+  const far = keys.address(0, index).address;
+  slow = true;
+  const r = w.backend.rescan({});
+  await new Promise((res) => setTimeout(res, 40)); // Rescan is deleting the old records
+  assert.deepEqual(await w.backend.whoseAddress(far), { kind: 'transparent', mine: true, chain: 'receive', index });
+  await r;
+  slow = false;
+  await w.backend.waitForSync();
+  await w.mine();
+  assert.equal(total(w.backend), 3n * COIN, 'nothing lost after the Rescan');
+  assert.notEqual(w.backend.transparent.ownEntryForScript(addressToScript(far, MAIN)), null, 'the new wallet follows it');
+  await w.backend.close();
+});
+
+// Audit of 0.1.15, R1: a payment written down while a Rescan replaced the public records was lost to
+// the new wallet (a resend could pay twice). Rescan and money actions now exclude each other, and the
+// new wallet reads again what the old one wrote while it loaded.
+test('Rescan and payments exclude each other; what the old wallet wrote while the new one loaded is kept', async () => {
+  const mem = createMemoryStore();
+  let slow = false;
+  const store = { ...mem, get: async (k) => { if (slow) await new Promise((r) => setTimeout(r, 5)); return mem.get(k); } };
+  const w = world({ store });
+  fund(w.chain, A0.address, 3n * COIN, 6);
+  await w.backend.open({ mnemonic: W.mnemonic, birthdayHeight: w.chain.height - 10 });
+  await w.backend.waitForSync();
+  // A payment being sent: no Rescan.
+  w.backend._inFlight++;
+  await assert.rejects(w.backend.rescan({}), (e) => e.code === 'in-flight');
+  w.backend._inFlight--;
+  // A Rescan under way: no payment, freeze or let-go; each says nothing was done.
+  slow = true;
+  const r = w.backend.rescan({});
+  await new Promise((res) => setTimeout(res, 10));
+  assert.equal(w.backend._rescanning, true);
+  await assert.rejects(w.backend.send({ from: 'public', to: [{ address: OTHER.address, amount: String(COIN) }] }), (e) => e.code === 'in-flight');
+  await assert.rejects(w.backend._freeze(`${'ab'.repeat(32)}:0`, true), (e) => e.code === 'in-flight');
+  await assert.rejects(w.backend.letGo('cd'.repeat(32)), (e) => e.code === 'in-flight');
+  // Something the old wallet writes while the new one loads (a sync's record, say) reaches the new one.
+  const old = w.backend.transparent;
+  await old.store.put('pending', { ['ef'.repeat(32)]: { txid: 'ef'.repeat(32), height: w.chain.height, unsure: true } });
+  await r;
+  slow = false;
+  assert.equal(w.backend._rescanning, false);
+  assert.notEqual(w.backend.transparent, old);
+  assert.ok(w.backend.transparent.pending.has('ef'.repeat(32)), 'the new wallet has it');
+  await w.backend.close();
+});
