@@ -61,14 +61,20 @@ export function matchesFilter(tx, f) {
   return side === 'privatize' || side === f;
 }
 
+/** Payments drawn at a time. */
+const PAGE = 100;
+
 export default function activity(app, params = {}) {
   const listBox = h('div');
   const filterBox = h('div', { class: 'segmented small', role: 'radiogroup', 'aria-label': t('Show') });
   let filter = 'all';
   let opened = false;
+  // A wallet with thousands of payments (a masternode's payouts) is drawn a page at a time: the list
+  // is drawn again at each change of the wallet's state.
+  let shown = PAGE;
 
   function renderFilter() {
-    put(filterBox, ...FILTERS.map(([id, label]) => h('button', { type: 'button', class: `seg${filter === id ? ' on' : ''}`, role: 'radio', 'aria-checked': String(filter === id), 'data-testid': `filter-${id}`, onclick: () => ((filter = id), renderFilter(), render(wallet.state)) }, t(label))));
+    put(filterBox, ...FILTERS.map(([id, label]) => h('button', { type: 'button', class: `seg${filter === id ? ' on' : ''}`, role: 'radio', 'aria-checked': String(filter === id), 'data-testid': `filter-${id}`, onclick: () => ((filter = id), (shown = PAGE), renderFilter(), render(wallet.state)) }, t(label))));
   }
 
   function render(s) {
@@ -77,7 +83,12 @@ export default function activity(app, params = {}) {
     put(
       listBox,
       txs.length
-        ? h('div', { class: 'card list', 'data-testid': 'activity-list' }, ...txs.map((tx) => txRow(app, tx, () => detail(tx.txid))))
+        ? h(
+            'div',
+            {},
+            h('div', { class: 'card list', 'data-testid': 'activity-list' }, ...txs.slice(0, shown).map((tx) => txRow(app, tx, () => detail(tx.txid)))),
+            txs.length > shown ? h('button', { type: 'button', class: 'btn btn-text', 'data-testid': 'activity-more', onclick: () => ((shown += PAGE), render(wallet.state)) }, t('Show more payments')) : null,
+          )
         : s.txs.length
           ? h('div', { class: 'card empty' }, icon('activity'), h('p', { text: t(NONE_OF[filter]) }))
           : h('div', { class: 'card empty', 'data-testid': 'activity-empty' }, icon('activity'), h('p', { text: known ? t('No payments yet.') : t('Payments show up here once the wallet is up to date.') }), primary(t('Receive FIRO'), () => app.go('receive'), { 'data-testid': 'activity-receive' })),

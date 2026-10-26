@@ -805,7 +805,7 @@ export class FiroBackend {
 
   _txList() {
     const tipH = this.tip?.height ?? 0;
-    const item = this.transparent ? transparentEntries({ net: this.net, records: this.transparent.txs, isOwnScript: (s) => this.transparent.isOwnScript(s), tipHeight: tipH, pending: this.transparent.pending }) : new Map();
+    const item = this.transparent ? transparentEntries({ net: this.net, records: this.transparent.txs, isOwnScript: (s) => this.transparent.isOwnScript(s), isBigScript: (s) => this.transparent.isBigScript(s), tipHeight: tipH, pending: this.transparent.pending }) : new Map();
     const coins = [...this.ownCoins.values()].map((c) => ({
       txid: c.txid,
       value: c.value,
@@ -890,6 +890,7 @@ export class FiroBackend {
         await this._proveReceipts().catch(() => {});
         await this._checkCollateral().catch(() => {});
         await this._followPending().catch(() => {});
+        await this._confirmSpentConflicts().catch(() => {});
       }
       // Lists unchecked (0.1.11 audit L1): sets an earlier version found not to add up are let go of
       // once, so their coins are found again in a set fetched anew, or not at all.
@@ -1386,6 +1387,67 @@ export class FiroBackend {
     return Boolean(r && PROVEN.has(r.proof));
   }
 
+  /**
+   * A conflict coin the node in use no longer lists is still spent by the next payment (U-1), in
+   * case that node holds the payment let go of. Once a second node does not list it either, it is
+   * spent for certain (that payment went out, or another wallet of these words spent it), and kept
+   * no longer: every payment would be refused (second audit, N-4).
+   */
+  async _confirmSpentConflicts() {
+    const item = this.transparent;
+    const tip = this.tip?.height ?? null;
+    if (!item || tip === null) return;
+    const coins = item.unlistedConflicts(tip);
+    if (!coins.length) return;
+    const shs = [...new Set(coins.map((c) => c.scripthash))];
+    const ids = [...new Set(coins.flatMap((c) => item.conflictPays(c.key).map((p) => p.txid)))];
+    // Each payment let go of, asked of both nodes (third audit, M-1: the node in use alone, hiding
+    // the payment it had sent itself, had the coin forgotten and the resend pay twice). Its bytes,
+    // null when the node has no such transaction; a node that does not answer throws.
+    const lookup = async (c, txid) => {
+      try {
+        return await c.getTransaction(txid);
+      } catch (e) {
+        if (e instanceof ElectrumError && e.code === 'server' && NO_SUCH_TX.test(e.message)) return null;
+        throw e;
+      }
+    };
+    const ask = async (c) => {
+      const lists = await Promise.all(shs.map((sh) => c.listUnspent(sh)));
+      const txs = await Promise.all(ids.map((txid) => lookup(c, txid)));
+      return { lists: new Map(shs.map((sh, i) => [sh, new Set(lists[i].map((u) => `${u.tx_hash}:${u.tx_pos}`))])), txs: new Map(ids.map((txid, i) => [txid, txs[i]])) };
+    };
+    // The person's own node is believed by its own word, for both (fourth audit, K-3).
+    const theirs = this.ownNode ? await ask(this.client) : await this._secondOpinion(ask);
+    for (const c of coins) {
+      if (theirs.lists.get(c.scripthash)?.has(c.key)) continue;
+      // Spent, as two nodes say. By a payment let go of, gone out after all? Then it is ours again,
+      // followed and shown as sent (no history names one from an address the node will not list, so
+      // the person would take it as lost and pay again). Every payment kept for the coin is looked
+      // for (fourth audit, K-1); the coin is forgotten once each is taken back or both nodes say
+      // they do not have it (then something else spent it).
+      let open = false;
+      for (const p of item.conflictPays(c.key)) {
+        let hex = theirs.txs.get(p.txid) ?? null;
+        if (!hex && !this.ownNode) {
+          try {
+            hex = await lookup(this.client, p.txid);
+          } catch {
+            open = true; // no answer: decided at a later sync
+            continue;
+          }
+        }
+        if (!hex) continue;
+        const held = item.txs.get(p.txid);
+        // Followed already, or in a history of ours: nothing to take back.
+        if (held && !held.dropped) continue;
+        if (!(await item.addPending({ txid: p.txid, hex, height: tip, to: p.to, toAll: p.toAll }).catch(() => false))) open = true;
+      }
+      if (!open) await item.forgetConflict(c.key);
+    }
+    this._emit();
+  }
+
   async _followPending() {
     const item = this.transparent;
     const tip = this.tip?.height ?? null;
@@ -1404,6 +1466,22 @@ export class FiroBackend {
         else if (p.unsure || p.dropped || p.noSecondSince != null || p.oneNode || p.letGo) await item.updatePending(txid, { unsure: undefined, dropped: undefined, noSecondSince: undefined, oneNode: undefined, letGo: undefined });
         changed = true;
         continue;
+      }
+      // From an address the node will not list (thousands of payments): no history will name it,
+      // so the node is asked for it and its block; then it is proven and settled like any other
+      // (U-2). One given up on (dropped, let go of) that the node has after all is followed again
+      // (third audit, M-2: mined, it still said it did not go through, and a resend paid twice). Not
+      // known to the node: as below, it may be dropped (second audit N-1).
+      if (item.spendsBig(txid)) {
+        const v = await this.client.getTransaction(txid, true).catch(() => null);
+        if (v?.hex && (p.dropped || p.letGo)) {
+          await item.updatePending(txid, { dropped: undefined, letGo: undefined, unsure: undefined, noSecondSince: undefined, oneNode: undefined });
+          changed = true;
+        }
+        if (v && Number.isSafeInteger(v.height) && v.height > 0 && (await item.placeBig(txid, v.height))) {
+          changed = true;
+          continue;
+        }
       }
       if (p.dropped) continue;
       if (typeof p.height !== 'number') {
@@ -3260,10 +3338,11 @@ export class FiroBackend {
     if (this.viewOnly || !this.transparent) throw err('NotYet', t('A view-only wallet cannot sign.'));
     const tip = this._needTip();
     if (!Array.isArray(inputs) || inputs.length === 0) throw err('insufficient', t('Choose at least one coin to spend.'));
-    const all = new Map(this.transparent.utxos(tip).map((u) => [`${u.txid}:${u.vout}`, u]));
+    // With the conflict coins the node no longer lists (audit of 0.1.14, U-1): spent below, never chosen.
+    const all = new Map(this.transparent.utxos(tip, { unlisted: true }).map((u) => [`${u.txid}:${u.vout}`, u]));
     const chosen = inputs.map((id) => {
       const u = all.get(String(id));
-      if (!u) throw err('insufficient', t('The coin {id} is not an unspent coin of this wallet.', { id }));
+      if (!u || u.unlisted) throw err('insufficient', t('The coin {id} is not an unspent coin of this wallet.', { id }));
       if (!u.spendable) throw err('insufficient', u.frozen ? t('The coin {id} is frozen.', { id }) : t('The coin {id} is not confirmed yet.', { id }));
       return u;
     });
@@ -3353,7 +3432,8 @@ export class FiroBackend {
 
   /** Throws 'insufficient' unless every coin `decoded` spends is an unspent, spendable coin of this wallet now. */
   _coinsStillFree(decoded) {
-    const free = new Map(this.transparent.utxos(this._needTip()).map((u) => [`${u.txid}:${u.vout}`, u]));
+    // A conflict coin the node no longer lists is spent on purpose (U-1): still free as far as we know.
+    const free = new Map(this.transparent.utxos(this._needTip(), { unlisted: true }).map((u) => [`${u.txid}:${u.vout}`, u]));
     for (const i of decoded.vin) {
       const u = free.get(`${i.txid}:${i.vout}`);
       if (!u || !u.spendable) throw err('insufficient', t('A coin this payment spends was used by another payment meanwhile, so it was not sent. Nothing left your wallet: try again.'));

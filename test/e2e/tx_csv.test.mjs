@@ -104,6 +104,29 @@ test('a history: every payment, newest first, memos quoted, the file read back',
   await both('csv-02-saved');
 });
 
+test('a long history (a masternode\'s payouts) is drawn 100 payments at a time, every one reachable', { timeout: 3 * 60000 }, async () => {
+  await page.evaluate(async () => {
+    for (let i = 0; i < 226; i++) window.__firoFake.credit({ to: 'public', amount: String(1000000 + i) });
+    window.__firoFake.mine();
+  });
+  await page.waitForFunction(() => window.__campfire.txs().length === 230, null, { timeout: 60000 });
+  await page.evaluate(() => window.__campfire.go('home'));
+  await page.evaluate(() => window.__campfire.go('activity'));
+  await waitScreen(page, 'activity');
+  const rows = () => page.locator(`${tid('activity-list')} .tx-row`).count();
+  assert.equal(await rows(), 100);
+  await page.locator(tid('activity-more')).scrollIntoViewIfNeeded();
+  await both('csv-03-more');
+  await page.click(tid('activity-more'));
+  assert.equal(await rows(), 200);
+  await page.click(tid('activity-more'));
+  assert.equal(await rows(), 230);
+  assert.equal(await page.locator(tid('activity-more')).count(), 0, 'no button once all are shown');
+  // A filter starts again at the first page.
+  await page.click(tid('filter-public'));
+  assert.equal(await rows(), 100);
+});
+
 test('privacy: nothing leaves the device; no host but the origin (the stand-in reaches no server); no CSP violation; no page error', async () => {
   assert.deepEqual(foreignHosts(rec, srv.url), []);
   assert.deepEqual(await page.evaluate(() => window.__cspViolations), []);

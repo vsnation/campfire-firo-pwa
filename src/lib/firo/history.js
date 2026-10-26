@@ -19,6 +19,7 @@
 // confirmations 0 until it is.
 
 import { NETWORKS } from './params.js';
+import { addressToScript } from './address.js';
 
 /**
  * A public transaction paying this wallet counts (confirmed, spendable) only once proven (audit
@@ -39,8 +40,17 @@ const MASTERNODE_LARGEST_FROM = { main: 486221, test: 84459 };
  * pending: Map txid → {unsure?, oneNode?, letGo?}: this wallet's own payments not in a block yet (transparent.js).
  * Returns Map txid → entry (BigInt amounts).
  */
-export function transparentEntries({ net = NETWORKS.main, records, isOwnScript, tipHeight, pending = new Map() }) {
+export function transparentEntries({ net = NETWORKS.main, records, isOwnScript, isBigScript = () => false, tipHeight, pending = new Map() }) {
   const out = new Map();
+  // Only an address the node will not list (second audit, N-6: any address let a lying node show a
+  // payment received as one sent to ourselves).
+  const ownAddress = (a) => {
+    try {
+      return isBigScript(addressToScript(a, net));
+    } catch {
+      return false;
+    }
+  };
   for (const [txid, r] of records) {
     const d = r.decoded;
     let ownIn = 0n;
@@ -53,7 +63,10 @@ export function transparentEntries({ net = NETWORKS.main, records, isOwnScript, 
       const po = parent?.decoded.vout[i.vout];
       const fallback = r.inputs?.[n];
       let value = po ? po.value : fallback?.valueSat != null ? BigInt(fallback.valueSat) : null;
-      const mine = po ? isOwnScript(po.script) : false;
+      // A coin whose own transaction is not held (spent from an address the node will not list, of
+      // thousands of payments): ours by the node's word for its address (audit of 0.1.14, U-3: a
+      // payment with change showed as money received).
+      const mine = po ? isOwnScript(po.script) : Boolean(fallback?.address && ownAddress(fallback.address));
       if (value === null) inputsKnown = false;
       else allIn += value;
       if (mine) ownIn += value ?? 0n;

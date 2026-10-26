@@ -4159,16 +4159,6 @@
       "lib/firo/electrum.js"
     ]
   },
-  "listunspent: expected a list.": {
-    "where": [
-      "lib/firo/electrum.js"
-    ]
-  },
-  "listunspent: bad entry.": {
-    "where": [
-      "lib/firo/electrum.js"
-    ]
-  },
   "Not a txid.": {
     "where": [
       "lib/firo/electrum.js"
@@ -4265,6 +4255,16 @@
     ]
   },
   "get_history: bad entry.": {
+    "where": [
+      "lib/firo/electrum.js"
+    ]
+  },
+  "listunspent: expected a list.": {
+    "where": [
+      "lib/firo/electrum.js"
+    ]
+  },
+  "listunspent: bad entry.": {
     "where": [
       "lib/firo/electrum.js"
     ]
@@ -8176,6 +8176,11 @@
     ]
   },
   "Show": {
+    "where": [
+      "screens/activity.js"
+    ]
+  },
+  "Show more payments": {
     "where": [
       "screens/activity.js"
     ]

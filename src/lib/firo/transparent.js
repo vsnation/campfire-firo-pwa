@@ -4,9 +4,13 @@
 // rates and coin selection, and building + signing a send.
 //
 // Store keys (under the wallet's store):
-//   t/addr        {chains: {0: {derived, lastUsed, issued}, 1: {...}}, status: {scripthash: status}, statusV}
-//                 (a status only once its history is in t/hist; statusV 2 since 0.1.13)
+//   t/addr        {chains: {0: {derived, lastUsed, issued}, 1: {...}}, status: {scripthash: status}, statusV,
+//                 big?: {scripthash: true}: addresses whose history the node will not list (too long)}
+//                 (a status only once its history is in t/hist and its coins in t/unspent; statusV 3
+//                 since 0.1.14)
 //   t/hist        {scripthash: [{tx_hash, height}]}
+//   t/unspent     {scripthash: [{tx_hash, tx_pos, height, value}]}: the node's unspent coins of each
+//                 address (listunspent), asked together with its history (see utxos())
 //   t/tx/<txid>   {hex, height, time, inputs, proof?, failedAt?, disagreed?}   (inputs: the server's
 //                 verbose vin values, a fallback; proof: the Merkle proof's verdict, see utxos())
 //   t/frozen      ['txid:vout', …]
@@ -29,6 +33,7 @@ import { CHAIN_RECEIVE, CHAIN_CHANGE, GAP_LIMIT } from './params.js';
 import { decodeTx, buildSignedTransaction, estimateSize, feeForSize, SEQUENCE_LOCKTIME } from './tx.js';
 import { classifyOutputScript } from './script.js';
 import { scriptHash, addressToScript } from './address.js';
+import { checkUnspent } from './electrum.js';
 import { bytesToHex } from './bytes.js';
 import { wipe } from './keys.js';
 import { PROVEN } from './history.js';
@@ -42,10 +47,19 @@ export class TransparentError extends Error {
   }
 }
 
-const KEY = Object.freeze({ addr: 't/addr', hist: 't/hist', frozen: 't/frozen', pending: 'pending', conflicts: 't/conflicts', mnSpendable: 't/mnSpendable' });
+const KEY = Object.freeze({ addr: 't/addr', hist: 't/hist', unspent: 't/unspent', frozen: 't/frozen', pending: 'pending', conflicts: 't/conflicts', mnSpendable: 't/mnSpendable' });
 
 /** A masternode's collateral: exactly 1,000 FIRO in one coin. */
 export const MN_COLLATERAL = 1000n * 100000000n;
+
+/**
+ * An address with more payments than this is counted by its unspent coins alone (see _sync): its
+ * history is not asked for (BIG_COINS coins or more) or not kept (longer than BIG_HISTORY). Measured
+ * 2026-10-25: one of Firo's nodes answered 396,292 entries for a masternode's payout address of
+ * 2,319 coins, which the wallet would then have fetched one by one.
+ */
+export const BIG_COINS = 500;
+export const BIG_HISTORY = 1000;
 
 /** How long the coins of a payment let go of are reused first: long past any relay or reorganisation (P7, X3). */
 export const CONFLICT_KEEP_MS = 48 * 3600 * 1000;
@@ -67,13 +81,18 @@ export class TransparentWallet {
     this.txBatch = txBatch;
     this.addr = { chains: chainsInit(), status: {} };
     this.hist = {};
+    this.unspent = {}; // scripthash -> the node's unspent coins of that address (t/unspent)
+    this._storedSig = { hist: new Map(), unspent: new Map() }; // see _stored
     this.txs = new Map(); // txid → record (with .decoded)
     this.frozen = new Set();
     this.byScripthash = new Map(); // scripthash → address entry
     this.pending = new Map(); // txid → own payment not in a block yet (see `pending` above)
-    // outpoint → {txid, at}: coins of a payment of ours that was let go of (refused and forgotten, or
-    // dropped) while it may still have reached the network: the next payment spends one of them, so
-    // the two conflict and at most one is ever mined (audit of 0.1.8, X3 / P7).
+    // outpoint → {pays: [{txid, at, to?, toAll?}]}: coins of payments of ours that were let go of
+    // (refused and forgotten, or dropped) while they may still have reached the network: the next
+    // payment spends one of them, so the two conflict and at most one is ever mined (audit of 0.1.8,
+    // X3 / P7). Every such payment of the coin is kept, each for CONFLICT_KEEP_MS (fourth audit of
+    // 0.1.14, K-1: with the first one alone, a retry that went out was never looked for). Up to 0.1.13
+    // an entry was {txid, at}, read as one payment (conflictPays).
     this.conflicts = new Map();
     // Coins of exactly 1,000 FIRO, as Campfire does (audit P3): locked as a masternode's collateral
     // unless the network says they are not one ('no'), or the person unlocked one (mnSpendable).
@@ -85,11 +104,14 @@ export class TransparentWallet {
   // ------------------------------------------------------------ persistence
 
   async load() {
-    this.addr = (await this.store.get(KEY.addr)) ?? { chains: chainsInit(), status: {}, statusV: 2 };
-    // Up to 0.1.12 a status could be written down with its history missing (see _sync): every
-    // address's history is fetched again, once.
-    if (this.addr.statusV !== 2) this.addr = { ...this.addr, status: {}, statusV: 2 };
+    this.addr = (await this.store.get(KEY.addr)) ?? { chains: chainsInit(), status: {}, statusV: 3 };
+    // Up to 0.1.12 a status could be written down with its history missing (see _sync), and up to
+    // 0.1.13 no address had the node's unspent coins (t/unspent): every address is asked again, once.
+    if (this.addr.statusV !== 3) this.addr = { ...this.addr, status: {}, statusV: 3 };
     this.hist = (await this.store.get(KEY.hist)) ?? {};
+    this.unspent = (await this.store.get(KEY.unspent)) ?? {};
+    this._stored('hist');
+    this._stored('unspent');
     this.frozen = new Set((await this.store.get(KEY.frozen)) ?? []);
     for (const k of await this.store.keys('t/tx/')) {
       const rec = await this.store.get(k);
@@ -197,7 +219,7 @@ export class TransparentWallet {
    * Keeps the coins `hex` spends as conflict coins (see this.conflicts): its payment is let go of while
    * it may still be on the network. A write that fails leaves them in memory: the safe side.
    */
-  async keepConflicts(txid, hex) {
+  async keepConflicts(txid, hex, { to, toAll } = {}) {
     let decoded;
     try {
       decoded = decodeTx(hex, this.net);
@@ -205,27 +227,64 @@ export class TransparentWallet {
       return;
     }
     const at = Date.now();
-    for (const i of decoded.vin) if (i.txid) this.conflicts.set(`${i.txid}:${i.vout}`, { txid, at });
+    // Whom it paid, should it be taken back (third audit, M-3).
+    const who = { ...(typeof to === 'string' && to ? { to } : {}), ...(Array.isArray(toAll) && toAll.length ? { toAll } : {}) };
+    for (const i of decoded.vin) {
+      if (!i.txid) continue;
+      const k = `${i.txid}:${i.vout}`;
+      // The same payment again within its time keeps the time it was first kept (second audit, N-4:
+      // each refusal kept it 48 hours more); one expired is kept anew (fourth audit, K-2).
+      const pays = this.conflictPays(k, at);
+      if (!pays.some((p) => p.txid === txid)) pays.push({ txid, at, ...who });
+      this.conflicts.set(k, conflictEntry(pays));
+    }
     await this._saveConflicts().catch(() => {});
+  }
+
+  /** The payments let go of that coin `key` is kept for, those still within CONFLICT_KEEP_MS. */
+  conflictPays(key, now = Date.now()) {
+    const v = this.conflicts.get(key);
+    const pays = Array.isArray(v?.pays) ? v.pays : v?.txid ? [{ txid: v.txid, at: v.at, ...(v.to ? { to: v.to } : {}), ...(v.toAll ? { toAll: v.toAll } : {}) }] : [];
+    return pays.filter((p) => p && typeof p.txid === 'string' && now - (p.at ?? 0) < CONFLICT_KEEP_MS);
   }
 
   /** The conflict coins still kept (not older than CONFLICT_KEEP_MS): outpoint keys. */
   conflictCoins(now = Date.now()) {
     const out = new Set();
-    for (const [k, v] of this.conflicts) if (now - (v?.at ?? 0) < CONFLICT_KEEP_MS) out.add(k);
+    for (const k of this.conflicts.keys()) if (this.conflictPays(k, now).length) out.add(k);
     return out;
+  }
+
+  /**
+   * Conflict coins the node in use no longer lists, with their addresses: asked of a second node
+   * (see backend._confirmSpentConflicts).
+   */
+  unlistedConflicts(tipHeight) {
+    return this.utxos(tipHeight, { unlisted: true })
+      .filter((u) => u.unlisted)
+      .map((u) => ({ key: `${u.txid}:${u.vout}`, scripthash: scriptHash(u.script) }));
+  }
+
+  /** A conflict coin two nodes agree is spent: kept no longer (N-4). */
+  async forgetConflict(key) {
+    if (!this.conflicts.delete(key)) return;
+    await this._saveConflicts().catch(() => {});
   }
 
   async _saveConflicts() {
     const now = Date.now();
-    for (const [k, v] of this.conflicts) if (now - (v?.at ?? 0) >= CONFLICT_KEEP_MS) this.conflicts.delete(k);
+    for (const k of [...this.conflicts.keys()]) {
+      const pays = this.conflictPays(k, now);
+      if (pays.length) this.conflicts.set(k, conflictEntry(pays));
+      else this.conflicts.delete(k);
+    }
     return (await this.store.put(KEY.conflicts, Object.fromEntries(this.conflicts))) !== false;
   }
 
   async removePending(txid) {
     const p = this.pending.get(txid);
     // Let go of while it may have reached the network: its coins are spent first by the next payment.
-    if (p?.hex) await this.keepConflicts(txid, p.hex);
+    if (p?.hex) await this.keepConflicts(txid, p.hex, p);
     this.pending.delete(txid);
     if (!this.historyHeights().has(txid)) {
       this.txs.delete(txid);
@@ -257,7 +316,7 @@ export class TransparentWallet {
     }
     // Dropped: its coins are free again, and spent first by the next payment (P7: a resend with other
     // coins paid twice once the original went out after all).
-    if (patch.dropped && p.hex) await this.keepConflicts(txid, p.hex);
+    if (patch.dropped && p.hex) await this.keepConflicts(txid, p.hex, p);
     return this._savePending();
   }
 
@@ -278,6 +337,12 @@ export class TransparentWallet {
     return this.byScripthash.has(scriptHash(script));
   }
 
+  /** Whether `script` is of one of our addresses the node will not list (see BIG_COINS). */
+  isBigScript(script) {
+    const sh = scriptHash(script);
+    return this.byScripthash.has(sh) && Boolean(this.addr.big?.[sh]);
+  }
+
   ownEntryForScript(script) {
     return this.byScripthash.get(scriptHash(script)) ?? null;
   }
@@ -286,7 +351,7 @@ export class TransparentWallet {
     const c = this.addr.chains[chain];
     for (let i = 0; i < c.derived; i++) {
       const e = this.keys.address(chain, i);
-      if (!(this.hist[e.scripthash]?.length > 0)) return e;
+      if (!(this.hist[e.scripthash]?.length > 0) && !this.addr.big?.[e.scripthash]) return e;
     }
     return this._entry(chain, c.derived);
   }
@@ -370,6 +435,14 @@ export class TransparentWallet {
         );
         for (const e of entries) {
           const st = statuses[e.scripthash] ?? null;
+          // Too many payments for the node to give even a status (see below): used, and asked for
+          // its coins at every sync, as no notification will tell of a change.
+          if (isTooLarge(st)) {
+            c.lastUsed = Math.max(c.lastUsed, e.index);
+            this.addr.big = { ...this.addr.big, [e.scripthash]: true };
+            fresh.set(e.scripthash, undefined);
+            continue;
+          }
           if (st instanceof Error) {
             failed++;
             continue;
@@ -385,23 +458,134 @@ export class TransparentWallet {
     const asked = [...fresh.keys()];
     onProgress?.({ done: 0, total: asked.length });
     if (asked.length) {
-      const res = await this.client.batch(asked.map((sh) => ['blockchain.scripthash.get_history', [sh]]));
-      const got = asked.filter((sh, i) => {
-        if (res[i] instanceof Error || !Array.isArray(res[i])) {
+      // Each address's unspent coins, then its history: both answers or neither. An address with
+      // more payments than a node will list (ElectrumX: "history too large", measured 2026-10-25 on
+      // three of Firo's four nodes for addresses of thousands of payments, as a masternode's payout
+      // address; the fourth drops the connection) is counted by its coins alone, as Campfire does.
+      const ures = await this.client.batch(asked.map((sh) => ['blockchain.scripthash.listunspent', [sh]]));
+      const coinsOf = new Map(asked.map((sh, i) => [sh, unspentOf(ures[i])]));
+      let dirty = false;
+      const histAsked = asked.filter((sh) => coinsOf.get(sh) && !this._big(sh, coinsOf.get(sh)));
+      const hres = await this.client.batch(histAsked.map((sh) => ['blockchain.scripthash.get_history', [sh]]));
+      const histOf = new Map(histAsked.map((sh, i) => [sh, hres[i]]));
+      const got = asked.filter((sh) => {
+        const coins = coinsOf.get(sh);
+        let h = histOf.get(sh);
+        if (coins && (this._big(sh, coins) || isTooLarge(h) || (Array.isArray(h) && h.length > BIG_HISTORY))) {
+          this.addr.big = { ...this.addr.big, [sh]: true };
+          h = this._bigHistory(sh, coins);
+        }
+        if (!coins || h instanceof Error || !Array.isArray(h)) {
           failed++;
           return false;
         }
-        this.hist[sh] = res[i];
+        this.hist[sh] = h;
+        this.unspent[sh] = coins;
         return true;
       });
-      if (got.length && (await this.store.put(KEY.hist, this.hist)) !== false) {
+      if (got.some((sh) => this._unwritten(sh))) dirty = true;
+      // Nothing new (an address the node will not list, asked at every block, unchanged): not
+      // written again (U-5).
+      if (got.length && !dirty) {
+        let statusMoved = false;
+        for (const sh of got) if (fresh.get(sh) !== undefined && this.addr.status[sh] !== fresh.get(sh)) ((this.addr.status[sh] = fresh.get(sh)), (statusMoved = true));
+        if (statusMoved) await this._saveAddr();
+      } else if (got.length && (await this._putLists())) {
         changed = true;
-        for (const sh of got) this.addr.status[sh] = fresh.get(sh);
+        for (const sh of got) {
+          if (fresh.get(sh) === undefined) delete this.addr.status[sh];
+          else this.addr.status[sh] = fresh.get(sh);
+        }
         await this._saveAddr();
       }
     }
     failed += await this._fetchTxs(onProgress);
     return { changed, failed };
+  }
+
+  /**
+   * The history of an address the node will not list, as far as this wallet can tell it: the
+   * transactions of its unspent coins (at the node's heights now), and those it named before that
+   * are in a block and still held (audit of 0.1.14, U-3: the receipts its spent coins came from, so
+   * Activity knows a payment from them as ours; and our own payments from it, placed by placeBig).
+   * Never one not in a block (second audit, N-1/N-2: a payment lost before a block, ours or a
+   * stranger's, stayed there for good).
+   */
+  _bigHistory(sh, coins) {
+    const m = new Map();
+    for (const h of this.hist[sh] ?? []) if (h.height > 0 && this.txs.has(h.tx_hash)) m.set(h.tx_hash, h.height);
+    for (const u of coins) m.set(u.tx_hash, u.height);
+    return [...m].map(([tx_hash, height]) => ({ tx_hash, height }));
+  }
+
+  /** The addresses the node will not list (big) whose coins transaction `txid` spends. */
+  _bigSpentBy(txid) {
+    const r = this.txs.get(txid);
+    if (!r || !this.addr.big) return [];
+    const out = new Set();
+    for (const i of r.decoded.vin) {
+      const o = i.txid ? this.txs.get(i.txid)?.decoded.vout[i.vout] : null;
+      const sh = o ? scriptHash(o.script) : null;
+      if (sh && this.addr.big[sh]) out.add(sh);
+    }
+    return [...out];
+  }
+
+  /** Whether `txid` (a payment of ours) spends a coin of an address the node will not list. */
+  spendsBig(txid) {
+    return this._bigSpentBy(txid).length > 0;
+  }
+
+  /**
+   * A payment of ours from an address the node will not list, in a block at `height` (the node's
+   * word, as for any history): written into that address's history, so it is proven, settled and
+   * kept like any other (audit of 0.1.14, U-2: no history named it, so it was never settled).
+   * Resolves whether it was written.
+   */
+  async placeBig(txid, height) {
+    return this._serial(async () => {
+      const r = this.txs.get(txid);
+      const where = this._bigSpentBy(txid);
+      if (!r || !(height > 0) || !where.length) return false;
+      for (const sh of where) this.hist[sh] = [...(this.hist[sh] ?? []).filter((h) => h.tx_hash !== txid), { tx_hash: txid, height }];
+      if ((await this.store.put(KEY.hist, this.hist)) === false) return false;
+      this._stored('hist');
+      if (r.height !== height) {
+        r.height = height;
+        delete r.proof;
+        delete r.failedAt;
+        delete r.disagreed;
+        await this.putTx(txid, r);
+      }
+      return true;
+    });
+  }
+
+  /**
+   * What the store holds of t/hist or t/unspent, address by address, as last written whole (second
+   * audit, N-5: "nothing new" decided from memory wrote a status after a history write had failed).
+   */
+  _stored(key) {
+    const map = key === 'hist' ? this.hist : this.unspent;
+    this._storedSig[key] = new Map(Object.entries(map).map(([sh, v]) => [sh, JSON.stringify(v)]));
+  }
+
+  _unwritten(sh) {
+    return JSON.stringify(this.hist[sh]) !== this._storedSig.hist.get(sh) || JSON.stringify(this.unspent[sh]) !== this._storedSig.unspent.get(sh);
+  }
+
+  /** Writes t/hist and t/unspent whole; resolves whether both were taken. */
+  async _putLists() {
+    if ((await this.store.put(KEY.hist, this.hist)) === false) return false;
+    this._stored('hist');
+    if ((await this.store.put(KEY.unspent, this.unspent)) === false) return false;
+    this._stored('unspent');
+    return true;
+  }
+
+  /** Whether address `sh` is one counted by its coins alone (see BIG_COINS). */
+  _big(sh, coins) {
+    return Boolean(this.addr.big?.[sh]) || coins.length >= BIG_COINS;
   }
 
   /** A status notification for one of our script hashes. Returns true if anything changed. */
@@ -413,10 +597,23 @@ export class TransparentWallet {
     const e = this.byScripthash.get(sh);
     if (!e) return false;
     if ((this.addr.status[sh] ?? null) === (status ?? null)) return false;
-    const hist = await this.client.getHistory(sh);
+    const coins = await this.client.listUnspent(sh);
+    let hist;
+    try {
+      hist = this._big(sh, coins) ? null : await this.client.getHistory(sh);
+    } catch (err) {
+      if (!isTooLarge(err)) throw err;
+    }
+    if (hist && hist.length > BIG_HISTORY) hist = null;
+    // Too many payments for the node to list (see _sync): counted by its coins alone.
+    if (!hist) {
+      this.addr.big = { ...this.addr.big, [sh]: true };
+      hist = this._bigHistory(sh, coins);
+    }
     this.hist[sh] = hist;
-    // The history first, the status once it is written (as in _sync).
-    if ((await this.store.put(KEY.hist, this.hist)) === false) return false;
+    this.unspent[sh] = coins;
+    // The history and the coins first, the status once they are written (as in _sync).
+    if (!(await this._putLists())) return false;
     this.addr.status[sh] = status ?? null;
     const c = this.addr.chains[e.chain];
     const paid = [];
@@ -443,10 +640,15 @@ export class TransparentWallet {
     return true;
   }
 
-  /** History entries across all addresses: txid → height (the server's; ≤ 0 = mempool). */
+  /**
+   * History entries across all addresses: txid → height (the server's; ≤ 0 = mempool). With the
+   * transactions of the node's unspent coins its histories do not name, so that every coin the
+   * node lists is fetched (and proven) like the others.
+   */
   historyHeights() {
     const m = new Map();
     for (const list of Object.values(this.hist)) for (const h of list) m.set(h.tx_hash, h.height);
+    for (const list of Object.values(this.unspent)) for (const u of list) if (!m.has(u.tx_hash)) m.set(u.tx_hash, u.height);
     return m;
   }
 
@@ -527,15 +729,27 @@ export class TransparentWallet {
   // ------------------------------------------------------------ coins and balance
 
   /**
-   * Unspent outputs to our addresses, from our own history: outputs to us
-   * that no transaction in that history spends. Spendable (and counted as confirmed) only when its
-   * transaction is proven to be in its block (audit D-01, FE-1: a node's word alone let an invented
-   * payment be counted and spent); until then confirmations is 0 and `unproven` says why.
+   * Unspent outputs to our addresses: outputs to us that no transaction we hold spends and that the
+   * node lists as unspent for that address (listunspent, as Campfire counts its public coins; owner,
+   * 2026-10-25: worked out from the history alone, the public balance was not the node's). Spendable
+   * (and counted as confirmed) only when its transaction is proven to be in its block (audit D-01,
+   * FE-1: a node's word alone let an invented payment be counted and spent); until then
+   * confirmations is 0 and `unproven` says why.
    */
-  utxos(tipHeight) {
+  utxos(tipHeight, { unlisted = false } = {}) {
     const spent = new Set();
     // A payment of ours the network does not have (dropped) spends nothing and pays nothing.
     for (const r of this.txs.values()) if (!r.dropped) for (const i of r.decoded.vin) if (i.txid) spent.add(`${i.txid}:${i.vout}`);
+    // An address the node has listed: a coin it does not list is spent, whether or not the
+    // transaction that spent it is one we hold. Not a payment of ours still followed (pending): its
+    // coins are listed only once the node has told the address's new status.
+    const listed = new Map();
+    for (const [sh, list] of Object.entries(this.unspent)) listed.set(sh, new Set(list.map((u) => `${u.tx_hash}:${u.tx_pos}`)));
+    // With `unlisted`: a coin of a payment let go of (a conflict coin) is kept although the node does
+    // not list it, flagged `unlisted`: never in the balance or chosen as such, but still spent by the
+    // next payment, so that it and the one let go of cannot both be mined (audit of 0.1.14, U-1: a
+    // node that kept the let-go payment and stopped listing its coin had the resend pay twice).
+    const keep = unlisted ? this.conflictCoins() : null;
     const out = [];
     for (const [txid, r] of this.txs) {
       if (r.dropped) continue;
@@ -543,6 +757,8 @@ export class TransparentWallet {
         if (o.type !== 'p2pkh') continue;
         const e = this.ownEntryForScript(o.script);
         if (!e || spent.has(`${txid}:${o.n}`)) continue;
+        const gone = !this.pending.has(txid) && listed.get(e.scripthash)?.has(`${txid}:${o.n}`) === false;
+        if (gone && !keep?.has(`${txid}:${o.n}`)) continue;
         const height = r.height > 0 ? r.height : null;
         const proven = PROVEN.has(r.proof);
         const confirmations = height && tipHeight && proven ? Math.max(0, tipHeight - height + 1) : 0;
@@ -566,6 +782,7 @@ export class TransparentWallet {
           coinbase,
           frozen,
           ...(collateral ? { collateral: true } : {}),
+          ...(gone ? { unlisted: true } : {}),
           spendable: mature && confirmations >= this.minConfirmations && !frozen,
         });
       }
@@ -630,10 +847,12 @@ export class TransparentWallet {
    * With `subtractFee` the fee comes out of the first paying output.
    */
   planSend({ outputs, feePerKb, tipHeight, subtractFee = false, sendAll = false, utxos = null }) {
-    const coins = (utxos ?? this.utxos(tipHeight)).filter((u) => u.spendable);
+    const coins = (utxos ?? this.utxos(tipHeight, { unlisted: true })).filter((u) => u.spendable);
     const keep = this.conflictCoins();
+    // A conflict coin the node no longer lists is spent only as one (U-1), never chosen for its value,
+    // except by Send all, which spends every coin it may.
     return selectCoins({
-      utxos: coins,
+      utxos: sendAll ? coins : coins.filter((u) => !u.unlisted),
       mustInclude: coins.filter((u) => keep.has(`${u.txid}:${u.vout}`)),
       outputs,
       feePerKb,
@@ -658,6 +877,34 @@ export class TransparentWallet {
     } finally {
       wipe(...keys);
     }
+  }
+}
+
+/**
+ * A conflict coin's stored entry: its payments, and the newest one's txid and time at the top, as
+ * 0.1.13 read an entry ({txid, at}), so that going back to it still keeps the coin (fifth audit, J-1).
+ */
+function conflictEntry(pays) {
+  const newest = pays.reduce((a, b) => ((b.at ?? 0) > (a.at ?? 0) ? b : a));
+  return { txid: newest.txid, at: newest.at, pays };
+}
+
+/**
+ * A node's refusal to list an address's history because it is too long (ElectrumX "history too
+ * large"). Not "excessive resource usage": that is the node's limit on one connection's work, asked
+ * again later like any failure (audit of 0.1.14, U-4: it marked an ordinary address for good).
+ */
+function isTooLarge(e) {
+  return e instanceof Error && /history too large/i.test(e.message);
+}
+
+/** A listunspent answer in a batch: the coins, or null when it is an error or not one. */
+function unspentOf(r) {
+  if (r instanceof Error) return null;
+  try {
+    return checkUnspent(r);
+  } catch {
+    return null;
   }
 }
 
@@ -722,8 +969,8 @@ export function selectCoins({ utxos, outputs, feePerKb, changeScript, dust = 100
   // them: then the two conflict, and at most one is ever mined (P7, X3). The largest such coin, then
   // the others largest first.
   if (mustInclude.length) {
-    const keys = new Set(utxos.map((u) => `${u.txid}:${u.vout}`));
-    const first = mustInclude.filter((u) => keys.has(`${u.txid}:${u.vout}`)).sort((a, b) => (a.value < b.value ? 1 : a.value > b.value ? -1 : 0))[0];
+    // A coin of `mustInclude` need not be among `utxos` (one the node no longer lists, U-1).
+    const first = mustInclude.slice().sort((a, b) => (a.value < b.value ? 1 : a.value > b.value ? -1 : 0))[0];
     if (first) {
       const picked = [first];
       const r0 = finish(picked);

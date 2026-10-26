@@ -177,6 +177,26 @@ export class FakeChain {
     return this.height;
   }
 
+  /** As ElectrumX: the outputs to `sh` of its history that no transaction in any history spends. */
+  unspent(sh) {
+    const named = new Set();
+    for (const h of this.history.values()) for (const e of h) named.add(e.tx_hash);
+    const spent = new Set();
+    for (const id of named) {
+      const t = this.txs.get(id);
+      if (t) for (const i of decodeTx(t.hex).vin) if (i.txid) spent.add(`${i.txid}:${i.vout}`);
+    }
+    const out = [];
+    for (const e of this.history.get(sh) ?? []) {
+      const t = this.txs.get(e.tx_hash);
+      if (!t) continue;
+      for (const o of decodeTx(t.hex).vout) {
+        if (scriptHash(o.script) === sh && !spent.has(`${e.tx_hash}:${o.n}`)) out.push({ tx_hash: e.tx_hash, tx_pos: o.n, height: e.height > 0 ? e.height : 0, value: Number(o.value) });
+      }
+    }
+    return out;
+  }
+
   status(sh) {
     const h = this.history.get(sh);
     if (!h || !h.length) return null;
@@ -216,6 +236,7 @@ export class FakeChain {
       },
       'blockchain.scripthash.subscribe': ([sh]) => this.status(sh),
       'blockchain.scripthash.get_history': ([sh]) => this.history.get(sh) ?? [],
+      'blockchain.scripthash.listunspent': ([sh]) => this.unspent(sh),
       'blockchain.transaction.get': ([txid, verbose]) => {
         const t = this.txs.get(txid);
         const sp = !t && verbose ? this.sparkTxs.get(txid) : null;

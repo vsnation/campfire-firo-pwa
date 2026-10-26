@@ -144,7 +144,7 @@ test('a wallet left by 0.1.12 with a status and no history behind it heals once 
   await again.backend.open({ mnemonic: W.mnemonic, birthdayHeight: w.chain.height });
   await again.backend.waitForSync();
   assert.equal(pub(again.backend).available, String(5n * COIN));
-  assert.equal((await w.store.get('w/t/addr')).statusV, 2);
+  assert.equal((await w.store.get('w/t/addr')).statusV, 3);
   await again.backend.close();
 });
 
@@ -205,9 +205,9 @@ test('an address the node refuses for good stops nothing else: the other payment
   await w.backend.waitForSync();
   assert.equal(pub(w.backend).available, String(4n * COIN));
   const shBig = scriptHash(addressToScript(W.addresses[1].address, MAIN));
-  // ElectrumX answers 'history too large' for an address with very many payments.
+  // A node that times out on one address's history: the others are brought up to date.
   fund(w.chain, W.addresses[1].address, 1n * COIN, 1);
-  w.fail = (m, p) => (m === 'blockchain.scripthash.get_history' || m === 'blockchain.scripthash.subscribe') && p[0] === shBig && 'history too large';
+  w.fail = (m, p) => (m === 'blockchain.scripthash.get_history' || m === 'blockchain.scripthash.subscribe') && p[0] === shBig;
   fund(w.chain, W.addresses[0].address, 2n * COIN, 1);
   await w.mine();
   await w.mine();
