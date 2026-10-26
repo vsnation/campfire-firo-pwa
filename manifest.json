@@ -1,6 +1,6 @@
 {
  "app": "campfire-firo-pwa",
- "version": "0.1.13",
+ "version": "0.1.14",
  "files": [
   {
    "path": "app.js",
@@ -44,53 +44,53 @@
   },
   {
    "path": "i18n/de.json",
-   "sha256": "4bee73c18f5590d40b2638bfec398eb4dfe545840b926bfd0adbe7d33af5e4df",
-   "size": 363800
+   "sha256": "62db32610e4295bc9515c6328fcd9c5ebb217432aaaf2fb144ee8b8b49513cc5",
+   "size": 363850
   },
   {
    "path": "i18n/es.json",
-   "sha256": "97a1830a98918e5168382dff9daba0aacf4fc3b0fdfca4ed0384d4f49c77d727",
-   "size": 355356
+   "sha256": "ec19d2ecae2531b6927261494a3472bc82c615ad59759877cd06a22dce86a8c8",
+   "size": 355398
   },
   {
    "path": "i18n/fr.json",
-   "sha256": "21c0dbb0e97f0c7b308bb1eea9fd01b7c26a27cdeab68bc8b4884e5a03f6b4b7",
-   "size": 368446
+   "sha256": "6a1454572eba5f868aeef6b6906aeb23b5575e15120bbe21970c152d3a5f6fa4",
+   "size": 368496
   },
   {
    "path": "i18n/ja.json",
-   "sha256": "dbbc3b384a6eb8e3711ff7b48c242f778350a877407b64b0812f4e3603f5e5c3",
-   "size": 411428
+   "sha256": "4a9961af962e368e15190a4b93697c2b2d6a24838e6f9488d9bd7989380fba7d",
+   "size": 411476
   },
   {
    "path": "i18n/ko.json",
-   "sha256": "b176d8125b3c808e620492557eaf8161bc8a8232c0cc9c29cbe7c86a1a45b7c7",
-   "size": 368115
+   "sha256": "6936b7dfd85e6fb192ce02a419ba3cd0f1d2b89a865879fba55821423f980306",
+   "size": 368163
   },
   {
    "path": "i18n/pt-BR.json",
-   "sha256": "6c5bd082326b387b3d068e11e6ef5852e475b0aa8407575968014386232a05d4",
-   "size": 352241
+   "sha256": "8d7a3d9b5251495df0df25e23b7333cb98d2fde1b36b0985890b8bf1d99d4518",
+   "size": 352288
   },
   {
    "path": "i18n/ru.json",
-   "sha256": "b3b54ad2c67cd374e3c5509f45c759443229489c608ea85e5d91d1479a5329ae",
-   "size": 485038
+   "sha256": "9800442069ba0aaf70c3a9cbd59e0ab23fcfe210d5a9382972a7d3481e0c52bd",
+   "size": 485100
   },
   {
    "path": "i18n/tr.json",
-   "sha256": "81bb338c0118b55f1c1dc5522869da01f40d81576b052df60a4dcdbf88922132",
-   "size": 354093
+   "sha256": "b7a1699da297ee099ce79f536630fdace0cb5ec19aa07cc880598e69ffda68f3",
+   "size": 354142
   },
   {
    "path": "i18n/vi.json",
-   "sha256": "198c9da944fc22746383554c814312cc4e2cf01c146c20f4acd2087fa4257210",
-   "size": 383207
+   "sha256": "8cc8e769e1c76298427e8a427e7bf83474d0a241d13fbb2deb5e6bd4342a2037",
+   "size": 383260
   },
   {
    "path": "i18n/zh-Hans.json",
-   "sha256": "15716d77839f8da1af939071a852726a2ddd9cd6d9b3c065fd2f2d7e925b3b83",
-   "size": 333844
+   "sha256": "2701f0b6b48a443daf5452f8ffc0c43f67fc4abaa7bef5670b8cb09538bd2321",
+   "size": 333886
   },
   {
    "path": "icons/apple-touch-icon.png",
@@ -439,8 +439,8 @@
   },
   {
    "path": "lib/firo/backend.js",
-   "sha256": "543e5dcc76b01e3f545dbc854c4427b91249c32818844b6554303cc2c9b7910a",
-   "size": 183332
+   "sha256": "3d58f534b3e4c1bc8373fb1d509b764c642d9e997de33e3fd8b4c82c0f39b522",
+   "size": 187869
   },
   {
    "path": "lib/firo/bytes.js",
@@ -449,13 +449,13 @@
   },
   {
    "path": "lib/firo/electrum.js",
-   "sha256": "a8196c7f37b6c59bd3a814aa6263ffb4b25e68980caf33f0a0ff357125a82ecb",
-   "size": 31138
+   "sha256": "dc5a427ba37b4ac8f14c480549bdb75f3ef6cf970d0d8f5e39e776fc5b0909e3",
+   "size": 31279
   },
   {
    "path": "lib/firo/history.js",
-   "sha256": "3fbb80eae03b28b50a325630b7ddc3c9688643f4bb294bbf612a93404a7e6d16",
-   "size": 14892
+   "sha256": "711a5d9264b95db337dbd49c166db16792c3996b2d0082e400c0950287203532",
+   "size": 15559
   },
   {
    "path": "lib/firo/keys.js",
@@ -519,8 +519,8 @@
   },
   {
    "path": "lib/firo/transparent.js",
-   "sha256": "52e1929d278a4213abc55dd24554712faf9c9ed8ce91e5db092831f7897cb049",
-   "size": 38661
+   "sha256": "13c60ecb29ef15a86dbf8533925bb285e6e0108f31e15d59582f9c764ba9ff4d",
+   "size": 51002
   },
   {
    "path": "lib/firo/tx.js",
@@ -819,7 +819,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "a640a82efe977f0451994f65ecc66b6b29ca84c441c3264d859696b212ade025",
+   "sha256": "4274b1b7014415aebbb628fff73feebf1e5d479ede542febc0c36e38f0bdac75",
    "size": 1086
   },
   {
@@ -859,8 +859,8 @@
   },
   {
    "path": "screens/activity.js",
-   "sha256": "cce5b303a44d541b59ae8b20ed1d9f4607a73651a84e2d2da0e3f5b8a7e21a60",
-   "size": 8366
+   "sha256": "f80de5d512669996e869dd62975f7ad1ffcf5c2c400294ebfdcf69f62abf9315",
+   "size": 8902
   },
   {
    "path": "screens/add_wallet.js",
