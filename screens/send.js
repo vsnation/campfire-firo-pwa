@@ -5,6 +5,7 @@
  * Exit-intent reasons and answers:
  *   - "Is this address right?" -> checked as you paste, with its kind in words: private (Spark),
  *     public (transparent), an exchange address, or a Spark name and the address it stands for.
+ *     One of this wallet's own addresses is named (Spark address 3), whichever wallet handed it out.
  *   - "Will people see this?" -> From says Private (the default) or Public, each with what can be
  *     spent; the hint under the address says who can see what.
  *   - "Why can't I send from Private to this exchange?" -> said under the address, and From moves
@@ -28,6 +29,7 @@ import { wallet } from '../lib/wallet.js';
 import { recipientButtons, contactLine, memoField, scannedAmount } from './send_extras.js';
 import { paymentInFlight, onPaymentFlight, IN_FLIGHT_NOTE } from '../lib/payment_flight.js';
 import { LOCK } from '../lib/rosen/lock.js';
+import { ownAddressWords } from '../lib/own_address.js';
 import { t, tk, lazyWords, asSentence } from '../lib/i18n.js';
 
 /** In words, what a kind of address means for privacy. */
@@ -156,6 +158,7 @@ export default function send(app) {
         if (r) {
           check = { state: 'ok', kind: 'spark', address: r.address, name: c.name, checked: r.checked };
           setHint((r.checked === 'one-server' ? t('@{name} is a Spark name for {address} (only one Firo node could confirm it). {hint}', { name: c.name, address: shorten(r.address, 10, 8), hint: t(ADDRESS_WORDS.spark.hint) }) : t('@{name} is a Spark name for {address}. {hint}', { name: c.name, address: shorten(r.address, 10, 8), hint: t(ADDRESS_WORDS.spark.hint) })), r.checked === 'one-server' ? '' : 'good');
+          void sayIfOwn(seq, r.address, addrHint.textContent); // never holds up the button
         } else {
           check = { state: 'bad' };
           setHint(t('No one has the Spark name @{name}. Check the spelling, or ask for their address.', { name: c.name }), 'bad');
@@ -192,13 +195,25 @@ export default function send(app) {
       return evaluate();
     }
     check = { state: 'ok', kind: c.kind, address: c.address || a };
-    const own = a === wallet.state.receive.spark || a === wallet.state.receive.transparent;
     if (c.kind === 'exchange' && draft.from !== 'public') {
       draft.from = 'public';
       draft.subtractFee = false;
     }
-    setHint(`${ADDRESS_WORDS[c.kind].label}. ${ADDRESS_WORDS[c.kind].hint}${own ? t(' It is one of your own addresses.') : ''}`, 'good');
+    const hint = `${ADDRESS_WORDS[c.kind].label}. ${ADDRESS_WORDS[c.kind].hint}`;
+    setHint(hint, 'good');
     evaluate();
+    void sayIfOwn(seq, c.address || a, hint);
+  }
+
+  /** Any address of this wallet is said, not only the one Receive shows (owner, 2026-10-26). */
+  async function sayIfOwn(seq, address, hint) {
+    let w = null;
+    try {
+      w = await wallet.whoseAddress(address);
+    } catch {
+      return; // not known: nothing is said
+    }
+    if (seq === checkSeq && w && w.mine && !wallet.state.viewOnly) setHint(`${hint} ${ownAddressWords(w)}`, addrHint.className.includes('good') ? 'good' : '');
   }
 
   function amountValue() {

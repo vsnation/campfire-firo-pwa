@@ -280,6 +280,7 @@ textarea.input { resize: none; min-height: 84px; }
 .row .ico.fail { background: var(--error-bg); color: var(--error); }
 .row .main { flex: 1; min-width: 0; }
 .row .main .t { font-weight: 600; }
+.row .main .t.addr-title { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
 .row .main .s { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* A setting's explanation says something: it wraps rather than being cut off in a longer language. */
 .settings .row .main .s { white-space: normal; }
