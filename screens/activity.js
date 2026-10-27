@@ -149,6 +149,6 @@ export default function activity(app, params = {}) {
   // Contact names on the rows and in the details (sealed per wallet; read once per unlock).
   loadContacts(app).then(() => render(wallet.state), () => {});
   const csvBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-label': t('Save payment history as a CSV file'), 'data-testid': 'activity-csv', onclick: csv }, icon('download'));
-  const el = screen({ title: t('Activity'), tabs: 'activity', app, back: () => app.go('home'), right: csvBtn }, filterBox, listBox);
+  const el = screen({ title: t('Activity'), tabs: 'activity', app, right: csvBtn }, filterBox, listBox);
   return { el, destroy: () => off() };
 }

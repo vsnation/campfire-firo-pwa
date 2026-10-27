@@ -48,7 +48,6 @@
   --tx-out: #e3613d;
   --tx-self-bg: #ebe8e8;
   --tx-self: #747778;
-  --dock: #ffffff;
   --radius: 12px;
   --gutter: 16px;
   --tabbar-h: 64px;
@@ -98,7 +97,6 @@
     --tx-out: #ffb59a;
     --tx-self-bg: #2b3250;
     --tx-self: #c4c7d4;
-    --dock: #2b3250;
   }
 }
 :root[data-theme="dark"] {
@@ -137,7 +135,6 @@
   --tx-out: #ffb59a;
   --tx-self-bg: #2b3250;
   --tx-self: #c4c7d4;
-  --dock: #2b3250;
 }
 
 :root[data-theme="light"] { color-scheme: light; }
@@ -697,19 +694,22 @@ details.more.card { padding: 12px 16px; }
 .tx-row .end { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
 .tx-row .end .small { font-weight: 500; font-size: 12px; }
 
-/* The floating dock (Campfire's white pill with Receive and Send); Buy beside them. */
-.screen.has-dock { padding-bottom: calc(var(--safe-bottom) + 104px); }
-.dock {
-  position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + 14px); z-index: 20;
-  display: flex; gap: 4px; padding: 6px 10px; border-radius: 999px; background: var(--dock);
-  box-shadow: 0 6px 24px rgba(32, 38, 61, 0.16);
+/* The bar at the bottom on a phone, as in Beam PWA (lib/ui.js bottomTabs): Wallet, Activity, Settings. */
+.screen.has-bottom-tabs { padding-bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 12px); }
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+  display: flex; justify-content: center;
+  background: var(--surface); box-shadow: 0 -1px 0 var(--border);
+  padding: 6px calc(8px + var(--safe-right)) calc(6px + var(--safe-bottom)) calc(8px + var(--safe-left));
 }
-.dock-item { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 76px; padding: 6px 10px; border: 0; background: none; color: var(--text); font-size: 13px; font-weight: 500; border-radius: 22px; cursor: pointer; }
-.dock-item .dock-ico { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--surface-2); color: var(--text); }
-.dock-item .dock-ico svg { width: 20px; height: 20px; }
-.dock-item.main .dock-ico { background: var(--primary); color: var(--on-primary); }
-.dock-item:disabled { opacity: 0.45; cursor: not-allowed; }
-.toast { bottom: calc(var(--safe-bottom) + 104px); }
+.tabbar .inner { display: flex; width: 100%; max-width: 520px; }
+.tab { flex: 1; min-width: 0; background: none; border: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; font-weight: 500; color: var(--muted); padding: 6px 0; min-height: 50px; cursor: pointer; }
+.tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 2px; }
+.tab svg { width: 24px; height: 24px; }
+.tab.on { color: var(--on-secondary); font-weight: 600; }
+/* Home's Send and Receive, under the balance (as in Beam PWA). */
+.home-pay { margin: 10px 0 14px; }
+.home-pay .btn svg { flex: none; }
 
 /* Segmented choices: Send's From, Receive's address type, Restore's 12 / 24 words, Activity's filter. */
 .segmented { display: flex; gap: 4px; background: var(--surface-2); border-radius: 12px; padding: 4px; }
@@ -769,9 +769,11 @@ details.advanced > * + * { margin-top: 8px; }
   .nav-item:hover { background: var(--surface-2); }
   .home-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
   .home-main, .home-side { display: flex; flex-direction: column; gap: 14px; }
-  .screen.has-dock { padding-bottom: 32px; }
-  .dock { position: static; transform: none; align-self: flex-start; margin-top: 4px; box-shadow: var(--shadow); }
-  .home .menu-btn, .home [data-testid="lock"] { display: none; }
+  .home-pay { margin: 0; }
+  .home-main > :empty { display: none; }
+  .tabbar { display: none; }
+  .screen.has-bottom-tabs { padding-bottom: 32px; }
+  .home [data-testid="lock"] { display: none; }
   .toast { bottom: 24px; }
 }
 

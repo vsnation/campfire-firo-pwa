@@ -11,8 +11,9 @@
  *     exact amount has its own copy button.
  *   - "Did it work?" -> four steps, each ticked as it happens; the screen updates by itself.
  *     "Arrived" is said only once this wallet has the FIRO transaction, confirmed.
- *   - "Can others see it?" -> it arrives in the public balance (buyfiro.app pays transparent
- *     addresses); one tap makes it private, and the screen says so.
+ *   - "Can others see it?" -> it arrives in the private balance: paid to a Spark address of this
+ *     wallet (owner, 2026-10-27). While buyfiro.app cannot pay to Spark, it arrives in the public
+ *     balance instead; then one tap makes it private, and the screen says so.
  *   - "Can I close this?" -> said: yes; the buy keeps going and the FIRO reaches the wallet even
  *     while Campfire is closed.
  *   - "It went wrong" -> what happened, where the coins are (sent back, or never taken), and the one
@@ -25,6 +26,7 @@ import { screen, primary, secondary, notice, copyText, textButton, holdTaps } fr
 import { wallet } from '../lib/wallet.js';
 import { encodeQr, qrSvgPath } from '../lib/qr.js';
 import { buyFiro, receivedInWallet } from '../lib/buy/wiring.js';
+import { paysPrivately } from '../lib/buy/buyfiro.js';
 import { firoText, sats, buySteps, KEEP_BUY_ORDER_TEXT } from '../lib/buy/words.js';
 import { buySiteUrl } from '../lib/buy/hosts.js';
 import { coinBadge } from './buy_screens.js';
@@ -88,6 +90,8 @@ export default function buyOrderScreen(app, params = {}) {
     const paid = Boolean(sentFromHere(o));
     return [
       paid ? from : null,
+      // Not private: said before anything is paid (a buy goes to Spark unless buyfiro.app cannot pay it).
+      paysPrivately(o.walletAddress) ? null : h('div', { 'data-testid': 'buy-public-notice' }, notice('info', h('strong', { text: t('This buy arrives in your public balance. ') }), t('buyfiro.app could not pay it to a private address. Anyone can see a public balance on the blockchain; once the FIRO is there, one tap makes it private.'))),
       notice('warn', h('span', { 'data-testid': 'buy-network-warning', text: t('Send only {symbol} on the {chainName} network to this address.', { symbol: o.symbol, chainName: o.chainName }) })),
       h('div', { class: 'qr qr-small', 'data-testid': 'buy-qr' }, qrElement(o.depositAddress)),
       h(
@@ -197,6 +201,10 @@ export default function buyOrderScreen(app, params = {}) {
     };
     switch (s) {
       case 'delivered':
+        if (paysPrivately(o.walletAddress))
+          return arrived
+            ? n('success', 'buy-arrived', t('Your FIRO has arrived in your private balance.'), t('{got} is there.', { got }))
+            : n('info', 'buy-delivered', t('buyfiro.app sent your FIRO.'), t('{got} shows in your private balance once its transaction is in a block, usually within minutes.', { got }));
         return arrived
           ? n('success', 'buy-arrived', t('Your FIRO has arrived in your public balance.'), t('{got} is there. Anyone can see a public balance on the blockchain: make it private with one tap.', { got }))
           : n('info', 'buy-delivered', t('buyfiro.app sent your FIRO.'), t('{got} shows in your public balance once its transaction is in a block, usually within minutes.', { got }));
@@ -213,12 +221,12 @@ export default function buyOrderScreen(app, params = {}) {
     }
   }
 
-  function steps(s, arrived) {
+  function steps(o, s, arrived) {
     const mark = { done: 'check', active: 'clock', waiting: null, failed: 'close' };
     return h(
       'div',
       { class: 'card steps', 'data-testid': 'buy-steps' },
-      ...buySteps(s, { arrived }).map((st, i) =>
+      ...buySteps(s, { arrived, privately: paysPrivately(o.walletAddress) }).map((st, i) =>
         h('div', { class: `step-row ${st.mark}`, 'data-testid': `buy-step-${i}`, 'data-mark': st.mark }, h('span', { class: 'step-mark' }, mark[st.mark] ? icon(mark[st.mark]) : null), h('span', { class: 'grow', text: st.label }), st.note ? h('span', { class: 'small', text: st.note }) : null),
       ),
     );
@@ -231,7 +239,7 @@ export default function buyOrderScreen(app, params = {}) {
       { class: 'card flat swap-details' },
       kv(paid ? t('You paid') : t('You pay'), `${o.sendAmount} ${o.symbol}`),
       o.estimate != null ? kv(arrived ? t('You received') : t('You receive'), `≈ ${firoText(sats(o.estimate))}`, { 'data-testid': 'buy-order-estimate' }) : null,
-      kv(t('Arrives in'), t('Your public balance'), { 'data-testid': 'buy-order-arrives' }),
+      kv(t('Arrives in'), paysPrivately(o.walletAddress) ? t('Your private balance') : t('Your public balance'), { 'data-testid': 'buy-order-arrives' }),
       kv(t('Refunds go to'), shorten(o.refundAddress, 6, 4), { class: 'v mono' }),
       s !== 'awaiting_deposit' ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Order') }), h('button', { class: 'v mono btn-text', 'data-testid': 'buy-copy-order', onclick: () => copy(o.depositAddress), text: shorten(o.depositAddress, 6, 4) })) : null,
       o.txid ? kv(t('FIRO transaction'), shorten(o.txid, 6, 4), { class: 'v mono', 'data-testid': 'buy-firo-tx' }) : null,
@@ -256,7 +264,7 @@ export default function buyOrderScreen(app, params = {}) {
       // Past its deadline while buyfiro.app has not said so yet: the address is never shown to pay.
       s === 'awaiting_deposit' && buyDeadline(o) === 'past' ? h('div', { 'data-testid': 'buy-deadline-past' }, notice('warn', h('strong', { text: t('This address no longer takes payments. ') }), t('It took them until {when}. Don\'t send anything to it: start a new buy.', { when: untilText(o.deadline) }))) : null,
       ...(s === 'awaiting_deposit' && buyDeadline(o) !== 'past' ? payment(o) : []),
-      steps(s, arrived),
+      steps(o, s, arrived),
       details(o, s, arrived),
       // Not in the backup file (FM-6): said once the order shows, while it is open.
       o.isOpen && s !== 'awaiting_deposit' ? h('p', { class: 'small', 'data-testid': 'buy-keep-order', text: t(KEEP_BUY_ORDER_TEXT) }) : null,
@@ -270,12 +278,13 @@ export default function buyOrderScreen(app, params = {}) {
     if (sent) cta = primary(t('See your payment'), () => app.go('ethTx', { hash: sent.hash, chain: payFrom.chain }), { 'data-testid': 'buy-paid-from-wallet-see' });
     else if (s === 'awaiting_deposit' && buyDeadline(o) === 'past') cta = primary(t('Start a new buy'), () => app.go('buyFiro', {}, { replace: true }), { 'data-testid': 'buy-order-cta' });
     else if (s === 'awaiting_deposit') cta = primary(h('span', { text: copied ? t('Address copied') : t('Copy address') }), () => copy(o.depositAddress), { 'data-testid': 'buy-order-cta' });
+    else if (s === 'delivered' && arrived && paysPrivately(o.walletAddress)) cta = primary(t('See it in your wallet'), () => app.go('activity', { txid: o.txid, txId: o.txid }), { 'data-testid': 'buy-order-cta' });
     else if (s === 'delivered' && arrived) cta = primary(t('Make it private'), () => app.go('privatize'), { 'data-testid': 'buy-order-cta' });
     else if (s === 'expired') cta = primary(t('Start a new buy'), () => app.go('buyFiro', {}, { replace: true }), { 'data-testid': 'buy-order-cta' });
     else if (s === 'failed' || s === 'attention') cta = h('a', { class: 'btn btn-primary', href: buySiteUrl(), target: '_blank', rel: 'noopener noreferrer', 'data-testid': 'buy-order-cta' }, t('Contact buyfiro.app support'));
     else cta = primary(t('Back to your wallet'), () => app.go('home'), { 'data-testid': 'buy-order-cta' });
     if (s === 'awaiting_deposit' && !sent && buyDeadline(o) !== 'past') cta.prepend(icon('copy'));
-    put(actions, cta, s === 'delivered' && arrived ? textButton(t('See it in your wallet'), () => app.go('activity', { txid: o.txid, txId: o.txid }), { 'data-testid': 'buy-order-see' }) : null);
+    put(actions, cta, s === 'delivered' && arrived && !paysPrivately(o.walletAddress) ? textButton(t('See it in your wallet'), () => app.go('activity', { txid: o.txid, txId: o.txid }), { 'data-testid': 'buy-order-see' }) : null);
     root.dataset.state = s;
   }
 
