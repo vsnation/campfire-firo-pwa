@@ -145,7 +145,7 @@ export default function settings(app) {
   const inline = (ico, title, sub, control, testid) => h('div', { class: 'row', 'data-testid': testid }, h('span', { class: 'ico' }, icon(ico)), h('span', { class: 'main' }, h('div', { class: 't', text: title }), sub ? h('div', { class: 's', text: sub }) : null), control);
 
   const el = screen(
-    { title: t('Settings'), tabs: 'settings', app, back: () => app.go('home'), cls: 'settings' },
+    { title: t('Settings'), tabs: 'settings', app, cls: 'settings' },
     h('div', { class: 'card list' }, walletsRow),
     h('p', { class: 'section-title', text: t('Security') }),
     h(

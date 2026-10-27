@@ -27,6 +27,7 @@
 import { buyApiBase } from './hosts.js';
 import { EVM_CHAINS, isDepositAddressOf } from './deposit_address.js';
 import { t, tk, lazyWords, tn } from '../i18n.js';
+import { oneDecimalMark } from '../amount.js';
 
 /** The prefix of the fields that name the coin (buyfiro.app API v1). */
 export const FIELD_PREFIX = 'firo_';
@@ -104,6 +105,9 @@ function errorFromJson(e, { httpStatus, retryAfterMs }) {
   return new BuyError(code, { rawCode: raw, minimumUsd: num(e.minimum_usd), orderValueUsd: num(e.order_value_usd), retryAfterMs: seconds(e.retry_after) ?? retryAfterMs, httpStatus });
 }
 
+/** Whether a buy paid to this address of the wallet arrives privately: a Spark address ("sm1…"; "st1…" on testnet). */
+export const paysPrivately = (address) => /^s[mt]1/.test(String(address || ''));
+
 // ----------------------------------------------------------------- amounts
 
 const NUMBER = /^[0-9]*\.?[0-9]*$/;
@@ -135,9 +139,11 @@ export class BuyAmount {
 
   /** text as typed → {amount, error}: an error in plain words when it is not an amount, both null when empty. */
   static parse(text, decimals) {
-    const item = String(text ?? '').trim();
-    if (!item) return { amount: null, error: null };
-    if (item.includes(',')) return { amount: null, error: t('Use a dot for decimals, like 0.5') };
+    const typed = String(text ?? '').trim();
+    if (!typed) return { amount: null, error: null };
+    const mark = oneDecimalMark(typed);
+    if (mark.error) return { amount: null, error: mark.error };
+    const item = mark.text;
     if (!NUMBER.test(item) || item === '.') return { amount: null, error: t('Enter a number, like 0.5') };
     const dot = item.indexOf('.');
     const whole = (dot < 0 ? item : item.slice(0, dot)).replace(/^0+(?=.)/, '');

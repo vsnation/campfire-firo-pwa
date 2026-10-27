@@ -1,9 +1,11 @@
 // Buy FIRO for the unlocked wallet: one controller per wallet (buys sealed in
-// the app's store, requests to buyfiro.app), a new transparent address of this
-// wallet for each buy, and whether the FIRO a buy delivered is in the wallet yet.
+// the app's store, requests to buyfiro.app), a new address of this wallet for
+// each buy, and whether the FIRO a buy delivered is in the wallet yet.
 //
-// buyfiro.app pays to transparent addresses only, so a buy arrives in the
-// public balance; Home then offers Privatize, and so does the buy's own screen.
+// A buy is paid to a new Spark address, so it arrives in the private balance
+// (owner, 2026-10-27). While buyfiro.app cannot pay to Spark it says so
+// (firo_wallet_unpayable) and the buy takes a new transparent address instead:
+// that one arrives in the public balance, and the buy's screen offers Privatize.
 //
 // Open buys are followed only while the wallet is unlocked and the page is
 // visible: hiding the page pauses the controller, locking disposes of it and
@@ -91,14 +93,17 @@ export async function followBuys(app) {
 }
 
 /**
- * A new transparent address of this wallet for one buy (buyfiro.app pays to
- * transparent addresses only); the wallet's current one when it cannot make another.
+ * A new address of this wallet for one buy: Spark (private), or transparent when `spark` is false
+ * (buyfiro.app cannot pay to Spark right now); the wallet's current one when it cannot make another.
  */
-export async function buyAddress(w = wallet) {
+export async function buyAddress(w = wallet, { spark = true } = {}) {
   if (!w.session) throw new WalletNotReady();
+  const make = spark ? w.newSparkAddress : w.newTransparentAddress;
   let addr = null;
-  if (typeof w.newTransparentAddress === 'function') addr = await w.newTransparentAddress();
-  if (!addr) addr = w.state.receive && w.state.receive.transparent;
+  if (typeof make === 'function') addr = await make.call(w).catch(() => null);
+  if (!addr) addr = w.state.receive && w.state.receive[spark ? 'spark' : 'transparent'];
+  // No Spark in this wallet's engine: a transparent address, as before.
+  if (!addr && spark) return buyAddress(w, { spark: false });
   if (typeof addr !== 'string' || !addr) throw new Error(t('The wallet did not make an address.'));
   return addr;
 }

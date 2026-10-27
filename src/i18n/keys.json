@@ -33,6 +33,20 @@
       "screens/one_tab.js"
     ]
   },
+  "Use one decimal mark, like 1.25": {
+    "where": [
+      "lib/amount.js"
+    ]
+  },
+  "Is that {a} or {b}? Write it without the comma, or with a dot for decimals.": {
+    "where": [
+      "lib/amount.js"
+    ],
+    "placeholders": [
+      "a",
+      "b"
+    ]
+  },
   "Enter an amount.": {
     "where": [
       "lib/amount.js",
@@ -54,21 +68,6 @@
       "screens/near_intents.js",
       "screens/sell_firo.js",
       "screens/send.js"
-    ]
-  },
-  "Use one decimal mark, like 1.25": {
-    "where": [
-      "lib/amount.js",
-      "lib/eth/units.js"
-    ]
-  },
-  "Is that {a} or {b}? Write it without the comma, or with a dot for decimals.": {
-    "where": [
-      "lib/amount.js"
-    ],
-    "placeholders": [
-      "a",
-      "b"
     ]
   },
   "Only digits and one decimal mark, like 1.25": {
@@ -268,11 +267,6 @@
     ],
     "placeholders": [
       "httpStatus"
-    ]
-  },
-  "Use a dot for decimals, like 0.5": {
-    "where": [
-      "lib/buy/buyfiro.js"
     ]
   },
   "Enter a number, like 0.5": {
@@ -1001,7 +995,17 @@
       "lib/buy/words.js"
     ]
   },
+  "Arriving in your private balance": {
+    "where": [
+      "lib/buy/words.js"
+    ]
+  },
   "Arriving in your public balance": {
+    "where": [
+      "lib/buy/words.js"
+    ]
+  },
+  "Arrived in your private balance": {
     "where": [
       "lib/buy/words.js"
     ]
@@ -6976,6 +6980,7 @@
   "Your private balance": {
     "where": [
       "lib/sell/words.js",
+      "screens/buy_order.js",
       "screens/name_register.js",
       "screens/privatize.js",
       "screens/review.js",
@@ -7270,9 +7275,11 @@
       "lib/ui.js"
     ]
   },
-  "My wallet": {
+  "Wallet": {
     "where": [
-      "lib/ui.js"
+      "lib/ui.js",
+      "lib/wallets.js",
+      "screens/eth_screens.js"
     ]
   },
   "Activity": {
@@ -7281,18 +7288,22 @@
       "screens/activity.js"
     ]
   },
-  "Address book": {
-    "where": [
-      "lib/ui.js",
-      "screens/settings.js"
-    ]
-  },
   "Settings": {
     "where": [
       "lib/ui.js",
       "screens/eth_home.js",
       "screens/eth_ui.js",
-      "screens/home.js",
+      "screens/settings.js"
+    ]
+  },
+  "My wallet": {
+    "where": [
+      "lib/ui.js"
+    ]
+  },
+  "Address book": {
+    "where": [
+      "lib/ui.js",
       "screens/settings.js"
     ]
   },
@@ -7920,12 +7931,6 @@
   "Wallet 1": {
     "where": [
       "lib/wallets.js"
-    ]
-  },
-  "Wallet": {
-    "where": [
-      "lib/wallets.js",
-      "screens/eth_screens.js"
     ]
   },
   "Give the wallet a name.": {
@@ -9950,7 +9955,7 @@
       "amount"
     ]
   },
-  "Arrives in your public balance": {
+  "Arrives in your private balance": {
     "where": [
       "screens/buy_firo.js"
     ]
@@ -10005,6 +10010,16 @@
       "screens/buy_order.js",
       "screens/near_intents_deposit.js",
       "screens/sell_order.js"
+    ]
+  },
+  "This buy arrives in your public balance. ": {
+    "where": [
+      "screens/buy_order.js"
+    ]
+  },
+  "buyfiro.app could not pay it to a private address. Anyone can see a public balance on the blockchain; once the FIRO is there, one tap makes it private.": {
+    "where": [
+      "screens/buy_order.js"
     ]
   },
   "Send only {symbol} on the {chainName} network to this address.": {
@@ -10093,6 +10108,32 @@
       "screens/buy_order.js"
     ]
   },
+  "Your FIRO has arrived in your private balance.": {
+    "where": [
+      "screens/buy_order.js"
+    ]
+  },
+  "{got} is there.": {
+    "where": [
+      "screens/buy_order.js"
+    ],
+    "placeholders": [
+      "got"
+    ]
+  },
+  "buyfiro.app sent your FIRO.": {
+    "where": [
+      "screens/buy_order.js"
+    ]
+  },
+  "{got} shows in your private balance once its transaction is in a block, usually within minutes.": {
+    "where": [
+      "screens/buy_order.js"
+    ],
+    "placeholders": [
+      "got"
+    ]
+  },
   "Your FIRO has arrived in your public balance.": {
     "where": [
       "screens/buy_order.js"
@@ -10104,11 +10145,6 @@
     ],
     "placeholders": [
       "got"
-    ]
-  },
-  "buyfiro.app sent your FIRO.": {
-    "where": [
-      "screens/buy_order.js"
     ]
   },
   "{got} shows in your public balance once its transaction is in a block, usually within minutes.": {
@@ -10284,12 +10320,12 @@
       "screens/buy_order.js"
     ]
   },
-  "Make it private": {
+  "See it in your wallet": {
     "where": [
       "screens/buy_order.js"
     ]
   },
-  "See it in your wallet": {
+  "Make it private": {
     "where": [
       "screens/buy_order.js"
     ]
@@ -10323,8 +10359,7 @@
   },
   "Buy": {
     "where": [
-      "screens/buy_screens.js",
-      "screens/home.js"
+      "screens/buy_screens.js"
     ]
   },
   "Both are FIRO. They live in different wallets.": {
@@ -14727,12 +14762,6 @@
       "title"
     ]
   },
-  "Payments": {
-    "where": [
-      "screens/home.js",
-      "screens/settings.js"
-    ]
-  },
   "Second Firo node check: {pct}%. ": {
     "where": [
       "screens/home.js"
@@ -18918,6 +18947,11 @@
     ]
   },
   "Also in the background": {
+    "where": [
+      "screens/settings.js"
+    ]
+  },
+  "Payments": {
     "where": [
       "screens/settings.js"
     ]

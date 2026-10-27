@@ -329,3 +329,62 @@ test('orders: a second tap while the first is on its way gets the same buy: one 
   await r.place();
   assert.equal(r.server.count('/order'), 2);
 });
+
+test('a buy is paid to a new Spark address; while buyfiro.app cannot pay to Spark, to a transparent one instead, once', async () => {
+  const SPARK = `sm1${'q'.repeat(140)}`;
+  const placeWith = (r, newWalletAddress) => r.controller.placeOrder({ asset: r.btc, amount: BuyAmount.parse('0.0123', 8).amount, refundAddress: BTC_REFUND, walletId: 'w1', newWalletAddress });
+  const sentTo = (r) => r.server.requests.filter((q) => q.path === '/order').map((q) => q.body.firo_wallet);
+
+  const r = rig();
+  const asked = [];
+  const o = await placeWith(r, async (opts) => (asked.push(opts), opts.spark ? SPARK : FIRO_ADDRESS));
+  assert.deepEqual(asked, [{ spark: true }], 'Spark first (owner, 2026-10-27)');
+  assert.equal(o.walletAddress, SPARK);
+  assert.deepEqual(sentTo(r), [SPARK]);
+
+  // Spark payouts off at buyfiro.app: its refusal names it; a transparent address instead, kept with the buy.
+  const r2 = rig();
+  r2.server.queue('/order', answer(400, errorJson('firo_wallet_unpayable')));
+  const asked2 = [];
+  const o2 = await placeWith(r2, async (opts) => (asked2.push(opts), opts.spark ? SPARK : FIRO_ADDRESS));
+  assert.deepEqual(asked2, [{ spark: true }, { spark: false }]);
+  assert.equal(o2.walletAddress, FIRO_ADDRESS);
+  assert.deepEqual(sentTo(r2), [SPARK, FIRO_ADDRESS]);
+
+  // A transparent address refused too: said, not tried again.
+  const r3 = rig();
+  r3.server.queue('/order', answer(400, errorJson('firo_wallet_unpayable')));
+  r3.server.queue('/order', answer(400, errorJson('firo_wallet_unpayable')));
+  await assert.rejects(placeWith(r3, async (opts) => (opts.spark ? SPARK : FIRO_ADDRESS)), (e) => e.code === 'firo_wallet_unpayable');
+  assert.deepEqual(sentTo(r3), [SPARK, FIRO_ADDRESS]);
+});
+
+test('any refusal of the Spark address falls back to a transparent one; a refusal makes the next try use a new address; a wallet with none hears the reason', async () => {
+  const SPARK = `sm1${'q'.repeat(140)}`;
+  const placeWith = (r, newWalletAddress) => r.controller.placeOrder({ asset: r.btc, amount: BuyAmount.parse('0.0123', 8).amount, refundAddress: BTC_REFUND, walletId: 'w1', newWalletAddress });
+  const sentTo = (r) => r.server.requests.filter((q) => q.path === '/order').map((q) => q.body.firo_wallet);
+
+  // firo_wallet_invalid for the Spark address (production's node may say so): transparent instead.
+  const r = rig();
+  r.server.queue('/order', answer(400, errorJson('firo_wallet_invalid')));
+  const o = await placeWith(r, async (opts) => (opts.spark ? SPARK : FIRO_ADDRESS));
+  assert.equal(o.walletAddress, FIRO_ADDRESS);
+  assert.deepEqual(sentTo(r), [SPARK, FIRO_ADDRESS]);
+
+  // Refused for good: the next try asks for a new address, not the refused one again.
+  const r2 = rig();
+  r2.server.queue('/order', answer(400, errorJson('firo_wallet_invalid')));
+  r2.server.queue('/order', answer(400, errorJson('firo_wallet_invalid')));
+  let n = 0;
+  const fresh = async (opts) => (n++, opts.spark ? `${SPARK.slice(0, -1)}${n}` : `a${String(n).repeat(33)}`);
+  await assert.rejects(placeWith(r2, fresh));
+  await placeWith(r2, fresh);
+  const tried = sentTo(r2);
+  assert.equal(tried.length, 3);
+  assert.notEqual(tried[2], tried[0], 'a new Spark address the second time');
+
+  // A view-only wallet has no transparent address: buyfiro.app's own refusal is what it hears.
+  const r3 = rig();
+  r3.server.queue('/order', answer(400, errorJson('firo_wallet_unpayable')));
+  await assert.rejects(placeWith(r3, async (opts) => (opts.spark ? SPARK : Promise.reject(new Error('no public address in a view-only wallet')))), (e) => e.code === 'firo_wallet_unpayable');
+});

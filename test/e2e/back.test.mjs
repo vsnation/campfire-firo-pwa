@@ -76,6 +76,48 @@ test('in German a Back goes to the previous screen; in a Home Screen app Home st
   await ctx.close();
 });
 
+const entry = (page) => page.evaluate(() => (history.state && history.state.campfire === 'back' ? history.state.n : null));
+
+test('the history holds one entry per step a Back can take: screens, a sheet; the app\'s own Back and the Wallet tab go back over them', { timeout: 5 * 60000 }, async () => {
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const { page } = await recordedPage(ctx, { label: 'back-entries' });
+  await page.goto(srv.url);
+  await createWallet(page, { password: PASSWORD, words: 12 });
+  await waitHome(page);
+  await page.mouse.click(5, 400);
+  await sleep(200);
+  const n0 = await entry(page);
+  assert.equal(typeof n0, 'number', 'entries from the first touch');
+  await open(page, 'settings');
+  assert.equal(await entry(page), n0 + 1, 'Settings: Wallet under it');
+  await open(page, 'about');
+  assert.equal(await entry(page), n0 + 2);
+  await page.click('.topbar button[data-nav="back"]');
+  await waitScreen(page, 'settings');
+  await sleep(300);
+  assert.equal(await entry(page), n0 + 1, 'the top bar\'s Back went back over its entry');
+  // A sheet has its own entry; a Back closes it, and the screen stays.
+  await page.evaluate(async () => {
+    const { openSheet } = await import(new URL('lib/ui.js', document.baseURI).href);
+    openSheet((close) => [Object.assign(document.createElement('p'), { textContent: 'a sheet' }), Object.assign(document.createElement('button'), { textContent: 'Close', onclick: () => close() })]);
+  });
+  await sleep(200);
+  assert.equal(await entry(page), n0 + 2, 'the sheet\'s entry');
+  await systemBack(page);
+  assert.equal(await page.locator('.overlay').count(), 0, 'the Back closed the sheet');
+  assert.equal(await screen(page), 'settings');
+  assert.equal(await entry(page), n0 + 1);
+  await open(page, 'about');
+  await open(page, 'home'); // as the Wallet tab does
+  await sleep(300);
+  assert.equal(await entry(page), n0, 'Wallet went back over the entries');
+  await page.evaluate(() => history.forward());
+  await sleep(400);
+  assert.equal(await screen(page), 'home', 'nothing ahead to go Forward to');
+  assert.equal(await entry(page), n0);
+  await ctx.close();
+});
+
 test('in a browser tab a Back on Home still leaves the app', { timeout: 5 * 60000 }, async () => {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const { page } = await recordedPage(ctx, { label: 'back-tab' });
@@ -84,7 +126,7 @@ test('in a browser tab a Back on Home still leaves the app', { timeout: 5 * 6000
   await createWallet(page, { password: PASSWORD, words: 12 });
   await waitHome(page);
   await page.mouse.click(5, 400);
-  await page.evaluate(() => history.back());
+  await page.evaluate(() => void setTimeout(() => history.back(), 0)); // the page goes: not inside evaluate
   await page.waitForURL('about:blank', { timeout: 10000 });
   await ctx.close();
 });

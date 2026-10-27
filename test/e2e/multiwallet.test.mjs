@@ -260,7 +260,7 @@ test("2. switching: Home's name -> a wallet -> its own unlock; another wallet's 
 });
 
 test('3. Settings -> Wallets: the list, the open one marked, rename', { timeout: 5 * 60000 }, async () => {
-  await page.click(tid('menu'));
+  await page.click(tid('tab-settings'));
   await waitScreen(page, 'settings');
   await page.click(tid('wallets-row'));
   await waitScreen(page, 'wallets');

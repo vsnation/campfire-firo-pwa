@@ -6,8 +6,8 @@
  *       one) -> the button (2).
  * Exit-intent reasons and answers:
  *   - "What do I get?" -> about how much FIRO, as buyfiro.app prices it, that it arrives in the
- *     public balance (one tap to make it private), and how long it usually takes, before any
- *     address exists.
+ *     private balance (owner, 2026-10-27: paid to a Spark address of this wallet), and how long it
+ *     usually takes, before any address exists.
  *   - "Is there a minimum?" -> said up front ("Smallest buy right now: about $1,000"); when an
  *     amount is under it, the route's own floor is said ("This route starts at about $1,005",
  *     from buyfiro.app's answer), the amount that is not is one tap away, and so is this
@@ -187,7 +187,7 @@ export default function buyFiroScreen(app) {
     walletProblem = null;
     render();
     try {
-      const order = await c.placeOrder({ asset: coin, amount: value, refundAddress: refund.value.trim(), walletId: app.record.id, newWalletAddress: () => buyAddress(), quote: c.quote });
+      const order = await c.placeOrder({ asset: coin, amount: value, refundAddress: refund.value.trim(), walletId: app.record.id, newWalletAddress: (o) => buyAddress(undefined, o), quote: c.quote });
       if (!alive) return;
       app.buyDraft = null;
       app.go('buyOrder', { deposit: order.depositAddress, fresh: true }, { replace: true });
@@ -313,7 +313,7 @@ export default function buyFiroScreen(app) {
         h('div', { class: `swap-out${q ? '' : ' muted'}`, 'data-testid': q ? 'buy-estimate' : c.quoting ? 'buy-estimate-loading' : 'buy-estimate-empty', 'data-sats': q ? String(q.estimateSats) : '', title: q ? t('About {amount}', { amount: firoText(q.estimateSats) }) : null, text: q ? `≈\u00a0${compactUnits(q.estimateSats, 8)}` : c.quoting ? '…' : '0' }),
         h('span', { class: 'asset-pick static' }, assetBadge({ id: 'firo' }, { size: 'small' }), h('span', { text: 'FIRO' })), // i18n-ignore: a ticker
       ),
-      h('div', { class: 'swap-sub stacked' }, h('span', { 'data-testid': 'buy-arrives-in', text: t('Arrives in your public balance') }), q && q.etaSeconds != null ? h('span', { 'data-testid': 'buy-eta', text: etaText(q.etaSeconds) }) : null),
+      h('div', { class: 'swap-sub stacked' }, h('span', { 'data-testid': 'buy-arrives-in', text: t('Arrives in your private balance') }), q && q.etaSeconds != null ? h('span', { 'data-testid': 'buy-eta', text: etaText(q.etaSeconds) }) : null),
     );
 
     put(problemBox, problem());

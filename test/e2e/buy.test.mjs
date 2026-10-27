@@ -12,11 +12,12 @@
 // 1. Home's Buy opens Buy FIRO directly (one thing to buy); nothing of it, and
 //    nothing to buyfiro.app, before it is opened.
 // 2. The coin (BTC first), the smallest buy and its one-tap fix, the price, the
-//    order to a new transparent address of this wallet (buyfiro.app pays
-//    transparent addresses only), its deposit address and QR, its states as
-//    buyfiro.app reports them, the FIRO arriving in the public balance with one
-//    tap to Privatize, the buys list, and the buy still there after locking
-//    (sealed on this device).
+//    order to a new Spark address of this wallet (owner, 2026-10-27: buys arrive
+//    in the private balance), its deposit address and QR, its states as
+//    buyfiro.app reports them, the FIRO arriving in the private balance, the
+//    buys list, and the buy still there after locking (sealed on this device).
+//    While buyfiro.app cannot pay to Spark: a transparent address, the public
+//    balance, and one tap to Privatize.
 // 3. buyfiro.app unreachable: said, blaming nobody; nothing was sent.
 // 4. Only this origin and buyfiro.app were contacted; no CSP violation.
 //
@@ -27,7 +28,7 @@ import jsQR from 'jsqr';
 import { startServer, launch, recordedPage, shot, waitScreen, foreignHosts, sleep, SHOTS } from './harness.mjs';
 import { createWallet, waitHome, unlockWithPassword } from './flows.mjs';
 import { ETH_RPC_HOSTS, BSC_RPC_HOSTS } from '../../src/lib/eth/hosts.js';
-import { FakeBuyFiro, ASSETS, BTC, assetJson } from '../unit/buy_fakes.mjs';
+import { FakeBuyFiro, ASSETS, BTC, assetJson, answer, errorJson } from '../unit/buy_fakes.mjs';
 import { SANDBOX_KEY } from '../../src/lib/buy/wiring.js';
 
 const PORT = Number(process.env.CAMPFIRE_BUY_PORT || 8860);
@@ -108,23 +109,23 @@ test('a new wallet; Home has Buy; no Buy code and no request to buyfiro.app befo
   await page.goto(srv.url);
   await createWallet(page, { password: PASSWORD });
   await waitHome(page);
-  await page.waitForSelector(tid('buy'));
+  await page.waitForSelector(tid('sc-buy'));
   const loaded = await page.evaluate(() => performance.getEntriesByType('resource').filter((e) => /\/lib\/buy\/|\/screens\/buy_(?!screens)|\/lib\/eth\/(?!record\.js|hosts\.js)/.test(e.name)).map((e) => e.name));
   assert.deepEqual(loaded, [], 'first paint carries no Buy screen and no Ethereum code');
   assert.equal(bf.requests.length, 0, 'nothing asked of buyfiro.app before Buy FIRO is opened');
   await shots4('00-home');
 });
 
-test('Buy FIRO: the coin, the smallest buy, the price, the order to a transparent address, its states, Privatize', { timeout: 5 * 60000 }, async () => {
+test('Buy FIRO: the coin, the smallest buy, the price, the order to a Spark address, its states, the private balance', { timeout: 5 * 60000 }, async () => {
   // Buy asks first: FIRO (private, here) or rsFIRO (public, in two steps).
-  await page.click(tid('buy'));
+  await page.click(tid('sc-buy'));
   await page.waitForSelector(tid('buy-chooser-title'));
   await page.click(tid('buy-choose-private'));
   await waitScreen(page, 'buyFiro');
   await page.waitForFunction(() => /BTC/.test(document.querySelector('[data-testid="buy-coin"]')?.textContent || ''));
   assert.match(await page.textContent(tid('buy-cta')), /^Get a BTC deposit address$/);
   await page.waitForFunction(() => /Smallest buy right now: about \$1,000/.test(document.querySelector('[data-testid="buy-minimum-hint"]')?.textContent || ''));
-  assert.match(await page.textContent(tid('buy-arrives-in')), /public balance/);
+  assert.match(await page.textContent(tid('buy-arrives-in')), /^Arrives in your private balance$/);
   assert.match(await page.textContent(tid('buy-footer')), /^buyfiro\.app buys the FIRO and sends it to your wallet\.$/);
   assert.ok(await ctaVisibleOnSmallPhone(tid('buy-cta')), 'the button is on a 375 x 667 screen without scrolling');
   await shots4('01-buy-firo-empty');
@@ -166,7 +167,7 @@ test('Buy FIRO: the coin, the smallest buy, the price, the order to a transparen
   assert.match(await page.textContent('main'), /You receive/);
   assert.doesNotMatch(await page.textContent('main'), /fee|%/i, 'no fee anywhere on Buy');
 
-  // The order: a new transparent address of this wallet, kept on this device before it is shown.
+  // The order: a new Spark address of this wallet, kept on this device before it is shown.
   await page.click(tid('buy-cta'));
   await waitScreen(page, 'buyOrder');
   await page.waitForSelector(tid('buy-deposit-address'));
@@ -177,13 +178,13 @@ test('Buy FIRO: the coin, the smallest buy, the price, the order to a transparen
   assert.equal(order.sandbox, true);
   assert.equal(order.amount, 0.0123);
   assert.equal(order.refund_address, REFUND);
-  assert.match(order.firo_wallet, /^a/, 'a transparent address: buyfiro.app pays those only');
-  assert.equal((await page.evaluate((a) => window.__campfire.classify(a), order.firo_wallet)).kind, 'transparent');
-  assert.equal(await page.evaluate(() => window.__campfire.receive().transparent), order.firo_wallet, "the wallet's newest transparent address");
+  assert.match(order.firo_wallet, /^sm1/, 'a Spark address: the FIRO arrives in the private balance');
+  assert.equal((await page.evaluate((a) => window.__campfire.classify(a), order.firo_wallet)).kind, 'spark');
+  assert.equal(await page.evaluate(() => window.__campfire.receive().spark), order.firo_wallet, "the wallet's newest Spark address");
   assert.equal(await page.textContent(tid('buy-deposit-address')), DEPOSIT);
   assert.equal(await page.textContent(tid('buy-exact-amount')), '0.0123 BTC');
   assert.match(await page.textContent(tid('buy-network-warning')), /Send only BTC on the Bitcoin network/);
-  assert.match(await page.textContent(tid('buy-order-arrives')), /Your public balance/);
+  assert.match(await page.textContent(tid('buy-order-arrives')), /Your private balance/);
   assert.match(await page.textContent(tid('buy-deadline')), /This address works until \d\d:\d\d (today|on \d+ \w+)\./);
   assert.match(await page.textContent('.topbar h1'), /^Send 0\.0123 BTC$/);
   assert.match(await page.textContent('main'), /test mode: nothing to pay/);
@@ -221,27 +222,28 @@ test('Buy FIRO: the coin, the smallest buy, the price, the order to a transparen
   bf.txId = TXID;
   await page.waitForSelector(tid('buy-delivered'), { timeout: 60000 });
   assert.equal(await page.getAttribute(tid('buy-step-3'), 'data-mark'), 'active');
-  assert.match(await page.textContent(tid('buy-step-3')), /Arriving in your public balance/);
+  assert.match(await page.textContent(tid('buy-step-3')), /Arriving in your private balance/);
   assert.match(await page.textContent(tid('buy-firo-tx')), /f1f1f1…f1f1/);
   assert.doesNotMatch(await page.textContent('main'), /fee|%/i, 'no fee anywhere on Buy');
   await shots4('07-order-delivered');
   const polls = bf.requests.filter((r) => r.path === `/order/${DEPOSIT}`).length;
-  // The wallet has the FIRO, confirmed: it arrived in the public balance, and Privatize is one tap.
+  // The wallet has the FIRO, confirmed: it arrived in the private balance; one tap shows it.
   await page.evaluate(async (txid) => {
     const { wallet } = await import('./lib/wallet.js');
-    wallet.state.txs = [{ txid, height: 1, time: Math.floor(Date.now() / 1000), confirmations: 1, direction: 'in', kind: 'transparent', amount: 1n, fee: 0n, memo: null, counterparty: null }, ...wallet.state.txs];
+    wallet.state.txs = [{ txid, height: 1, time: Math.floor(Date.now() / 1000), confirmations: 1, direction: 'in', kind: 'spark', amount: 1n, fee: 0n, memo: null, counterparty: null }, ...wallet.state.txs];
     wallet.emit();
   }, TXID);
   await page.waitForSelector(tid('buy-arrived'));
-  assert.match(await page.textContent(tid('buy-arrived')), /arrived in your public balance/);
+  assert.match(await page.textContent(tid('buy-arrived')), /arrived in your private balance/);
+  assert.match(await page.textContent(tid('buy-step-3')), /Arrived in your private balance/);
   assert.equal(await page.getAttribute(tid('buy-step-3'), 'data-mark'), 'done');
-  assert.equal(await page.textContent(tid('buy-order-cta')), 'Make it private');
-  assert.ok(await page.isVisible(tid('buy-order-see')));
+  assert.equal(await page.textContent(tid('buy-order-cta')), 'See it in your wallet');
+  assert.equal(await page.isVisible(tid('buy-order-see')), false, 'nothing to make private');
   await shots4('08-order-arrived');
   await sleep(3000);
   assert.equal(bf.requests.filter((r) => r.path === `/order/${DEPOSIT}`).length, polls, 'an ended buy is never asked about again');
   await page.click(tid('buy-order-cta'));
-  await waitScreen(page, 'privatize');
+  await waitScreen(page, 'activity');
 
   // The buys list, and the buy still there after locking: sealed on this device, nothing in the clear.
   await page.evaluate(() => window.__campfire.go('buyFiro'));
@@ -377,6 +379,33 @@ test('USDT on Ethereum: paid from this wallet it stays USDT in Send (balances no
   await sleep(3000);
   assert.equal(await page.isVisible(tid('buy-pay-from-wallet')), false, 'a same-named token is not paid from this wallet');
   await page.evaluate(() => window.__campfire.go('home'));
+});
+
+test('Buy FIRO while buyfiro.app cannot pay to Spark: a transparent address instead, the public balance, Privatize', { timeout: 3 * 60000 }, async () => {
+  const before = orders().length;
+  bf.depositAddress = 'sbx_1791800004_e2e0spark0off';
+  bf.state = 'awaiting_deposit';
+  bf.queue('/order', answer(400, errorJson('firo_wallet_unpayable')));
+  await page.evaluate(() => window.__campfire.go('buyFiro'));
+  await page.waitForFunction(() => /BTC/.test(document.querySelector('[data-testid="buy-coin"]')?.textContent || ''));
+  await page.fill(tid('buy-refund'), REFUND);
+  await page.fill(tid('buy-amount'), '0.0125');
+  await page.waitForSelector(tid('buy-estimate'));
+  await page.click(tid('buy-cta'));
+  await waitScreen(page, 'buyOrder');
+  const tried = orders().slice(before).map((o) => o.body.firo_wallet);
+  assert.equal(tried.length, 2);
+  assert.match(tried[0], /^sm1/, 'Spark first');
+  assert.match(tried[1], /^a/, 'refused (Spark payouts off): a transparent address');
+  assert.equal(await page.evaluate(() => window.__campfire.receive().transparent), tried[1]);
+  await page.waitForSelector(tid('buy-order-arrives'));
+  assert.match(await page.textContent(tid('buy-order-arrives')), /Your public balance/);
+  assert.match(await page.textContent(tid('buy-public-notice')), /This buy arrives in your public balance\..*could not pay it to a private address/, 'said before anything is paid');
+  assert.match(await page.textContent(tid('buy-step-3')), /in your public balance/);
+  await shots4('09b-order-spark-off');
+  bf.depositAddress = DEPOSIT;
+  await page.evaluate(() => window.__campfire.go('home'));
+  await waitScreen(page, 'home');
 });
 
 test('Buy FIRO: buyfiro.app unreachable says so and blames nobody; nothing was sent', { timeout: 2 * 60000 }, async () => {

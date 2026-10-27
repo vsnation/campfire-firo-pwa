@@ -96,6 +96,12 @@
    "created": "2026-10-26T12:23:09.474Z",
    "loader": "sw-98d0c4962601c869.js",
    "file_count": 295
+  },
+  "0.1.16": {
+   "manifest_sha256": "08e621ca00d763e2c2a01e0ff8a800144986dd3a6e6df06cece2221ebddc0770",
+   "created": "2026-10-27T21:00:03.417Z",
+   "loader": "sw-98d0c4962601c869.js",
+   "file_count": 295
   }
  }
 }

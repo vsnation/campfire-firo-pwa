@@ -1,5 +1,5 @@
 // Home's shortcuts (owner, 2026-10-12): Buy FIRO, Sell FIRO, Bridge and Spark name, one tap each, in
-// one row; on a small phone the dock (Send / Receive) is still on screen. Buy asks first, as BEAM's
+// one row; on a small phone Send / Receive and the bar at the bottom are still on screen. Buy asks first, as BEAM's
 // Buy does (private BEAM or public WBEAM): FIRO (private, buyfiro.app) or rsFIRO (public, two steps:
 // NEAR Intents to ETH or BNB, then a swap). Without an Ethereum & BNB wallet the rsFIRO card sets one
 // up first and carries on into NEAR Intents. Sell asks the same way: FIRO (buyfiro.app) or rsFIRO
@@ -59,7 +59,7 @@ async function chooser(from = 'sc-buy') {
   await page.waitForSelector(tid('buy-chooser-title'));
 }
 
-test('Home shows Buy FIRO, Sell FIRO, Bridge and Spark name in one row, and the dock stays on a small phone', { timeout: 5 * 60000 }, async () => {
+test('Home shows Buy FIRO, Sell FIRO, Bridge and Spark name in one row; Send / Receive and Wallet / Activity / Settings stay on a small phone', { timeout: 5 * 60000 }, async () => {
   await page.goto(srv.url);
   await createWallet(page, { password: `home-${Math.random().toString(36).slice(2, 10)}` });
   await waitHome(page);
@@ -70,9 +70,12 @@ test('Home shows Buy FIRO, Sell FIRO, Bridge and Spark name in one row, and the 
   await both('home-shortcuts');
   await page.setViewportSize({ width: 375, height: 667 });
   await sleep(250);
-  for (const id of ['receive', 'sc-buy', 'sc-sell', 'sc-bridge', 'sc-names']) {
+  const bar = await page.locator('.tabbar').boundingBox();
+  assert.ok(bar && bar.y + bar.height <= 667, 'the bar at the bottom on screen');
+  for (const id of ['tab-home', 'tab-activity', 'tab-settings']) assert.ok(await page.locator(tid(id)).isVisible(), id);
+  for (const id of ['receive', 'send', 'sc-buy', 'sc-sell', 'sc-bridge', 'sc-names']) {
     const b = await page.locator(tid(id)).boundingBox();
-    assert.ok(b && b.y >= 0 && b.y + b.height <= 667, `${id} on screen at 375 x 667`);
+    assert.ok(b && b.y >= 0 && b.y + b.height <= bar.y, `${id} on screen at 375 x 667, above the bar`);
   }
   const tops = await page.$$eval(`${tid('home-shortcuts')} .shortcut`, (els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
   assert.equal(new Set(tops).size, 1, 'one row');
@@ -92,8 +95,8 @@ test('Buy asks first: FIRO (private) or rsFIRO (public, two steps); Not now clos
   await page.click(tid('buy-chooser-close'));
   await page.waitForSelector(tid('buy-chooser-title'), { state: 'detached' });
   assert.equal(await page.evaluate(() => window.__campfire.screen()), 'home');
-  // The dock's Buy asks the same.
-  await chooser('buy');
+  // Its FIRO choice opens Buy private FIRO.
+  await chooser();
   await page.click(tid('buy-choose-private'));
   await waitScreen(page, 'buyFiro', 20000);
   assert.equal(await page.textContent('.topbar h1'), 'Buy private FIRO');

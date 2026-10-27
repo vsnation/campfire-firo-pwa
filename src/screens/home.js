@@ -1,14 +1,14 @@
-/* Home (the Campfire app's wallet screen: balance card, Privatize pill, transactions, Receive/Send dock)
+/* Home (the Campfire app's wallet screen: balance card, Send / Receive, Privatize pill, transactions)
  * Spec: ONE job: see what I have and start a payment.
- *       Primary CTA: "Send" in the dock at the bottom (when there is nothing to send yet: "Receive");
- *       "Buy" sits beside them. Settings is ☰, Activity is "See all".
+ *       Primary CTA: "Send" right under the balance (when there is nothing to send yet: "Receive"),
+ *       as in Beam PWA. Wallet / Activity / Settings is the bar at the bottom; Buy is a tile.
  *       Taps from app open: 0 after unlock; Send / Receive / Privatize are 1.
  * Exit-intent reasons and answers:
  *   - "Is this number real / up to date?" -> the sync line says Synced with the newest block and its
  *     server, or exactly what the wallet is still reading, and that sending waits until it is done.
  *   - "Why are there two balances?" -> Private (Spark: hidden on the blockchain) is the big number;
  *     Public (transparent: visible to anyone) is the line under it; the card's title swaps them.
- *   - "Some of my FIRO is public - what now?" -> the wide "Privatize" pill under the card, with
+ *   - "Some of my FIRO is public - what now?" -> the wide "Privatize" pill under Send / Receive, with
  *     what public means.
  *   - "Why can't I send?" -> the reason is written under the buttons, never a silent grey button.
  *   - "Where did my payment go?" -> recent payments with plain status right below.
@@ -20,7 +20,7 @@
  */
 import { h, fmtDate, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, notice, progressBar } from '../lib/ui.js';
+import { screen, notice, progressBar, primary, secondary } from '../lib/ui.js';
 import { isOwnServer } from '../lib/servers.js';
 import { keepingAwake, startKeepingAwake, stopKeepingAwake, onKeepAwakeChange, screenKeptOn } from '../lib/keep_awake.js';
 import { formatAmount, UNIT } from '../lib/amount.js';
@@ -84,14 +84,14 @@ export default function home(app) {
   const proofBox = h('div');
   /** What the check's note last showed: built again only when that changes (a tap must not land on a button replaced under it). */
   let proofShown = '';
-  let dockShown = '';
+  let payShown = '';
   const privatizeBox = h('div');
   const shortcutsBox = h('div');
   const askBox = h('div');
   const txBox = h('div');
   const bannerBox = h('div');
   const whyBox = h('div');
-  const dock = h('nav', { class: 'dock', 'aria-label': t('Payments') });
+  const payBox = h('div', { class: 'home-pay' });
   const barsBox = h('span');
   // Which balance the card shows big (Campfire's "Full Spark balance ▾"); the other is the line under it.
   let shown = app.homeBalance === 'public' ? 'public' : 'private';
@@ -204,7 +204,7 @@ export default function home(app) {
         : null,
     );
 
-    // Campfire's wide pill under the card: public FIRO can be followed by anyone.
+    // Campfire's wide pill, under Send / Receive: public FIRO can be followed by anyone.
     put(
       privatizeBox,
       s.viewOnly
@@ -250,21 +250,19 @@ export default function home(app) {
         : h('div', { class: 'card empty', 'data-testid': 'home-empty' }, icon('activity'), h('p', { text: known ? t('No payments yet. Receive some FIRO to get started.') : t('Payments show up here once the wallet is up to date.') })),
     );
 
-    // The dock (Campfire's floating Receive / Send): the main action is the strong one.
+    // Send and Receive, as in Beam PWA: the main action is the strong one and comes first.
     const canSend = s.sync.canSend;
-    const item = (testid, ico, label, onclick, { main = false, disabled = false } = {}) =>
-      h('button', { class: `dock-item${main ? ' main' : ''}`, type: 'button', 'data-testid': testid, disabled, onclick }, h('span', { class: 'dock-ico' }, icon(ico)), h('span', { text: label }));
     // Built again only when it changes: every change of the wallet's state renders Home, and a tap on
     // Send or Receive must not land on a button replaced under it (owner, 2026-10-21, as on Firo nodes).
-    const dockKey = JSON.stringify([hasFunds, Boolean(canSend), Boolean(s.viewOnly)]);
-    if (dockKey !== dockShown) {
-      dockShown = dockKey;
-      put(
-        dock,
-        item('receive', 'receive', t('Receive'), () => app.go('receive'), { main: !hasFunds }),
-        item('send', 'send', t('Send'), () => app.go('send'), { main: hasFunds && !s.viewOnly, disabled: !canSend || !hasFunds || s.viewOnly }),
-        item('buy', 'buy', t('Buy'), () => openBuy(app)),
-      );
+    const payKey = JSON.stringify([hasFunds, Boolean(canSend), Boolean(s.viewOnly)]);
+    if (payKey !== payShown) {
+      payShown = payKey;
+      const sends = hasFunds && !s.viewOnly;
+      const sendBtn = (sends ? primary : secondary)(h('span', { text: t('Send') }), () => app.go('send'), { type: 'button', disabled: !canSend || !sends, 'data-testid': 'send' });
+      sendBtn.prepend(icon('send'));
+      const recvBtn = (hasFunds ? secondary : primary)(h('span', { text: t('Receive') }), () => app.go('receive'), { type: 'button', 'data-testid': 'receive' });
+      recvBtn.prepend(icon('receive'));
+      put(payBox, h('div', { class: 'btn-row three' }, ...(sends ? [sendBtn, recvBtn] : [recvBtn, sendBtn])));
     }
     put(whyBox, !canSend && hasFunds ? h('p', { class: 'small center', 'data-testid': 'send-why', text: t('Sending is paused: {reason}.', { reason: (lang() === 'en' ? s.sync.title.toLowerCase() : s.sync.title).replace(/[.…。]+$/, '') }) }) : null);
     put(barsBox, syncBars(s.sync, () => app.go('servers')));
@@ -391,7 +389,7 @@ export default function home(app) {
       brand: walletChip(app),
       tabs: 'home',
       app,
-      cls: 'home has-dock',
+      cls: 'home',
       right: h(
         'div',
         { class: 'top-actions' },
@@ -399,13 +397,11 @@ export default function home(app) {
         // Scan: any QR code, recognized, then the screen for it (screens/scan_go.js, loaded on the tap).
         h('button', { class: 'icon-btn', 'aria-label': t('Scan a QR code'), 'data-testid': 'home-scan', onclick: () => import('./scan_go.js').then((m) => m.scanAndGo(app)) }, icon('scan')),
         h('button', { class: 'icon-btn', 'aria-label': t('Lock'), onclick: () => app.lock('manual'), 'data-testid': 'lock' }, icon('lock')),
-        h('button', { class: 'icon-btn menu-btn', 'aria-label': t('Settings'), onclick: () => app.go('settings'), 'data-testid': 'menu' }, icon('menu')),
       ),
     },
     chainSwitch(app, 'firo'),
     bannerBox,
-    h('div', { class: 'home-cols' }, h('div', { class: 'home-main' }, balanceBox, proofBox, wordsBox, privatizeBox, shortcutsBox, whyBox, awayBox, askBox), h('div', { class: 'home-side' }, txBox)),
-    dock,
+    h('div', { class: 'home-cols' }, h('div', { class: 'home-main' }, balanceBox, proofBox, wordsBox, payBox, whyBox, privatizeBox, shortcutsBox, awayBox, askBox), h('div', { class: 'home-side' }, txBox)),
   );
   return {
     el,
