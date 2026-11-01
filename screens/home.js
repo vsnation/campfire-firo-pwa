@@ -133,6 +133,11 @@ export default function home(app) {
     const b = s.balance;
     const known = s.sync.state === 'synced' || s.txsLoaded;
     const reading = !known && s.sync.state !== 'offline';
+    const restoredWords = Boolean(app.record && app.record.restored && !app.record.watchOnly && app.record.words);
+    // Only once the whole wallet is read (audit: right after a Rescan, or with some addresses not
+    // answered, a wallet with FIRO showed 0 and this). A restore from a file has no typed words to
+    // blame, and says "Show my words" below already.
+    const foundNothing = s.sync.state === 'synced' && !s.privateCheck && restoredWords && app.record.wordsConfirmed !== false && !s.txs.length && b.private.available + b.private.pending + (b.private.checking ?? 0n) + b.public.available + b.public.pending === 0n;
     const other = shown === 'private' ? 'public' : 'private';
     // Private FIRO one node showed counts in the figure (owner, 2026-10-21: "show the private balance
     // that confirmed by the first node"), said as such right under it, with the second node's check;
@@ -176,6 +181,17 @@ export default function home(app) {
       ),
       h('div', { class: 'sync-row' }, syncLine(s.sync), reading && s.sync.percent != null ? progressBar(s.sync.percent / 100) : null),
       h('p', { class: 'small sync-detail', 'data-testid': 'sync-detail', text: s.sync.detail }),
+      // A restore that found nothing (user report, 2026-11-01: "the balance is not seen, though it is
+      // there"): one wrong word, their order or a passphrase open another, empty wallet. Said under
+      // the 0, with the way to compare them, not "receive some FIRO" further down.
+      foundNothing
+        ? h(
+            'div',
+            { 'data-testid': 'home-empty-restored' },
+            notice('info', t('No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.')),
+            h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'home-empty-words', onclick: () => app.go('backup') }, t('Check my words')),
+          )
+        : null,
       // A node that is down, behind or disagreeing: the way to another one, right here.
       ['offline', 'behind', 'disagree'].includes(s.sync.state) || s.sync.reconnecting
         ? h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'sync-choose-node', onclick: () => app.go('servers') }, t('Choose another Firo node'))
@@ -247,7 +263,7 @@ export default function home(app) {
       h('div', { class: 'section-head' }, h('p', { class: 'section-title', text: t('Transactions') }), s.txs.length ? h('button', { class: 'btn btn-text btn-inline', 'data-testid': 'see-all', onclick: () => app.go('activity') }, t('See all')) : null),
       recent.length
         ? h('div', { class: 'card list tx-list', 'data-testid': 'recent' }, ...recent.map((tx) => txRow(app, tx, () => app.go('activity', { txid: tx.txid }))))
-        : h('div', { class: 'card empty', 'data-testid': 'home-empty' }, icon('activity'), h('p', { text: known ? t('No payments yet. Receive some FIRO to get started.') : t('Payments show up here once the wallet is up to date.') })),
+        : h('div', { class: 'card empty', 'data-testid': 'home-empty' }, icon('activity'), h('p', { text: !known ? t('Payments show up here once the wallet is up to date.') : restoredWords ? t('No payments yet.') : t('No payments yet. Receive some FIRO to get started.') })),
     );
 
     // Send and Receive, as in Beam PWA: the main action is the strong one and comes first.

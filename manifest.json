@@ -1,6 +1,6 @@
 {
  "app": "campfire-firo-pwa",
- "version": "0.1.16",
+ "version": "0.1.17",
  "files": [
   {
    "path": "app.js",
@@ -44,53 +44,53 @@
   },
   {
    "path": "i18n/de.json",
-   "sha256": "da626d301b236d749433dc27a32a0190586c10409c9376f9659f0edd610dfafe",
-   "size": 367764
+   "sha256": "041ff4f5a007a3f74efdba01b5c2a97f5fb218debadbb522d40ff5c22ddb77bc",
+   "size": 368521
   },
   {
    "path": "i18n/es.json",
-   "sha256": "133c1aad170f769f2753e221722ddc1d8b4ce45fad965955881a595f74400dfb",
-   "size": 359185
+   "sha256": "371e9d842e0bd534c2054159e7295c2a2a506e8a00ac0eadbda79d9c2d6eeb58",
+   "size": 359933
   },
   {
    "path": "i18n/fr.json",
-   "sha256": "cde4e3c0b0317be774198f0a6c40ee28ad4d6a17f694d2bb6ea7a81b61b73d3f",
-   "size": 372499
+   "sha256": "61d761762dc7efc3295413dac646e24eeb4ac578f60530cb933c3b48d07822b2",
+   "size": 373287
   },
   {
    "path": "i18n/ja.json",
-   "sha256": "2f2bc5cfdd82aa21ba4987244dec59e87ca656b9ff37385242b9d60df6307ddd",
-   "size": 415975
+   "sha256": "8d5a360b12552db47c298563f57b5f0c0f751edc663192b196c4a41c2431fe8e",
+   "size": 416873
   },
   {
    "path": "i18n/ko.json",
-   "sha256": "ec41527d5a63fcf5c920306f4b2f72088cf9d1f092631ce8011cc6b733f02973",
-   "size": 372197
+   "sha256": "a32e52e716e95b9c249c5743adf07dfd3fe0d4062dd39c665a4a11fca6301a69",
+   "size": 373034
   },
   {
    "path": "i18n/pt-BR.json",
-   "sha256": "1426963afb8b0ab7e2383a19ab0faaf50102459a6f81ba18782148d391303481",
-   "size": 356134
+   "sha256": "b5bd955e818b0ff4c62542ef08fe6eed29fb979e8a21c175b943fe26102958a1",
+   "size": 356889
   },
   {
    "path": "i18n/ru.json",
-   "sha256": "115f434d692b27c004a157659192ead30ef9fc922b386061b6c8e0fc35bcc455",
-   "size": 490168
+   "sha256": "4e08b5a24bd0609de15fff5fff6c7f37180181d860a61aae595c300e7fd1f1c3",
+   "size": 491148
   },
   {
    "path": "i18n/tr.json",
-   "sha256": "20e7ad13c31cbcfeb095b35e436fc1d89bc68eaf7bd3d4e223afd54f2bc0351d",
-   "size": 357826
+   "sha256": "f7d89353ebe67302b07c11e1e80cfbef56971b889f873b09faf84914786f6d36",
+   "size": 358587
   },
   {
    "path": "i18n/vi.json",
-   "sha256": "2c75fda1d85b877b004f0df55277abb4a7820e0a4d15e45f945b3c2fe78f7045",
-   "size": 387575
+   "sha256": "d06cdd5777152010be5940eca85e9f2b00db7ce0ae1e115d95c16cf41a203ad7",
+   "size": 388418
   },
   {
    "path": "i18n/zh-Hans.json",
-   "sha256": "11ef23679100c6618cad413841883773df2abf5bff39d4a21f9c3e810c33a699",
-   "size": 337491
+   "sha256": "a0e82807957c3c9ea43b4c29f6c2d74f6d3b1a1bd498df330eedf55f9811477d",
+   "size": 338236
   },
   {
    "path": "icons/apple-touch-icon.png",
@@ -439,8 +439,8 @@
   },
   {
    "path": "lib/firo/backend.js",
-   "sha256": "db9cac5f5b54b1e90c5b397351b2b1732f426680266df11e83dce227e739c6a6",
-   "size": 194437
+   "sha256": "527da9a9bf1843ad10f80fe51d3e8b67b804f6dbaa834d6a0586ad20254a1bc8",
+   "size": 196996
   },
   {
    "path": "lib/firo/bytes.js",
@@ -474,8 +474,8 @@
   },
   {
    "path": "lib/firo/spark/client.js",
-   "sha256": "265955bed735d058cb520704b6ca4dec38e07c69e8e9d7a1070f618e6dad2245",
-   "size": 16246
+   "sha256": "5111f11cab623277d8a8073272fa84a0bca47471981b337912dbeec86940ba4a",
+   "size": 16441
   },
   {
    "path": "lib/firo/spark/codec.js",
@@ -504,8 +504,8 @@
   },
   {
    "path": "lib/firo/spark_owner.js",
-   "sha256": "db5e7c60c1df2f3852822f55d95fce919e0a42e930c571ed2751d990662f61d9",
-   "size": 4435
+   "sha256": "047d3406878c5f3f6c991be545e174e816fe50278e514b864d1829468400293a",
+   "size": 4985
   },
   {
    "path": "lib/firo/spark_sethash.js",
@@ -829,7 +829,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "45be44835ec8e68d8eba576162fe98d6110810e7e28b6d18f6538b7d8b2fc1e8",
+   "sha256": "202988743b1285ccf0fb76e2c06e36c179e63cf505eb5e75315b623e42296081",
    "size": 1086
   },
   {
@@ -1044,8 +1044,8 @@
   },
   {
    "path": "screens/home.js",
-   "sha256": "e5f4451326c13e352e5e527d953fb990fd3eaf3701704f2976931b61331399ae",
-   "size": 26202
+   "sha256": "9678b91e8ec7c858c1de3abd5f606c57f4231e7631eb2450c2aad30fa63f0693",
+   "size": 27625
   },
   {
    "path": "screens/install.js",
@@ -1194,8 +1194,8 @@
   },
   {
    "path": "screens/servers.js",
-   "sha256": "dace165fb0a42a574f8170fceaa6509df7982226f36151a6d4faf1ffebf35aeb",
-   "size": 12606
+   "sha256": "0e7c0bab4ebeea22dac82656b959e1b0591f4ab5ef3ef512c9850fc270408659",
+   "size": 13320
   },
   {
    "path": "screens/set_password.js",
