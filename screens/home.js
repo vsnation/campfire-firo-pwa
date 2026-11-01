@@ -188,7 +188,7 @@ export default function home(app) {
         ? h(
             'div',
             { 'data-testid': 'home-empty-restored' },
-            notice('info', t('No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.')),
+            notice('info', app.record.passphrase ? sentences(t('No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.'), t('These words were restored with a passphrase.')) : t('No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.')),
             h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'home-empty-words', onclick: () => app.go('backup') }, t('Check my words')),
           )
         : null,
