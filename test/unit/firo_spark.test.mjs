@@ -251,6 +251,39 @@ test('spend transactions (V2 one/two inputs, extension commitment, V1) match Cam
   }
 });
 
+// User report, 2026-11-01: a name renewal from a wallet holding coins in several groups stopped with
+// "proof does not verify". A Firo node checks a spend against the sets it spends from, and the proof
+// binds exactly those; the app's check was given every set the wallet holds coins in.
+test('the proof check takes exactly the sets the spend uses: one more set and it does not verify', () => {
+  const s = V.spends.find((x) => x.rngLabel === 'spend-v2-one-input');
+  const r = core.createSparkSendTransaction(spendArgs(s));
+  const sets = spendArgs(s).anonymitySets;
+  const args = { spendVersion: s.spendVersion, serializedSpendPayload: r.serializedSpendPayload, outputScripts: r.outputScripts, transparentOut: s.transparentOut, txHash: s.txHashSig };
+  assert.deepEqual(core.verifySparkSpend({ ...args, anonymitySets: sets }), { valid: true, reason: '' });
+  const other = { ...sets[0], setId: Number(sets[0].setId) + 7 };
+  assert.equal(core.verifySparkSpend({ ...args, anonymitySets: [...sets, other] }).valid, false, 'a set it does not use, given too');
+  // Narrowed to the used sets, the check still refuses what is not the spend's (release review).
+  assert.equal(core.verifySparkSpend({ ...args, anonymitySets: [] }).valid, false, 'no set');
+  assert.equal(core.verifySparkSpend({ ...args, anonymitySets: [other] }).valid, false, 'only a set it does not use');
+  assert.equal(core.verifySparkSpend({ ...args, anonymitySets: sets.map((x) => ({ ...x, coins: x.coins.slice(1) })) }).valid, false, 'its set missing a coin');
+  assert.equal(core.verifySparkSpend({ ...args, anonymitySets: sets.map((x) => ({ ...x, setHash: x.setHash.map((b, i) => (i === 0 ? b ^ 1 : b)) })) }).valid, false, 'its set under another set hash');
+});
+
+test('a spend from two sets verifies with both, and with neither alone', () => {
+  const s = V.spends.find((x) => x.rngLabel === 'spend-v2-two-inputs');
+  const base = spendArgs(s);
+  const set = base.anonymitySets[0];
+  const block = base.idAndBlockHashes[0];
+  // The same coins listed as set 1 and set 2, each input in its own set.
+  const args = { ...base, coins: base.coins.map((c, i) => ({ ...c, groupId: i + 1 })), anonymitySets: [1, 2].map((id) => ({ ...set, setId: id })), idAndBlockHashes: [1, 2].map((id) => ({ ...block, setId: id })) };
+  const r = core.createSparkSendTransaction(args);
+  assert.deepEqual(r.usedCoins.map((c) => c.groupId).sort(), [1, 2], 'one input from each set');
+  const check = (ids) => core.verifySparkSpend({ spendVersion: s.spendVersion, serializedSpendPayload: r.serializedSpendPayload, outputScripts: r.outputScripts, transparentOut: s.transparentOut, anonymitySets: args.anonymitySets.filter((x) => ids.includes(x.setId)), txHash: s.txHashSig });
+  assert.deepEqual(check([1, 2]), { valid: true, reason: '' });
+  assert.equal(check([1]).valid, false, 'set 2 missing');
+  assert.equal(check([2]).valid, false, 'set 1 missing');
+});
+
 test('spends made with real randomness verify and pay the right coins', () => {
   const s = V.spends.find((x) => x.rngLabel === 'spend-v2-two-inputs');
   const r = core.createSparkSendTransaction(spendArgs(s));

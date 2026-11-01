@@ -134,6 +134,43 @@ test('audit R1-1: a private payment built by the real library is written down wi
   }
 });
 
+// User report, 2026-11-01: a renewal from a wallet whose coins are in two sets stopped with "proof
+// does not verify": the check before the broadcast was given every set the wallet holds coins in, and
+// the proof binds only the sets the payment spends from (as the node checks it). Real library.
+test('a private payment from a wallet with coins in two sets passes the check before the broadcast', { timeout: 120000 }, async () => {
+  const s = V.spends.find((x) => x.rngLabel === 'spend-v2-one-input');
+  const k = V.keys.find((x) => x.name === s.key);
+  const keyData = hexToBytes(k.privateKey);
+  const MAIN = getNetwork('main');
+  const OTHER = K.vectors[2].addresses[0].address;
+  const backend = createBackend({ network: 'main', store: createMemoryStore(), spark, servers: [{ url: 'wss://unused.example:50004' }] });
+  backend._sparkKey = keyData;
+  backend.progress = { groups: {}, tagsUpTo: 0, firstGroup: 1 };
+  backend.tip = { height: MAIN.sparkChaumV2StartBlock + 1000, time: null };
+  const vectorCoins = s.coins.map((c, i) => ({ coin: hexToBytes(c.coin), context: hexToBytes(c.context), height: c.height, index: i }));
+  const found = await spark.identifyCoins({ keyData, index: 1, isTestNet: false, coins: vectorCoins.map((c) => ({ coin: c.coin, context: c.context })) });
+  // The 1 FIRO coin in set 1, the small one in set 2 (an older wallet's coins span sets).
+  const groupOf = (i) => (found[i].value === 100000000n ? 1 : 2);
+  vectorCoins.forEach((c, i) => backend.ownCoins.set(found[i].lTagHash, { lTagHash: found[i].lTagHash, proof: 'two-servers', groupId: groupOf(i), index: c.index, txid: '11'.repeat(32), value: found[i].value, memo: '', diversifier: found[i].diversifier, isChange: false, coin: c.coin, context: c.context, height: c.height, heightApprox: false, time: 1, mempool: false }));
+  const set = s.anonymitySets[0];
+  const raw = hexToBytes(s.blockHashes[0].blockHash);
+  const asked = [];
+  backend._checkedSets = async (groups) => {
+    asked.push(...groups);
+    return groups.map((g) => ({ groupId: g, setHash: bytesToBase64(hexToBytes(set.setHash)), blockHash: bytesToBase64(raw), blockHashHex: hashToHex(raw), coins: set.coins.map((x) => ({ coin: hexToBytes(x), txHash: new Uint8Array(32) })).reverse() }));
+  };
+  const verified = [];
+  const verify = spark.verifySparkSpend.bind(spark);
+  backend.spark = { ...spark, verifySparkSpend: async (a) => (verified.push(a.anonymitySets.map((x) => Number(x.setId))), verify(a)) };
+  const coins = [...backend.ownCoins.values()];
+  const own = coins.map((c) => ({ coin: c.coin, context: c.context, groupId: c.groupId, height: c.height }));
+  const v = sparkSpendTxVersion(MAIN, backend.tip.height + 1);
+  const built = await backend._buildSparkSpend({ recips: [{ kind: 'transparent', address: OTHER, amount: 20000000n }], tip: backend.tip.height, v, own, coins });
+  assert.deepEqual([...new Set(asked)].sort(), [1, 2], 'both sets were offered to the library');
+  assert.deepEqual(built.usedCoins.map((c) => c.groupId), [1], 'it spends from set 1 only');
+  assert.deepEqual(verified, [[1]], 'and the check is given set 1 only, which it passes');
+});
+
 // My addresses (owner, 2026-10-26): whoseAddress reads a Spark address's diversifier with the view key and
 // makes the address again, so any of the wallet's is found, also one handed out by another wallet of the
 // same words; a full wallet and a view-only one agree; another wallet's address is never taken.
@@ -164,6 +201,44 @@ test('whoseAddress finds any Spark address of the wallet by its diversifier, nev
   assert.deepEqual(book.spark.map((a) => [a.diversifier, a.current, a.payments, a.holds]), [[1, false, 0, '0'], [2, false, 1, '0'], [3, true, 0, '0'], [40, false, 1, '70000000']]);
   assert.equal(book.spark[3].address, await addr(keyData, 40));
   assert.deepEqual(book.transparent, [], 'no public side opened in this test');
+});
+
+// User report, 2026-11-01: a restored wallet did not see its own Spark name. Its names were looked for
+// only on the addresses this app had handed out (1 to the one Receive shows), but Firo Core's own
+// address is number 0, and Campfire hands out more than a restore here has made. Every name's address
+// is now read with the view key and made again, as whoseAddress does.
+test('own Spark names are found on any address of the wallet: Firo Core\'s number 0, one past those handed out; never another wallet\'s or the change address', async () => {
+  const [v, w] = K.vectors.filter((x) => x.spark && x.network === 'main').concat(K.vectors.filter((x) => x.network === 'main' && !x.spark)).slice(0, 2);
+  const keyData = (await FiroKeys.fromMnemonic(v.mnemonic, v.passphrase, getNetwork('main'))).sparkKeyMaterial();
+  const otherKey = (await FiroKeys.fromMnemonic(w.mnemonic, w.passphrase, getNetwork('main'))).sparkKeyMaterial();
+  const addr = (k, d) => spark.getAddress({ keyData: k, index: 1, diversifier: d, isTestNet: false });
+  const list = [
+    { name: 'desktop', address: await addr(keyData, 0), validUntil: 1700000 },
+    { name: 'phone', address: await addr(keyData, 57), validUntil: 1700001 },
+    { name: 'here', address: await addr(keyData, 1), validUntil: 1700002 },
+    { name: 'change', address: await addr(keyData, 9999), validUntil: 1700003 },
+    { name: 'stranger', address: await addr(otherKey, 0), validUntil: 1700004 },
+    { name: 'stranger2', address: await addr(otherKey, 1), validUntil: 1700005 },
+  ];
+  const full = createBackend({ network: 'main', store: createMemoryStore(), spark, servers: [{ url: 'wss://unused.example:50004' }] });
+  full._sparkKey = keyData;
+  const viewOnly = createBackend({ network: 'main', store: createMemoryStore(), spark, servers: [{ url: 'wss://unused.example:50004' }] });
+  viewOnly._fvk = await spark.getFullViewKey({ keyData, index: 1 });
+  for (const b of [full, viewOnly]) {
+    // A restore: only number 1 handed out here.
+    b.sparkAddr = { diversifier: 1 };
+    let asked = 0;
+    b.client = { sparkNames: async () => (asked++, list), close() {} };
+    assert.deepEqual((await b.sparkNames.list()).map((e) => e.name).sort(), ['desktop', 'here', 'phone']);
+    assert.deepEqual((await b.sparkNames.listDetailed()).map((e) => [e.name, e.validUntil]).sort(), [['desktop', 1700000], ['here', 1700002], ['phone', 1700001]]);
+    assert.equal(asked, 1, 'the list is fetched once and read once');
+    assert.equal(await b._isOwnSparkAddressAsync(list[0].address), true, "Firo Core's address 0 is this wallet's");
+    assert.equal(await b._isOwnSparkAddressAsync(list[4].address), false);
+    assert.equal(await b._ownSparkDiversifier(list[1].address), 57, 'a renewal signs for the address the name has');
+    assert.equal(await b._ownSparkDiversifier(list[3].address), null, 'the change address is no receive address');
+    assert.deepEqual(await b.whoseAddress(list[0].address), { kind: 'spark', mine: true, diversifier: 0 });
+    assert.deepEqual(await b.whoseAddress(list[4].address), { kind: 'spark', mine: false });
+  }
 });
 
 // Audit of 0.1.15: L1 the view key derived for whoseAddress never outlives a Lock; L2 nothing is said

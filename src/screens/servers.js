@@ -162,18 +162,25 @@ export default function servers(app) {
     }
   }
 
+  // Electrum's TCP ports (50001, 50002), which phone and desktop apps use: a browser cannot open them
+  // (user report, 2026-11-01: firo.stackwallet.com:50002, Campfire's node, has no WebSocket port).
+  const appPort = (n) => (n && n.ok && /:(50001|50002)$/.test(n.address) ? n.address.split(':').pop() : null);
+  const appPortText = (port) => t('Port {port} is the kind phone and desktop apps use. A browser can connect only to a secure WebSocket (wss) port, usually 50004; this node needs one. Firo\'s public nodes give the same data.', { port });
+
   input.addEventListener('input', () => {
     const v = input.value.trim();
     const n = v ? normalizeServerAddress(v) : null;
-    hint.textContent = !v ? t('The host and its secure WebSocket (wss) port. Without a port, 50004.') : n.ok ? t('Firo PWA will connect to wss://{address}', { address: n.address }) : n.error;
-    hint.className = `hint${v && !n.ok ? ' bad' : v ? ' good' : ''}`;
-    useBtn.disabled = !(n && n.ok) || (own && n.address === own);
+    const port = appPort(n);
+    hint.textContent = !v ? t('The host and its secure WebSocket (wss) port. Without a port, 50004.') : port ? appPortText(port) : n.ok ? t('Firo PWA will connect to wss://{address}', { address: n.address }) : n.error;
+    hint.className = `hint${v && (!n.ok || port) ? ' bad' : v ? ' good' : ''}`;
+    useBtn.disabled = !(n && n.ok) || Boolean(port) || (own && n.address === own);
   });
 
   async function useMine() {
     if (busy) return;
     const n = normalizeServerAddress(input.value);
     if (!n.ok) return put(msg, notice('warn', n.error));
+    if (appPort(n)) return put(msg, notice('warn', appPortText(appPort(n))));
     if (!canUseOwnServer()) return put(msg, notice('info', t('Your own node works in the installed app (after the first install finished). Reload and try again.')));
     busy = true;
     useBtn.disabled = true;

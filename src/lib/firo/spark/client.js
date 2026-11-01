@@ -66,6 +66,8 @@
 //     txHash: the 32-byte hash of the tx with an empty payload (Campfire: extractedTx.getHash()).
 //   verifySparkSpend({ spendVersion, serializedSpendPayload, outputScripts, transparentOut, anonymitySets, txHash })
 //       -> { valid, reason }   (the node's proof check; run it before broadcasting)
+//     anonymitySets: exactly the sets the spend's inputs come from (usedCoins[].groupId), as the node
+//     gives them: one more set and a good proof does not verify (user report, 2026-11-01).
 //
 // Spark names and address ownership
 //   createSparkNameScript({ sparkNameValidityBlocks, name, additionalInfo, proofInput: { spendVersion, inputHex },

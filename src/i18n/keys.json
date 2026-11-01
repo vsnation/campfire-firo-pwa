@@ -8190,7 +8190,8 @@
   },
   "No payments yet.": {
     "where": [
-      "screens/activity.js"
+      "screens/activity.js",
+      "screens/home.js"
     ]
   },
   "No private payments yet.": {
@@ -14873,6 +14874,16 @@
       "amount"
     ]
   },
+  "No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.": {
+    "where": [
+      "screens/home.js"
+    ]
+  },
+  "Check my words": {
+    "where": [
+      "screens/home.js"
+    ]
+  },
   "Choose another Firo node": {
     "where": [
       "screens/home.js"
@@ -18645,6 +18656,14 @@
     "placeholders": [
       "host",
       "message"
+    ]
+  },
+  "Port {port} is the kind phone and desktop apps use. A browser can connect only to a secure WebSocket (wss) port, usually 50004; this node needs one. Firo's public nodes give the same data.": {
+    "where": [
+      "screens/servers.js"
+    ],
+    "placeholders": [
+      "port"
     ]
   },
   "Firo PWA will connect to wss://{address}": {
