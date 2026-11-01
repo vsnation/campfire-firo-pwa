@@ -2520,6 +2520,7 @@
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it ({pct}% checked)": "Gizli bakiye, bir Firo düğümünün gösterdiği {amount} FIRO'yu içeriyor; ikinci bir düğüm onaylayana kadar gönderilemez (%{pct} kontrol edildi)",
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it": "Gizli bakiye, bir Firo düğümünün gösterdiği {amount} FIRO'yu içeriyor; ikinci bir düğüm onaylayana kadar gönderilemez",
   "No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.": "Bu kelimeler için hiç ödeme bulunamadı. Bu cüzdanda FIRO varsa her kelimeyi, sıralarını ve varsa ek parolayı kontrol edin.",
+  "These words were restored with a passphrase.": "Bu kelimeler bir ek parolayla geri yüklendi.",
   "Check my words": "Kelimelerimi kontrol et",
   "Choose another Firo node": "Başka bir Firo düğümü seçin",
   "Private FIRO received is waiting. ": "Alınan gizli FIRO bekliyor. ",
@@ -2896,6 +2897,10 @@
   "{n} words": {
     "one": "{n} kelime",
     "other": "{n} kelime"
+  },
+  "A passphrase of {n} characters is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one.": {
+    "one": "Gelişmiş bölümünde {n} karakterlik bir ek parola dolu. Bununla bu kelimeler, ek parola olmadan açtıklarından farklı bir cüzdan açar. Bu cüzdan bir ek parolayla oluşturulmadıysa onu silin.",
+    "other": "Gelişmiş bölümünde {n} karakterlik bir ek parola dolu. Bununla bu kelimeler, ek parola olmadan açtıklarından farklı bir cüzdan açar. Bu cüzdan bir ek parolayla oluşturulmadıysa onu silin."
   },
   "Words #{list} aren't a recovery word. Check the spelling.": {
     "one": "#{list} numaralı kelime bir kurtarma kelimesi değil. Yazımını kontrol edin.",

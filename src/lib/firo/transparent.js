@@ -1,5 +1,5 @@
 // The transparent side of a Firo wallet over ElectrumX: BIP44 address
-// discovery (gap limit 20 on the receive and the change chain), script-hash
+// discovery (gap limit GAP_LIMIT, 100, on the receive and the change chain), script-hash
 // subscriptions, history, UTXOs computed from that history, balances, fee
 // rates and coin selection, and building + signing a send.
 //
@@ -29,7 +29,7 @@
 //   paymentsTo({client, net, to, from, minHeight}) → [{txid, height, value, fromMatches}]
 //     transactions paying address `to`, and whether an input came from address `from`
 
-import { CHAIN_RECEIVE, CHAIN_CHANGE, GAP_LIMIT } from './params.js';
+import { CHAIN_RECEIVE, CHAIN_CHANGE, GAP_LIMIT, ISSUE_GAP } from './params.js';
 import { decodeTx, buildSignedTransaction, estimateSize, feeForSize, SEQUENCE_LOCKTIME } from './tx.js';
 import { classifyOutputScript } from './script.js';
 import { scriptHash, addressToScript } from './address.js';
@@ -73,12 +73,13 @@ const BEYOND = 100;
 const chainsInit = () => ({ [CHAIN_RECEIVE]: { derived: 0, lastUsed: -1, issued: 0 }, [CHAIN_CHANGE]: { derived: 0, lastUsed: -1, issued: 0 } });
 
 export class TransparentWallet {
-  constructor({ net, keys, client, store, gapLimit = GAP_LIMIT, minConfirmations = 1, txBatch = 25 }) {
+  constructor({ net, keys, client, store, gapLimit = GAP_LIMIT, issueGap = ISSUE_GAP, minConfirmations = 1, txBatch = 25 }) {
     this.net = net;
     this.keys = keys;
     this.client = client;
     this.store = store;
     this.gapLimit = gapLimit;
+    this.issueGap = Math.min(issueGap, gapLimit);
     this.minConfirmations = minConfirmations;
     this.txBatch = txBatch;
     this.addr = { chains: chainsInit(), status: {} };
@@ -425,14 +426,22 @@ export class TransparentWallet {
   }
 
   /**
-   * A fresh receive address. Stays within the gap limit (at most 20 unpaid
-   * addresses after the last paid one), so a restore still finds every coin;
-   * at the limit the newest unpaid one is handed out again.
+   * A fresh receive address. At most ISSUE_GAP (20) unpaid addresses after the last paid one, so a
+   * restore anywhere (Campfire looks 50, many wallets 20) still finds every coin; at the limit the
+   * newest unpaid one is handed out again. Discovery here looks GAP_LIMIT (100) past.
    */
   async newReceiveAddress() {
     const c = this.addr.chains[CHAIN_RECEIVE];
     const cur = this.receiveAddress().index;
-    const next = Math.min(cur + 1, c.lastUsed + this.gapLimit);
+    // Never one already paid (another wallet of these words may have used addresses out of order:
+    // it went 1, 2, 3 (paid), 1, 2, 3, …).
+    let next = cur + 1;
+    const paid = (i) => {
+      const sh = this.keys.address(CHAIN_RECEIVE, i).scripthash;
+      return this.hist[sh]?.length > 0 || Boolean(this.addr.big?.[sh]);
+    };
+    while (next <= c.lastUsed && paid(next)) next++;
+    next = Math.min(next, c.lastUsed + this.issueGap);
     c.issued = Math.max(next, cur);
     const e = this._entry(CHAIN_RECEIVE, c.issued);
     if (c.issued >= c.derived) {

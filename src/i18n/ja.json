@@ -2465,6 +2465,7 @@
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it ({pct}% checked)": "プライベート残高には、一つのFiroノードが表示した{amount} FIROが含まれます。もう一つのノードで確認されるまで送れません（{pct}%確認済み）",
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it": "プライベート残高には、一つのFiroノードが表示した{amount} FIROが含まれます。もう一つのノードで確認されるまで送れません",
   "No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.": "これらの単語では取引が見つかりませんでした。このウォレットにFIROがあるはずなら、各単語とその順番、そしてパスフレーズを設定していた場合はそれも確認してください。",
+  "These words were restored with a passphrase.": "これらの単語はパスフレーズ付きで復元されました。",
   "Check my words": "単語を確認",
   "Choose another Firo node": "別のFiroノードを選ぶ",
   "Private FIRO received is waiting. ": "受け取ったプライベートのFIROが保留中です。 ",
@@ -2834,6 +2835,9 @@
   "Your coins come back once the wallet has read the blockchain; that can take a while the first time. The words never leave this device.": "ウォレットがブロックチェーンを読み込むと、コインが戻ってきます。初回は時間がかかることがあります。単語がこの端末から外に出ることはありません。",
   "{n} words": {
     "other": "{n}個の単語"
+  },
+  "A passphrase of {n} characters is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one.": {
+    "other": "「詳細設定」に{n}文字のパスフレーズが入力されています。パスフレーズがあると、これらの単語はパスフレーズなしの場合とは別のウォレットを開きます。このウォレットをパスフレーズ付きで作成したのでなければ、消去してください。"
   },
   "Words #{list} aren't a recovery word. Check the spelling.": {
     "other": "単語 #{list}は復元用の単語ではありません。つづりを確認してください。"

@@ -14879,6 +14879,11 @@
       "screens/home.js"
     ]
   },
+  "These words were restored with a passphrase.": {
+    "where": [
+      "screens/home.js"
+    ]
+  },
   "Check my words": {
     "where": [
       "screens/home.js"
@@ -17003,6 +17008,18 @@
     "count": {
       "one": "{n} word",
       "other": "{n} words"
+    }
+  },
+  "A passphrase of {n} characters is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one.": {
+    "where": [
+      "screens/restore.js"
+    ],
+    "placeholders": [
+      "n"
+    ],
+    "count": {
+      "one": "A passphrase of {n} character is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one.",
+      "other": "A passphrase of {n} characters is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one."
     }
   },
   "Words #{list} aren't a recovery word. Check the spelling.": {

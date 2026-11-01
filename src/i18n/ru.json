@@ -2630,6 +2630,7 @@
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it ({pct}% checked)": "Приватный баланс включает {amount} FIRO, которые показал только один узел Firo; их нельзя отправить, пока второй узел это не подтвердит (проверено {pct}%)",
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it": "Приватный баланс включает {amount} FIRO, которые показал только один узел Firo; их нельзя отправить, пока второй узел это не подтвердит",
   "No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.": "Для этих слов платежей не найдено. Если в этом кошельке есть FIRO, проверьте каждое слово, их порядок и кодовую фразу, если она была.",
+  "These words were restored with a passphrase.": "Эти слова восстановлены с кодовой фразой.",
   "Check my words": "Проверить мои слова",
   "Choose another Firo node": "Выбрать другой узел Firo",
   "Private FIRO received is waiting. ": "Полученные приватные FIRO ожидают. ",
@@ -3020,6 +3021,12 @@
     "few": "{n} слова",
     "many": "{n} слов",
     "other": "{n} слова"
+  },
+  "A passphrase of {n} characters is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one.": {
+    "one": "В разделе «Дополнительно» заполнена кодовая фраза из {n} символа. С ней эти слова открывают другой кошелёк, чем без неё. Сотрите её, если этот кошелёк создавали без кодовой фразы.",
+    "few": "В разделе «Дополнительно» заполнена кодовая фраза из {n} символов. С ней эти слова открывают другой кошелёк, чем без неё. Сотрите её, если этот кошелёк создавали без кодовой фразы.",
+    "many": "В разделе «Дополнительно» заполнена кодовая фраза из {n} символов. С ней эти слова открывают другой кошелёк, чем без неё. Сотрите её, если этот кошелёк создавали без кодовой фразы.",
+    "other": "В разделе «Дополнительно» заполнена кодовая фраза из {n} символа. С ней эти слова открывают другой кошелёк, чем без неё. Сотрите её, если этот кошелёк создавали без кодовой фразы."
   },
   "Words #{list} aren't a recovery word. Check the spelling.": {
     "one": "Слово №{list} — не слово восстановления. Проверьте написание.",

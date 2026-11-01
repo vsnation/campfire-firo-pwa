@@ -125,6 +125,49 @@ test('addresses first watched when a later one is paid, already holding coins, a
   await w.backend.close();
 });
 
+// User report, 2026-11-01: public coins Campfire shows were not found here. Campfire looks 50 unused
+// addresses past the last used one (in batches of 12); this app looked 20. A restore now finds coins
+// as far as Campfire does: 45 past the last used receive address and 60 past on the change chain.
+test('a restore finds public coins as far past the last used address as Campfire looks', async () => {
+  const w = world();
+  const keys = await FiroKeys.fromMnemonic(W.mnemonic, '', MAIN);
+  fund(w.chain, keys.address(0, 0).address, COIN);
+  fund(w.chain, keys.address(0, 45).address, 2n * COIN);
+  fund(w.chain, keys.address(1, 60).address, 4n * COIN);
+  await w.backend.open({ mnemonic: W.mnemonic });
+  await w.backend.waitForSync();
+  assert.equal(pub(w.backend).available, String(7n * COIN), 'receive 0 and 45, change 60');
+  await w.backend.close();
+});
+
+test('discovery reaches exactly 100 unused addresses past the last used one', async () => {
+  const keys = await FiroKeys.fromMnemonic(W.mnemonic, '', MAIN);
+  for (const [at, found] of [[100, true], [101, false]]) {
+    const w = world();
+    fund(w.chain, keys.address(0, 0).address, COIN);
+    fund(w.chain, keys.address(0, at).address, 2n * COIN);
+    await w.backend.open({ mnemonic: W.mnemonic });
+    await w.backend.waitForSync();
+    assert.equal(pub(w.backend).available, String(found ? 3n * COIN : COIN), `receive ${at}: ${found ? 'found' : 'past the look'}`);
+    await w.backend.close();
+  }
+});
+
+test('new public receive addresses stay within 20 of the last used one, though discovery looks 100 past', async () => {
+  const w = world();
+  const keys = await FiroKeys.fromMnemonic(W.mnemonic, '', MAIN);
+  fund(w.chain, keys.address(0, 3).address, COIN);
+  await w.backend.open({ mnemonic: W.mnemonic });
+  await w.backend.waitForSync();
+  const index = (a) => [...Array(130).keys()].find((j) => keys.address(0, j).address === a);
+  const handed = [];
+  for (let i = 0; i < 40; i++) handed.push(index(await w.backend.newTransparentAddress()));
+  assert.equal(handed.includes(3), false, 'never the paid one');
+  assert.deepEqual(handed.slice(0, 4), [1, 2, 4, 5], 'onwards, past the paid one');
+  assert.equal(Math.max(...handed), 23, 'the last used is 3: never past 23');
+  await w.backend.close();
+});
+
 test('a wallet left by 0.1.12 with a status and no history behind it heals once updated', async () => {
   const w = world();
   fund(w.chain, W.addresses[0].address, 3n * COIN);

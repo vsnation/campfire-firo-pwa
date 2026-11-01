@@ -2465,6 +2465,7 @@
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it ({pct}% checked)": "Số dư riêng tư gồm {amount} FIRO do một node Firo hiển thị, chưa gửi được cho đến khi node thứ hai xác nhận ({pct}% đã kiểm tra)",
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it": "Số dư riêng tư gồm {amount} FIRO do một node Firo hiển thị, chưa gửi được cho đến khi node thứ hai xác nhận",
   "No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.": "Không tìm thấy khoản thanh toán nào cho các từ này. Nếu ví này có FIRO, hãy kiểm tra từng từ, thứ tự của chúng và cụm mật khẩu nếu ví có dùng.",
+  "These words were restored with a passphrase.": "Các từ này được khôi phục kèm một cụm mật khẩu.",
   "Check my words": "Kiểm tra các từ của tôi",
   "Choose another Firo node": "Chọn node Firo khác",
   "Private FIRO received is waiting. ": "FIRO riêng tư đã nhận đang chờ. ",
@@ -2834,6 +2835,9 @@
   "Your coins come back once the wallet has read the blockchain; that can take a while the first time. The words never leave this device.": "Coin của bạn sẽ trở lại khi ví đã đọc blockchain; lần đầu việc này có thể mất một lúc. Các từ không bao giờ rời khỏi thiết bị này.",
   "{n} words": {
     "other": "{n} từ"
+  },
+  "A passphrase of {n} characters is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one.": {
+    "other": "Trong Nâng cao đang có một cụm mật khẩu {n} ký tự. Có nó, các từ này mở một ví khác với khi không có nó. Hãy xóa nó trừ khi ví này được tạo kèm cụm mật khẩu."
   },
   "Words #{list} aren't a recovery word. Check the spelling.": {
     "other": "Từ số {list} không phải là từ khôi phục. Hãy kiểm tra chính tả."

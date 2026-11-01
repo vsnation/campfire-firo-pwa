@@ -2520,6 +2520,7 @@
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it ({pct}% checked)": "Le privé inclut {amount} FIRO affichés par un seul nœud Firo, non envoyables tant qu'un second ne les confirme pas ({pct}% vérifiés)",
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it": "Le privé inclut {amount} FIRO affichés par un seul nœud Firo, non envoyables tant qu'un second ne les confirme pas",
   "No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.": "Aucun paiement n'a été trouvé pour ces mots. Si ce portefeuille contient des FIRO, vérifiez chaque mot, leur ordre et la phrase secrète s'il en avait une.",
+  "These words were restored with a passphrase.": "Ces mots ont été restaurés avec une phrase secrète.",
   "Check my words": "Vérifier mes mots",
   "Choose another Firo node": "Choisir un autre nœud Firo",
   "Private FIRO received is waiting. ": "Des FIRO privés reçus sont en attente. ",
@@ -2896,6 +2897,10 @@
   "{n} words": {
     "one": "{n} mot",
     "other": "{n} mots"
+  },
+  "A passphrase of {n} characters is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one.": {
+    "one": "Une phrase secrète de {n} caractère est remplie dans Avancé. Avec elle, ces mots ouvrent un autre portefeuille que sans elle. Effacez-la, sauf si ce portefeuille a été créé avec une phrase secrète.",
+    "other": "Une phrase secrète de {n} caractères est remplie dans Avancé. Avec elle, ces mots ouvrent un autre portefeuille que sans elle. Effacez-la, sauf si ce portefeuille a été créé avec une phrase secrète."
   },
   "Words #{list} aren't a recovery word. Check the spelling.": {
     "one": "Le mot n°{list} n'est pas un mot de récupération. Vérifiez l'orthographe.",

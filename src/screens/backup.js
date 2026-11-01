@@ -68,7 +68,9 @@ export function wordReveal(onReveal) {
  * can be shown, and a new one is typed twice; ok() is false while the two differ. onChange: any edit.
  */
 export function passphraseField(setup, { restoring = false, onChange = () => {} } = {}) {
-  const field = (attrs) => h('input', { class: 'input', type: 'password', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', ...attrs });
+  // Not a login: password managers are asked to leave it alone (autocomplete=off alone is ignored for
+  // password boxes, and a saved app password filled in here opens another wallet).
+  const field = (attrs) => h('input', { class: 'input', type: 'password', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other', ...attrs });
   const input = field({ 'aria-label': t('BIP39 passphrase'), 'data-testid': 'passphrase' });
   const again = restoring ? null : field({ 'aria-label': t('The same passphrase again'), 'data-testid': 'passphrase2' });
   const hint = h('p', { class: 'hint', 'data-testid': 'passphrase-hint', 'aria-live': 'polite' });

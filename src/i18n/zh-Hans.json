@@ -2465,6 +2465,7 @@
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it ({pct}% checked)": "隐私余额包含 {amount} FIRO，由一个 Firo 节点显示，在第二个节点确认之前不可发送（已检查 {pct}%）",
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it": "隐私余额包含 {amount} FIRO，由一个 Firo 节点显示，在第二个节点确认之前不可发送",
   "No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.": "没有找到这组助记词的任何转账。如果此钱包里有 FIRO，请检查每个词及其顺序；如果设置过密码短语，也请一并检查。",
+  "These words were restored with a passphrase.": "这组助记词是连同密码短语一起恢复的。",
   "Check my words": "检查我的助记词",
   "Choose another Firo node": "选择其他 Firo 节点",
   "Private FIRO received is waiting. ": "收到的隐私 FIRO 正在等待。 ",
@@ -2834,6 +2835,9 @@
   "Your coins come back once the wallet has read the blockchain; that can take a while the first time. The words never leave this device.": "钱包读取区块链后，你的币就会回来；第一次可能需要一段时间。助记词永远不会离开本设备。",
   "{n} words": {
     "other": "{n} 个词"
+  },
+  "A passphrase of {n} characters is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one.": {
+    "other": "“高级”中已填写 {n} 个字符的密码短语。有了它，这组助记词打开的是与没有它时不同的钱包。除非此钱包创建时用了密码短语，否则请清空它。"
   },
   "Words #{list} aren't a recovery word. Check the spelling.": {
     "other": "第 {list} 个词不是有效的助记词。请检查拼写。"

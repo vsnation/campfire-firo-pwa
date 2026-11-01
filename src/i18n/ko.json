@@ -2465,6 +2465,7 @@
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it ({pct}% checked)": "비공개 잔액에 Firo 노드 하나가 표시한 {amount} FIRO가 포함돼 있어요. 두 번째 노드가 확인할 때까지 보낼 수 없어요({pct}% 확인)",
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it": "비공개 잔액에 Firo 노드 하나가 표시한 {amount} FIRO가 포함돼 있어요. 두 번째 노드가 확인할 때까지 보낼 수 없어요",
   "No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.": "이 복구 단어로는 송금 내역을 찾지 못했어요. 이 지갑에 FIRO가 있다면 각 단어와 순서를 확인하고, 패스프레이즈를 설정했다면 그것도 확인하세요.",
+  "These words were restored with a passphrase.": "이 복구 단어는 패스프레이즈와 함께 복원됐어요.",
   "Check my words": "내 복구 단어 확인",
   "Choose another Firo node": "다른 Firo 노드 고르기",
   "Private FIRO received is waiting. ": "받은 비공개 FIRO가 대기 중이에요. ",
@@ -2834,6 +2835,9 @@
   "Your coins come back once the wallet has read the blockchain; that can take a while the first time. The words never leave this device.": "지갑이 블록체인을 읽으면 코인이 돌아와요. 처음에는 시간이 걸릴 수 있어요. 복구 단어는 이 기기를 절대 떠나지 않아요.",
   "{n} words": {
     "other": "{n}개 단어"
+  },
+  "A passphrase of {n} characters is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one.": {
+    "other": "고급에 {n}자 패스프레이즈가 입력되어 있어요. 패스프레이즈가 있으면 이 복구 단어는 패스프레이즈가 없을 때와 다른 지갑을 열어요. 이 지갑을 패스프레이즈와 함께 만든 게 아니라면 지우세요."
   },
   "Words #{list} aren't a recovery word. Check the spelling.": {
     "other": "{list}번째 단어는 복구 단어가 아니에요. 철자를 확인하세요."

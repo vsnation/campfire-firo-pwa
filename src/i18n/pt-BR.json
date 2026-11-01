@@ -2520,6 +2520,7 @@
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it ({pct}% checked)": "O privado inclui {amount} FIRO mostrado por um nó Firo, que não pode ser enviado até um segundo confirmá-lo ({pct}% verificado)",
   "Private includes {amount} FIRO shown by one Firo node, not sendable until a second one confirms it": "O privado inclui {amount} FIRO mostrado por um nó Firo, que não pode ser enviado até um segundo confirmá-lo",
   "No payments were found for these words. If this wallet has FIRO, check each word, their order, and the passphrase if it had one.": "Nenhum pagamento foi encontrado para estas palavras. Se esta carteira tiver FIRO, confira cada palavra, a ordem delas e a frase-senha, se houver uma.",
+  "These words were restored with a passphrase.": "Estas palavras foram restauradas com uma frase-senha.",
   "Check my words": "Conferir minhas palavras",
   "Choose another Firo node": "Escolher outro nó Firo",
   "Private FIRO received is waiting. ": "O FIRO privado recebido está aguardando. ",
@@ -2896,6 +2897,10 @@
   "{n} words": {
     "one": "{n} palavra",
     "other": "{n} palavras"
+  },
+  "A passphrase of {n} characters is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one.": {
+    "one": "Há uma frase-senha de {n} caractere em Avançado. Com ela, estas palavras abrem uma carteira diferente da que abrem sem ela. Apague-a, a menos que esta carteira tenha sido criada com uma.",
+    "other": "Há uma frase-senha de {n} caracteres em Avançado. Com ela, estas palavras abrem uma carteira diferente da que abrem sem ela. Apague-a, a menos que esta carteira tenha sido criada com uma."
   },
   "Words #{list} aren't a recovery word. Check the spelling.": {
     "one": "A palavra nº {list} não é uma palavra de recuperação. Confira a grafia.",

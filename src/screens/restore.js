@@ -53,7 +53,18 @@ export default function restore(app) {
   const msg = h('div', { 'aria-live': 'polite' });
   const cta = primary(t('Restore my wallet'), submit, { disabled: true, 'data-testid': 'restore-submit' });
   const pickerBox = h('div');
-  const pass = passphraseField(setup, { restoring: true });
+  // A passphrase opens another wallet than the words alone, and it sits under a closed "Advanced"
+  // (user report, 2026-11-01: the same words showed 0 and no names on one computer; a browser's
+  // password manager can fill that box unseen). Said in the open while it is not empty.
+  const passNote = h('div', { 'data-testid': 'restore-passphrase-note', 'aria-live': 'polite' });
+  let notedPass = '';
+  const notePass = () => {
+    const n = pass.value().length;
+    notedPass = pass.value();
+    put(passNote, n ? notice('warn', tn({ one: 'A passphrase of {n} character is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one.', other: 'A passphrase of {n} characters is filled in under Advanced. With it, these words open a different wallet than without it. Clear it unless this wallet was made with one.' }, n)) : null);
+  };
+  const pass = passphraseField(setup, { restoring: true, onChange: () => notePass() });
+  if (pass.value()) notePass(); // typed here before, and back on this screen
   const height = h('input', { class: 'input', type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: t('Leave empty to read everything'), 'aria-label': t('Restore from block'), 'data-testid': 'restore-height' });
   if (Number.isSafeInteger(setup.birthday)) height.value = String(setup.birthday);
   const heightHint = h('p', { class: 'hint', text: t('Only if you know when your wallet was made: reading starts there, which is faster. Payments before it are not found. Empty: everything is read.') });
@@ -184,6 +195,12 @@ export default function restore(app) {
     if (!(await keys()).validateMnemonic(words.join(' ')).ok) return validate();
     const hgt = parseHeight(height.value);
     if (hgt === false) return validate();
+    // A passphrase that came in unseen is shown before it is used: typing one needs Advanced open, so
+    // one in a closed Advanced (a password manager, with or without an input event) opens it first.
+    if (pass.value() && (pass.value() !== notedPass || !pass.el.open)) {
+      pass.el.open = true;
+      return notePass();
+    }
     // Already a wallet here (the same words and passphrase): two copies would each keep their own
     // payment records, and neither would know what the other spent (PN). Said before a password.
     const twin = await walletWithWords(words, pass.value()).catch(() => null);
@@ -219,6 +236,7 @@ export default function restore(app) {
     grid,
     msg,
     pass.el,
+    passNote,
     h('p', { class: 'small', text: t('Your coins come back once the wallet has read the blockchain; that can take a while the first time. The words never leave this device.') }),
   );
   return { el };
