@@ -18,7 +18,7 @@
 // { credit({to, amount, memo, unproven}), offline(bool), mine(), speed(ms), state(), renameTo(name, address),
 // refuseSets(code), slowCoinCheck(ms), nodeDown(host, down), unsureNext({arrives}), refuseNext(message),
 // hold(on), feeChangeNext(sats), noSecond(syncs), slowSwitch(ms), proving(sats, done, total), unlistedAddress(kind, n),
-// otherAddress(kind) } on the open wallet. slowSwitch(ms): the next change of
+// otherAddress(kind), syncError(kind, message), sparkOff(reason), firstSync(pct), publicUnproven(sats) } on the open wallet. slowSwitch(ms): the next change of
 // node takes that long, as the real engine's does while a sync it waits for ends. hold(true): no fake block comes by itself (mine()
 // still makes one). feeChangeNext(sats): from the next send() on, the fee is that much higher (as
 // when a coin arrives during Face ID); a send() given the figures Review showed (expect) is then
@@ -441,12 +441,16 @@ class FakeBackend {
       sync: { ...s.sync },
       // As the real engine's tip check (D-11) when no second node can be asked (__firoFake.noSecond).
       serverCheck: this._noSecond ? { state: 'unknown', at: Math.floor(Date.now() / 1000), otherHeight: null, noSecondSyncs: this._noSecond } : null,
+      // __firoFake.sparkOff(reason) / firstSync(pct): as the real engine's getState() (0.1.19, audit F2, F3).
+      ...(this._sparkOff ? { sparkOff: this._sparkOff } : {}),
+      ...(this._firstSync ? { firstSync: true } : {}),
       privateCheck: this._privateCheck ?? null,
       sending: this.sending ?? null,
       balance: {
         // __firoFake.proving(sats, done, total): received private FIRO waiting for its sets' check, as the real engine.
         private: this._proving ? { available: str(b.private.available), pending: str(b.private.pending + this._proving.sats), checking: str(this._proving.sats) } : out(b.private),
-        public: out(b.public),
+        // __firoFake.publicUnproven(sats): public FIRO in a block on one node's word (0.1.19, audit F4).
+        public: this._pubUnproven ? { available: str(b.public.available), pending: str(b.public.pending + this._pubUnproven), unproven: str(this._pubUnproven) } : out(b.public),
       },
       ...(this._proving && this._proving.total ? { privateProof: { done: this._proving.done, total: this._proving.total } } : {}),
       txs: this.id
@@ -945,6 +949,33 @@ globalThis.__firoFake = Object.freeze({
   noSecond: (syncs = 3) => {
     if (!current) return;
     current._noSecond = Math.max(0, Number(syncs) || 0);
+    current.emit();
+  },
+  // What stopped the sync, as the real engine says it (0.1.19, audit F6): syncError('slow') with the
+  // connection up; 'storage', 'spark', 'server', 'other' with `message`; null: the sync is done again.
+  // Use with hold(true): the next fake block walks the sync again.
+  syncError: (kind = 'slow', message = 'No connection to the Firo nodes. Check the internet connection and try again.') => {
+    if (!current) return;
+    current.s.sync = kind ? { phase: 'error', done: 0, total: 0, error: message, kind } : { phase: 'done', done: 1, total: 1 };
+    current.emit();
+  },
+  // The private side could not start in this browser, with that reason (audit F2); null clears it.
+  sparkOff: (reason = 'WebAssembly is not defined') => {
+    if (!current) return;
+    current._sparkOff = reason || null;
+    current.emit();
+  },
+  // A wallet's first private sync at `pct` percent of the coin sets (audit F3); null: done.
+  firstSync: (pct = 40) => {
+    if (!current) return;
+    current._firstSync = pct != null;
+    current.s.sync = pct != null ? { phase: 'spark-sets', done: pct, total: 100 } : { phase: 'done', done: 1, total: 1 };
+    current.emit();
+  },
+  // Public FIRO in a block that no second node has confirmed yet (audit F4); 0 clears it.
+  publicUnproven: (sats = 0) => {
+    if (!current) return;
+    current._pubUnproven = BigInt(sats || 0);
     current.emit();
   },
 });

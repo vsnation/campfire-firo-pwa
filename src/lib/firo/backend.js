@@ -165,6 +165,22 @@ function parseAmount(v) {
   return n;
 }
 
+/**
+ * What stopped a sync, for its words (lib/sync.js): 'slow' (the node did not answer a request in
+ * time, the connection still up), 'offline', 'server' (refused or an odd answer), 'storage' (this
+ * device could not save), 'spark' (the private part's code could not run), or 'other'.
+ */
+export function syncErrorKind(e) {
+  if (e && e.code === 'tags-too-slow') return 'slow-link';
+  if (e instanceof ElectrumError) return e.code === 'timeout' ? 'slow' : e.code === 'offline' || e.code === 'closed' ? 'offline' : 'server';
+  const text = `${(e && e.name) || ''} ${(e && e.message) || ''}`;
+  if (/QuotaExceeded|quota|disk full|Storage write/i.test(text)) return 'storage';
+  // The Spark library's own errors (lib/firo/spark/codec.js SparkError), or WebAssembly / a worker not
+  // running here; not an engine error that only names Spark (that is 'other', said with its words).
+  if ((e && e.name === 'SparkError') || /wasm|webassembly|\bworker\b/i.test(text)) return 'spark';
+  return 'other';
+}
+
 /** Converts this module's internal errors to WALLET_API codes. */
 function apiError(e) {
   if (e instanceof ElectrumError) {
@@ -268,6 +284,33 @@ const PROVE_MS_PER_SYNC = 60000;
  * restore is where tags left out do harm.
  */
 const TAG_CHECK_EVERY = 300;
+/**
+ * The list of spent private coins comes as one answer (24 MB from the start, 2026-11), and Firo's
+ * nodes drop a connection whose answer takes longer than about 50 s to arrive (measured 2026-11-04:
+ * at 2 Mbit/s the connection was cut at 50 s, 10.8 MB in; an idle connection on the same line stayed
+ * open, and at 10 Mbit/s the list came in 15 s). Lost this long after asking, the line is too slow for
+ * it: said so, and not asked again for TAGS_SLOW_WAIT_S (0.1.18 began it again at every reconnect, ~10
+ * MB of mobile data a minute, for ever, under "Reconnecting…").
+ */
+const TAGS_TOO_SLOW_MS = 35000;
+const TAGS_SLOW_WAIT_S = 600;
+/**
+ * When the page last went out of sight or the network changed (ms): a list lost while either
+ * happened says nothing about the line's speed (release audit of 0.1.19, A0119-5: a phone asleep
+ * was read as a slow line), and a change of network after such a verdict lifts its wait.
+ */
+let lastAwayMs = 0;
+let netChangedMs = 0;
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') lastAwayMs = Date.now();
+  });
+}
+if (typeof window !== 'undefined' && window.addEventListener) {
+  for (const ev of ['online', 'offline']) window.addEventListener(ev, () => (netChangedMs = lastAwayMs = Date.now()));
+}
+/** Moved off a lagging node at most this often (A0119-9: a node ahead that refused connections looped). */
+const MOVE_EVERY_MS = 600000;
 
 /** Why a private payment was stopped over its coin lists (audit D-09), in the person's words. */
 const SET_WORDS = lazyWords({
@@ -361,8 +404,13 @@ function guardStore(store, closed) {
 }
 
 export class FiroBackend {
-  constructor({ network = 'main', servers, ownNode = false, store, spark = null, sharedStore = null, WebSocket, sparkTxDetails = 'none', electrum = {}, relayLookMs = RELAY_LOOK_MS, proveMsPerSync = PROVE_MS_PER_SYNC, verifyHeightsPerPart = VERIFY_HEIGHTS_PER_PART, sparkSetChecks = true } = {}) {
+  constructor({ network = 'main', servers, ownNode = false, store, spark = null, sharedStore = null, WebSocket, sparkTxDetails = 'none', electrum = {}, relayLookMs = RELAY_LOOK_MS, proveMsPerSync = PROVE_MS_PER_SYNC, verifyHeightsPerPart = VERIFY_HEIGHTS_PER_PART, sparkSetChecks = true, sparkOff = null, tagsTooSlowMs = TAGS_TOO_SLOW_MS } = {}) {
     if (!store) throw new Error(t('createBackend needs a store.'));
+    // Why the Spark client could not start in this browser (lib/chain.js), or null: said in
+    // getState().sparkOff, so the wallet never reads "Synced" with the private side silently off
+    // (audit F2: 0 private FIRO and no names, "Synced", with nothing to say why).
+    this.sparkOff = sparkOff ? String(sparkOff) : null;
+    this._tagsTooSlowMs = tagsTooSlowMs; // see TAGS_TOO_SLOW_MS (tests make it short)
     this.net = getNetwork(network);
     this.servers = servers?.length ? servers.map((s) => (typeof s === 'string' ? s : s.url)) : [...this.net.servers];
     // The person reads the chain from a node of their own (the app says so): see _secondOpinion.
@@ -464,6 +512,13 @@ export class FiroBackend {
     this._lastServer = null; // the node the main connection was last on (RE5-3: in use while it is down or moving)
     this._opinions = new Set(); // how to end each second opinion in flight, at a lock (RE5-5)
     this._noSecondSyncs = 0; // syncs in a row the tip check found no second node to ask (RE3-2)
+    this._lastFull = null; // {height, server}: the last sync answered in full on this node (see _refreshing)
+    this._tagsTooSlow = null; // {until, at}: the spent-coins list did not get through this line; not asked again before then
+    // Bumped by what reads things anew (Rescan, a cleared cache, another node): a sync that began
+    // before it does not count as the full sync a refresh follows (release audit A0119-1).
+    this._syncGen = 0;
+    this._movedAt = 0; // when the wallet last moved off a lagging node (ms)
+    this._moving = null; // a move off a node that lags behind, about to happen (see _moveOffLagging)
     this._offs = [];
     this.labels = {};
   }
@@ -555,7 +610,10 @@ export class FiroBackend {
       this.client.on('header', (h) => {
         const changed = !this.tip || this.tip.height !== h.height;
         this.tip = { height: h.height, time: headerTime(h.hex) };
-        if (changed && this.syncState.phase !== 'connecting') this._requestSync();
+        // While connecting, the sync in progress reads it; with none in progress, a new block on a
+        // live connection is the sign to try again (audit F1: one sync that ended "connecting" on a
+        // connection that was up waited for a disconnect that never came).
+        if (changed && (this.syncState.phase !== 'connecting' || !this._running)) this._requestSync();
         this._emit();
       }),
       this.client.on('scripthash', (sh, status) => {
@@ -632,6 +690,7 @@ export class FiroBackend {
   async close() {
     this._closed = true;
     clearTimeout(this._retry.timer);
+    clearTimeout(this._moving);
     for (const off of this._offs) off();
     this.client?.close();
     // Second opinions in flight end now (release re-audit 5 RE5-5): nothing more is asked, and the
@@ -693,9 +752,14 @@ export class FiroBackend {
       ...(priv.checking > 0n && this.proofProgress ? { privateProof: { ...this.proofProgress } } : {}),
       // A payment's stage the person should see while it waits ('checking-coins'), or null.
       sending: this.sendStage ?? null,
+      // The private side could not start in this browser: why (audit F2).
+      ...(this.sparkOff && !this._sparkEnabled() ? { sparkOff: this.sparkOff } : {}),
+      // The private side has never been read in full on this device: its first sync, which can take
+      // longer than the auto-lock (audit F3; Home offers to stay unlocked meanwhile).
+      ...(this.sparkSync && this._sparkEnabled() && !this._sparkReady ? { firstSync: true } : {}),
       balance: {
         private: { available: String(priv.available), pending: String(priv.pending), ...(priv.checking > 0n ? { checking: String(priv.checking) } : {}) },
-        public: { available: String(pub.available), pending: String(pub.pending), ...(pub.mnLocked > 0n ? { mnLocked: String(pub.mnLocked) } : {}) },
+        public: { available: String(pub.available), pending: String(pub.pending), ...(pub.mnLocked > 0n ? { mnLocked: String(pub.mnLocked) } : {}), ...(pub.unproven > 0n ? { unproven: String(pub.unproven) } : {}) },
       },
       txs: this._txList(),
       receive: {
@@ -871,13 +935,27 @@ export class FiroBackend {
     while (this._running) await this._running;
   }
 
-  _phase(phase, done = 0, total = 0, error) {
-    this.syncState = error ? { phase, done, total, error } : { phase, done, total };
+  _phase(phase, done = 0, total = 0, error, kind) {
+    const refresh = !error && phase !== 'connecting' && this._refreshing();
+    this.syncState = error ? { phase, done, total, error, ...(kind ? { kind } : {}) } : { phase, done, total, ...(refresh ? { refresh: true } : {}) };
     this._emit();
+  }
+
+  /**
+   * A sync that only reads a new block or three after one answered in full on the same node: said as
+   * such (sync.refresh), so the wallet stays "Synced" meanwhile (audit F10: every block put Home
+   * through "Catching up (20%)" and paused Send, tens of seconds on a slow link, and it read as a
+   * sync that never ends). Sending was allowed between blocks anyway; this is the same state.
+   */
+  _refreshing() {
+    const f = this._lastFull;
+    const h = this.tip?.height;
+    return Boolean(f && Number.isSafeInteger(h) && this.client?.server === f.server && h >= f.height && h - f.height <= 3);
   }
 
   async _syncOnce() {
     let pubFailed = 0;
+    const gen = this._syncGen;
     try {
       if (!this.client.connected) {
         this._phase('connecting');
@@ -906,6 +984,7 @@ export class FiroBackend {
       }
       if (this.sparkSync) await this._syncSpark();
       this.syncState = { phase: 'done', done: 1, total: 1, ...(pubFailed ? { partial: pubFailed } : {}) };
+      this._lastFull = pubFailed || gen !== this._syncGen ? null : { height: this.tip?.height ?? 0, server: this.client.server };
       this._emit();
       // Backed off until a whole sync is answered (release audit of 0.1.13: reset after the public
       // part alone, a private part that kept failing was asked again every 5 s).
@@ -929,10 +1008,18 @@ export class FiroBackend {
       if (this._closed) return;
       // Let go of for a Rescan: the next sync (already asked for) does its look.
       if (e && e.code === 'superseded') return;
-      const a = apiError(e);
-      // Asked again soon, not only at the next block (a lost connection reconnects and syncs by itself).
-      if (a.code !== 'offline') this._retryLater();
-      this._phase(a.code === 'offline' ? 'connecting' : 'error', 0, 0, a.message);
+      const kind = syncErrorKind(e);
+      // The next sync is no refresh (A0119-7: each retry read "Synced" while it ran, then the error).
+      this._lastFull = null;
+      // A connection that is gone reconnects (moving to the next node) and syncs by itself. Anything
+      // else is asked again soon, not only at the next block: a request the node did not answer in
+      // time too (audit F1: it read as no connection, was never asked again, and a slow link kept a
+      // wallet at "Connecting to a Firo node" for the whole session while the connection was up).
+      // A line too slow for the spent-coins list is said as such, also while it reconnects (the node
+      // dropped it): the next sync does not ask for the list again until TAGS_SLOW_WAIT_S has passed.
+      const lost = kind === 'offline' || (kind === 'slow' && !this.client.connected);
+      if (!lost) this._retryLater();
+      this._phase(lost ? 'connecting' : 'error', 0, 0, apiError(e).message, lost ? undefined : kind);
     }
   }
 
@@ -968,7 +1055,27 @@ export class FiroBackend {
     // Used tags.
     this._phase('spark-tags');
     const startAt = this.progress.isNew ? (this.net.sparkTagsCheckpoint ?? 0) : 0;
-    await this.sparkSync.syncTags({ startAt });
+    const tooSlow = () => err('tags-too-slow', t('The connection is too slow to receive the list of spent private coins from a Firo node.'));
+    const slow = this._tagsTooSlow;
+    if (slow && now() < slow.until && netChangedMs < slow.at) throw tooSlow();
+    // The whole list from the start (a restore: no tag state yet, or the cache started over) is the
+    // big answer (A0119b-4: a new wallet starts at a recent checkpoint, a small list); the tags of new
+    // blocks are a few. A list not read for a week may be megabytes too: a long request, no verdict.
+    const held = await this.sparkSync.tagState();
+    const big = (!held && startAt === 0) || (held && startAt < held.firstCursor);
+    const long = big || !held || now() - (held.updatedAt ?? 0) > 7 * 86400;
+    const asked = Date.now();
+    try {
+      await this.sparkSync.syncTags({ startAt, long });
+      this._tagsTooSlow = null;
+    } catch (e) {
+      const inSight = typeof document === 'undefined' || document.visibilityState === 'visible';
+      if (big && inSight && lastAwayMs < asked && e instanceof ElectrumError && (e.code === 'offline' || e.code === 'timeout') && Date.now() - asked >= this._tagsTooSlowMs) {
+        this._tagsTooSlow = { until: now() + TAGS_SLOW_WAIT_S, at: Date.now() };
+        throw tooSlow();
+      }
+      throw e;
+    }
     // Compared with a second server now and then, before they mark anything (D-12).
     const item = this.tagCheck;
     if (!item || now() >= item.at + (item.state === 'unknown' && item.retrySoon ? 30 : TAG_CHECK_EVERY)) await this._checkTags().catch(() => {});
@@ -1742,7 +1849,9 @@ export class FiroBackend {
     const from = Math.max(st.firstCursor, Math.min(agreed, st.cursor) - TAG_OVERLAP);
     const theirs = await this._secondOpinion(async (c) => {
       const h = await c.subscribeHeaders();
-      return h.height === mine ? { height: h.height, list: await c.sparkUsedTags(from) } : { height: h.height };
+      // 120 s as before: a second node's check, caught when it fails, is not waited for as long as
+      // the list a sync cannot do without (electrum.js sparkUsedTags).
+      return h.height === mine ? { height: h.height, list: await c.sparkUsedTags(from, { timeoutMs: 120000 }) } : { height: h.height };
     }).catch(() => null);
     let state = this.ownNode ? 'own-node' : 'unknown';
     let count = null;
@@ -1809,6 +1918,24 @@ export class FiroBackend {
     }
     this.serverCheck = { state, at, otherHeight: theirs ? Math.min(theirs.height, lowest ?? theirs.height) : null };
     this._emit();
+    // Behind another Firo node of the list by more than 3 blocks: moved to that one (audit F5: a node
+    // that kept answering but stopped following the chain kept every wallet on it at an old balance,
+    // with only "Sending is paused" to show for it; the wallet moved on only when a node went silent).
+    if (state === 'disagree' && theirs && theirs.height > mine + 3) this._moveOffLagging(theirs.url);
+  }
+
+  /** To `url` (another node of the list, ahead of this one), once this sync has let go; not with a payment going out. */
+  _moveOffLagging(url) {
+    if (this._moving || this._closed || this.ownNode || !url || !this.servers.includes(url) || Date.now() - this._movedAt < MOVE_EVERY_MS) return;
+    const from = this.client?.server ?? null;
+    this._moving = setTimeout(() => {
+      this._moving = null;
+      // Still so, still on that node, and no payment under way (its own checks are left to finish).
+      if (this._closed || !this.opened || this._inFlight > 0 || this._rescanning || this.serverCheck?.state !== 'disagree' || this.client?.server !== from) return;
+      this._movedAt = Date.now();
+      this.setServers([url, ...this.servers.filter((u) => u !== url)], { ownNode: false }).catch(() => {});
+    }, 0);
+    this._moving.unref?.();
   }
 
   /**
@@ -3623,6 +3750,9 @@ export class FiroBackend {
    */
   async rescan({ fromHeight } = {}) {
     void fromHeight;
+    // Everything is read again: shown as a sync, not as a refresh of a few blocks.
+    this._lastFull = null;
+    this._syncGen++;
     if (this.transparent) {
       // The person's own choices stay (public audit of 0.1.13: a Rescan made frozen coins spendable,
       // locked a 1,000 FIRO coin unlocked to spend, and forgot the coins a payment let go of must be
@@ -3676,18 +3806,27 @@ export class FiroBackend {
       await this.store.put(KEY.progress, this.progress);
       await this._saveSpark();
     }
+    // Again at the end (round-2 audit A0119b-2): a sync that began while the records were being
+    // deleted read the old ones, and must not count as the full sync either.
+    this._lastFull = null;
+    this._syncGen++;
     this._requestSync();
   }
 
   /** Deletes the downloaded Spark sets and tags; the next sync fetches them again. */
   async clearSparkCache() {
     if (!this.sparkSync) return;
+    // Every set downloaded again: a sync, not a refresh (A0119-3).
+    this._lastFull = null;
+    this._syncGen++;
     await this.sparkSync.clear();
     this.progress.groups = {};
     this.progress.tagsUpTo = 0;
     delete this.progress.tagsAgreed;
     this.tagCheck = null;
     await this._saveSpark();
+    this._lastFull = null;
+    this._syncGen++;
     this._requestSync();
   }
 
@@ -3739,6 +3878,9 @@ export class FiroBackend {
     // the new one for up to 300 s, a stale 'disagree' paused sending as long).
     this.serverCheck = null;
     this._noSecondSyncs = 0;
+    this._lastFull = null;
+    this._syncGen++;
+    this._tagsTooSlow = null; // another node, perhaps nearer: asked again at once
     this._wireClient();
     this._requestSync();
   }

@@ -39,7 +39,8 @@ import { paySell, unsureState, settleUnsure, expiryReason, sellPaymentUnderWay, 
 import { UNSURE_TITLE } from '../lib/send_outcome.js';
 import { paymentInFlight, onPaymentFlight, IN_FLIGHT_NOTE } from '../lib/payment_flight.js';
 import { letGoOffer } from './let_go.js';
-import { t, lang } from '../lib/i18n.js';
+import { t } from '../lib/i18n.js';
+import { pauseReason } from '../lib/sync.js';
 
 
 function kv(label, value, extra = {}) {
@@ -134,7 +135,7 @@ export default function sellOrderScreen(app, params = {}) {
     if (ex) return ex;
     if (canPay === null) return t('Checking the deposit address…');
     const sync = wallet.state.sync;
-    if (!wallet.session || !sync.canSend) return t('Sending is paused: {reason}.', { reason: (lang() === 'en' ? sync.title.toLowerCase() : sync.title).replace(/[.…。]+$/, '') });
+    if (!wallet.session || !sync.canSend) return t('Sending is paused: {reason}.', { reason: pauseReason(sync) });
     // Another payment from this wallet (Review, Privatize…) is still being sent: one at a time.
     if (paymentInFlight()) return t(IN_FLIGHT_NOTE);
     if (pq.error) {

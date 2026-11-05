@@ -44,12 +44,26 @@ let servedEvm = cleanEvmOrigins(null);
 
 export const isOwnServer = (v) => typeof v === 'string' && v !== FIRO_POOL && normalizeServerAddress(v).ok;
 
-/** The node list the engine gets for these preferences, in the order it tries them: [wss://…]. */
+/**
+ * The node list the engine gets for these preferences, in the order it tries them: [wss://…]. With
+ * no node picked, this device's own starting place in the list (prefs.nodeStart, chosen once at
+ * random: see startingNode), so not every wallet reads from electrumx.firo.org until it goes silent
+ * (audit F5: one node that stalled while still answering held every wallet on it at an old balance).
+ * Still one node at a time for a wallet, and the same one each time: its queries are not spread.
+ */
 export function serversFor(prefs) {
   const v = prefs && prefs.server;
   if (isOwnServer(v)) return [`wss://${normalizeServerAddress(v).address}`];
   const first = prefs && FIRO_SERVER_HOSTS.includes(prefs.node) ? `wss://${prefs.node}:${FIRO_WSS_PORT}` : null;
-  return first ? [first, ...FIRO_SERVERS.filter((u) => u !== first)] : [...FIRO_SERVERS];
+  if (first) return [first, ...FIRO_SERVERS.filter((u) => u !== first)];
+  const n = FIRO_SERVERS.length;
+  const k = prefs && Number.isSafeInteger(prefs.nodeStart) ? ((prefs.nodeStart % n) + n) % n : 0;
+  return [...FIRO_SERVERS.slice(k), ...FIRO_SERVERS.slice(0, k)];
+}
+
+/** prefs.nodeStart for a device that has none yet: a place in Firo's list, at random, kept from then on. */
+export function startingNode(random = Math.random) {
+  return Math.floor(random() * FIRO_SERVERS.length) % FIRO_SERVERS.length;
 }
 
 /** In words, for Settings: "Firo's public nodes" or "Your own node: host:port". */

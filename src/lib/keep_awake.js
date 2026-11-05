@@ -1,4 +1,5 @@
-/* Staying unlocked while received private FIRO is being checked (owner, 2026-10-21: "Private
+/* Staying unlocked while received private FIRO is being checked, or while a wallet's first private
+ * sync runs (0.1.19, audit F3: the same problem, longer than the auto-lock). (Owner, 2026-10-21: "Private
  * balance 0, +3500 private, shown by the Firo node"). The first check of an old or restored wallet
  * reads every block since Spark began: about half an hour, and only while the wallet is open. The
  * auto-lock (5 minutes without a touch) and a phone's screen going dark both stopped it long before
@@ -86,10 +87,12 @@ export function installKeepAwake(app, wallet, doc = globalThis.document) {
   doc?.addEventListener('visibilitychange', () => {
     if (doc.visibilityState !== 'visible') stopKeepingAwake();
   });
-  // Over whenever Home's note (and its Stop) would be gone (0.1.11 audit M2): the check done, a node's
-  // lists that do not add up, watch-only, or the person's own node.
+  // Over whenever Home's notes (and their Stop) would be gone (0.1.11 audit M2): the check done, a
+  // node's lists that do not add up, watch-only, or the person's own node; and the first sync done
+  // (0.1.19, audit F3: it too runs only while unlocked, and outlasted the auto-lock).
   wallet.onChange((s) => {
     if (!held) return;
-    if (!((s.balance?.private?.checking ?? 0n) > 0n) || s.privateCheck || s.viewOnly || isOwnServer(app.prefs?.server)) stopKeepingAwake();
+    const checking = (s.balance?.private?.checking ?? 0n) > 0n && !s.privateCheck && !s.viewOnly && !isOwnServer(app.prefs?.server);
+    if (!checking && !s.firstSync) stopKeepingAwake();
   });
 }

@@ -3564,6 +3564,11 @@
       "lib/firo/backend.js"
     ]
   },
+  "The connection is too slow to receive the list of spent private coins from a Firo node.": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
   "The Spark library answered for a different number of coins.": {
     "where": [
       "lib/firo/backend.js"
@@ -7139,6 +7144,69 @@
       "lib/sync.js"
     ]
   },
+  "Sending is paused until your wallet is up to date.": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "{server} did not answer in time. Firo PWA asks again in a moment; on a slow connection the first sync takes a while.": {
+    "where": [
+      "lib/sync.js"
+    ],
+    "placeholders": [
+      "server"
+    ]
+  },
+  "The Firo node did not answer in time. Firo PWA asks again in a moment; on a slow connection the first sync takes a while.": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "A Firo node is slow to answer": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "Connection too slow for the private sync": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "Firo's nodes stop sending the list of spent private coins (about 25 MB) when it takes more than a minute, so the private balance cannot be read yet. On Wi-Fi or a faster network, Firo PWA tries again within 10 minutes; choosing another Firo node tries at once. What was downloaded is kept.": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "Firo PWA could not save to this device": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "Free some space on this device, then open Firo PWA again.": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "The private part of Firo PWA stopped": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "Reload Firo PWA. If this stays, update the browser or use another one.": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "Something stopped the sync": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "Firo PWA asks again in a moment, or choose another Firo node.": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
   "The Firo node stopped answering. The app keeps trying.": {
     "where": [
       "lib/sync.js"
@@ -7150,6 +7218,11 @@
     ]
   },
   "The Firo node went quiet; trying another. Sending is paused for a moment.": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "No Firo node has answered yet. The app keeps trying; if this lasts, this network may block them.": {
     "where": [
       "lib/sync.js"
     ]
@@ -7189,6 +7262,34 @@
     ],
     "placeholders": [
       "amount"
+    ]
+  },
+  "Reading the newest block": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "Up to date until a moment ago; the newest block is being read. Sending waits until it is.": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "Private balance not available here": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "The private part of Firo PWA could not start in this browser ({reason}), so private FIRO and Spark names are not shown. Reload Firo PWA. If this stays, update the browser or use another one.": {
+    "where": [
+      "lib/sync.js"
+    ],
+    "placeholders": [
+      "reason"
+    ]
+  },
+  "Synced with one Firo node": {
+    "where": [
+      "lib/sync.js"
     ]
   },
   "Synced": {
@@ -7237,6 +7338,19 @@
     "placeholders": [
       "n"
     ]
+  },
+  "{n} public addresses were not answered by {server}; asked again in a moment.": {
+    "where": [
+      "lib/sync.js"
+    ],
+    "placeholders": [
+      "n",
+      "server"
+    ],
+    "count": {
+      "one": "{n} public address was not answered by {server}; asked again in a moment.",
+      "other": "{n} public addresses were not answered by {server}; asked again in a moment."
+    }
   },
   "About {n} blocks behind": {
     "where": [
@@ -14805,6 +14919,24 @@
       "screens/home.js"
     ]
   },
+  "First sync: {pct}%. ": {
+    "where": [
+      "screens/home.js"
+    ],
+    "placeholders": [
+      "pct"
+    ]
+  },
+  "First sync. ": {
+    "where": [
+      "screens/home.js"
+    ]
+  },
+  "It downloads Firo's lists of private coins (about 350 MB) and runs only while Firo PWA is open and unlocked: on a phone it can take half an hour. If it stops, it goes on from there next time.": {
+    "where": [
+      "screens/home.js"
+    ]
+  },
   "+{amount} arriving privately": {
     "where": [
       "screens/home.js"
@@ -14827,6 +14959,19 @@
     ],
     "placeholders": [
       "amount"
+    ]
+  },
+  "+{amount} public, in a block, not yet confirmed by a second Firo node": {
+    "where": [
+      "screens/home.js"
+    ],
+    "placeholders": [
+      "amount"
+    ]
+  },
+  "The public balance may be incomplete until every address is answered": {
+    "where": [
+      "screens/home.js"
     ]
   },
   "{amount} locked as masternode collateral (see Coins)": {
@@ -18589,6 +18734,14 @@
   "Newest block": {
     "where": [
       "screens/servers.js"
+    ]
+  },
+  "In use · behind: block {tip}": {
+    "where": [
+      "screens/servers.js"
+    ],
+    "placeholders": [
+      "tip"
     ]
   },
   "In use · block {tip}": {

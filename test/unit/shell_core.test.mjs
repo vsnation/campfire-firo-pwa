@@ -4,12 +4,12 @@
 // into what the screens read.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assessSync, syncPercent, ageText, serverHost, RULES } from '../../src/lib/sync.js';
+import { assessSync, syncPercent, ageText, serverHost, RULES, pauseReason } from '../../src/lib/sync.js';
 import { sealSeed, openSeed, SEED_INFO } from '../../src/lib/seed_vault.js';
 import { makeBackup, openBackup, readBackupHeader, backupFileName, BACKUP_MAX_BYTES } from '../../src/lib/backup_file.js';
 import { newDbPassword, PBKDF2_MIN_ITERATIONS } from '../../src/lib/envelope.js';
 import { normalizeServerAddress, cspWithServer, serverOrigin } from '../../src/lib/server_address.js';
-import { FIRO_SERVERS, serversFor, serverWords, isOwnServer, FIRO_POOL } from '../../src/lib/servers.js';
+import { FIRO_SERVERS, serversFor, serverWords, isOwnServer, FIRO_POOL, startingNode } from '../../src/lib/servers.js';
 import { Wallet, mapTx, txTitle, txSign, txSide, isPendingTx } from '../../src/lib/wallet.js';
 import { memoryStore, useEngine } from '../../src/lib/chain.js';
 import '../../src/lib/backend_fake.js';
@@ -47,6 +47,89 @@ test('sync: connecting, syncing with a percent and words per phase, behind, offl
   assert.equal(assessSync({ raw: raw({ connected: false }), everConnected: true, lostAt: now - 60, now }).state, 'offline');
   assert.equal(ageText(3 * 3600), '3 h ago');
   assert.equal(serverHost('wss://electrumx.firo.org:50004'), 'electrumx.firo.org');
+});
+
+test('sync (0.1.19 audit F6, F7, F11): what stopped a sync is said as what it is, never "check your internet" for a slow node or a full disk', () => {
+  const slow = assessSync({ raw: raw({ sync: { phase: 'error', done: 0, total: 0, error: 'No connection to the Firo nodes.', kind: 'slow' } }), everConnected: true, now });
+  assert.equal(slow.state, 'slow');
+  assert.equal(slow.canSend, false);
+  assert.equal(slow.title, 'A Firo node is slow to answer');
+  assert.match(slow.detail, /^electrumx01\.firo\.org did not answer in time\. Firo PWA asks again in a moment/);
+  assert.doesNotMatch(slow.detail, /internet|No connection/);
+  // The connection already dropped: no empty name (A0119-11).
+  assert.match(assessSync({ raw: raw({ connected: false, server: null, sync: { phase: 'error', kind: 'slow', error: 'x' } }), now }).detail, /^The Firo node did not answer in time\./);
+  const disk = assessSync({ raw: raw({ sync: { phase: 'error', error: 'Storage write was aborted (is the disk full?).', kind: 'storage' } }), now });
+  assert.equal(disk.state, 'error');
+  assert.equal(disk.title, 'Firo PWA could not save to this device');
+  assert.match(disk.detail, /^Storage write was aborted \(is the disk full\?\)\. Free some space on this device/);
+  const wasm = assessSync({ raw: raw({ sync: { phase: 'error', error: 'WebAssembly is not defined', kind: 'spark' } }), now });
+  assert.equal(wasm.title, 'The private part of Firo PWA stopped');
+  const refused = assessSync({ raw: raw({ sync: { phase: 'error', error: 'The server refused: busy', kind: 'server' } }), now });
+  assert.equal(refused.title, 'Something stopped the sync');
+  assert.match(refused.detail, /choose another Firo node/);
+  // An engine that names no kind (the stand-in, an older one) reads as before.
+  assert.equal(assessSync({ raw: raw({ connected: false, sync: { phase: 'error', error: 'x' } }), now }).state, 'offline');
+  // Some public addresses not answered: how many, and by which node.
+  const part = assessSync({ raw: raw({ sync: { phase: 'done', done: 1, total: 1, partial: 50 } }), now });
+  assert.equal(part.state, 'syncing');
+  assert.equal(part.partial, 50);
+  assert.match(part.detail, /^50 public addresses were not answered by electrumx01\.firo\.org; asked again in a moment\./);
+  assert.match(assessSync({ raw: raw({ sync: { phase: 'done', done: 1, total: 1, partial: 1 } }), now }).detail, /^1 public address was not answered/);
+  // No node has answered at all since the wallet opened: "Connecting…" for a while, then said.
+  const never = raw({ connected: false, server: null, sync: { phase: 'connecting', done: 0, total: 0 } });
+  assert.equal(assessSync({ raw: never, startedAt: now - 10, now }).state, 'connecting');
+  const blocked = assessSync({ raw: never, startedAt: now - RULES.firstConnectSec - 1, now });
+  assert.equal(blocked.state, 'offline');
+  assert.match(blocked.detail, /No Firo node has answered yet\. The app keeps trying; if this lasts, this network may block them\./);
+});
+
+test('sync (0.1.19 audit F2, F4, F10): never "Synced" with the private side off; one node\'s word said; a refresh of a few blocks stays "Synced"', () => {
+  const off = assessSync({ raw: raw({ sparkOff: 'WebAssembly is not defined' }), everConnected: true, now });
+  assert.equal(off.state, 'synced', 'the public side is read (payment notices work), but never the word "Synced"');
+  assert.notEqual(off.title, 'Synced');
+  assert.equal(off.canSend, true, 'public FIRO can still be sent (A0119-6)');
+  assert.equal(assessSync({ raw: raw({ sparkOff: 'x', viewOnly: true }), now }).canSend, false);
+  assert.equal(off.sparkOff, true);
+  assert.equal(off.title, 'Private balance not available here');
+  assert.match(off.detail, /could not start in this browser \(WebAssembly is not defined\), so private FIRO and Spark names are not shown/);
+  const offRefresh = assessSync({ raw: raw({ sparkOff: 'x', sync: { phase: 'transparent', done: 1, total: 4, refresh: true } }), now });
+  assert.equal(offRefresh.state, 'refreshing');
+  assert.equal(offRefresh.canSend, false, 'sending waits for the block, as for every wallet');
+  // Round-2 audit A0119b-1: the chain checks come first; a node that disagrees or is behind stops sending.
+  const offBad = assessSync({ raw: raw({ sparkOff: 'x', serverCheck: { state: 'disagree' } }), now });
+  assert.equal(offBad.state, 'disagree');
+  assert.equal(offBad.canSend, false);
+  const offBehind = assessSync({ raw: raw({ sparkOff: 'x', tip: { height: 1, time: now - RULES.maxTipAgeSec - 600 } }), now });
+  assert.equal(offBehind.state, 'behind');
+  assert.equal(offBehind.canSend, false);
+  const one = assessSync({ raw: raw({ serverCheck: { state: 'unknown', noSecondSyncs: RULES.noSecondSyncs } }), now });
+  assert.equal(one.state, 'synced');
+  assert.equal(one.noSecond, true);
+  assert.equal(one.title, 'Synced with one Firo node');
+  assert.equal(assessSync({ raw: raw({ serverCheck: { state: 'unknown', noSecondSyncs: 1 } }), now }).title, 'Synced', 'not after one sync alone');
+  const fresh = assessSync({ raw: raw({ sync: { phase: 'spark-sets', done: 1, total: 5, refresh: true } }), now });
+  assert.equal(fresh.state, 'refreshing');
+  assert.equal(fresh.title, 'Reading the newest block');
+  assert.equal(fresh.percent, null, 'no bar');
+  assert.equal(fresh.canSend, false, 'sending waits these few seconds (A0119-2)');
+  assert.equal(assessSync({ raw: raw({ sync: { phase: 'spark-sets', done: 1, total: 5 } }), now }).state, 'syncing', 'without refresh: catching up, as before');
+  // A refresh does not hide a node that lags or disagrees.
+  assert.equal(assessSync({ raw: raw({ sync: { phase: 'transparent', done: 0, total: 1, refresh: true }, tip: { height: 1, time: now - RULES.maxTipAgeSec - 600 } }), now }).state, 'behind');
+});
+
+test('sync (round-3 audit A0119c-5): "Sending is paused: {reason}" keeps names as written', () => {
+  assert.equal(pauseReason({ title: 'Catching up with the network' }), 'catching up with the network');
+  assert.equal(pauseReason({ title: 'Firo PWA could not save to this device' }), 'Firo PWA could not save to this device');
+  assert.equal(pauseReason({ title: 'A Firo node is slow to answer' }), 'a Firo node is slow to answer');
+  assert.equal(pauseReason({ title: 'Reconnecting…' }), 'reconnecting');
+});
+
+test('servers (0.1.19 audit F5): with no node picked, a device starts at its own place in the list, the same each time', () => {
+  assert.deepEqual(serversFor({ server: FIRO_POOL, nodeStart: 2 }), [FIRO_SERVERS[2], FIRO_SERVERS[3], FIRO_SERVERS[0], FIRO_SERVERS[1]]);
+  assert.deepEqual(serversFor({ server: FIRO_POOL, nodeStart: 6 }), serversFor({ server: FIRO_POOL, nodeStart: 2 }));
+  assert.deepEqual(serversFor({ server: FIRO_POOL, nodeStart: 'x' }), FIRO_SERVERS);
+  assert.equal(serversFor({ server: FIRO_POOL, nodeStart: 3, node: 'electrumx01.firo.org' })[0], 'wss://electrumx01.firo.org:50004', 'a node picked comes first');
+  assert.deepEqual(new Set([0, 0.26, 0.5, 0.99].map((r) => startingNode(() => r))), new Set([0, 1, 2, 3]));
 });
 
 test('seed vault: the words come back only with the wallet\'s secret and id; an edit or a move is refused', async () => {

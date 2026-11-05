@@ -40,19 +40,37 @@ import { firoPrice } from '../lib/fiat.js';
 import { store, rawStore } from '../lib/store.js';
 import { walletKey } from '../lib/wallet_scope.js';
 import { wordsReminderDue, WORDS_REMINDER_SNOOZE_MS } from '../lib/session.js';
-import { t, tn, lang, sentences } from '../lib/i18n.js';
+import { t, tn, sentences } from '../lib/i18n.js';
+import { pauseReason } from '../lib/sync.js';
 import { loaderText } from '../lib/loader_words.js';
 
+/** The sync state's colour: green synced, red when something is wrong, amber while waiting (and on one node's word: F4). */
+export function syncClass(sync) {
+  if (sync.sparkOff) return 'bad';
+  if (sync.state === 'synced' || sync.state === 'refreshing') return sync.noSecond ? 'wait' : 'ok';
+  return ['offline', 'behind', 'disagree', 'error'].includes(sync.state) ? 'bad' : 'wait';
+}
+
+/** A Firo node may be the cause, or another one the cure: Home offers the Firo nodes screen. */
+export function nodeMayHelp(sync) {
+  // Not for a full disk or the private part not running here: no other node changes that (A0119-15).
+  const notTheNode = sync.sparkOff || sync.kind === 'storage' || sync.kind === 'spark';
+  return ['offline', 'behind', 'disagree', 'slow'].includes(sync.state) || (sync.state === 'error' && !notTheNode) || Boolean(sync.reconnecting || sync.partial || sync.noSecond);
+}
+
+/** How long a first sync runs before Home says what it is and offers to stay unlocked for it. */
+const FIRST_SYNC_NOTE_MS = 15000;
+
 export function syncLine(sync) {
-  const cls = sync.state === 'synced' ? 'ok' : sync.state === 'offline' || sync.state === 'behind' || sync.state === 'disagree' ? 'bad' : 'wait';
+  const cls = syncClass(sync);
   const pct = sync.state === 'syncing' && sync.percent != null ? ` (${sync.percent}%)` : '';
   return h('div', { class: 'syncline', 'data-testid': 'sync', 'data-state': sync.state }, h('span', { class: `dot ${cls}` }), h('span', { text: `${sync.title}${pct}` }));
 }
 
 /** The four signal bars of Campfire's top bar: green when synced, amber while catching up, red offline. */
 export function syncBars(sync, onclick) {
-  const cls = sync.state === 'synced' ? 'ok' : sync.state === 'offline' || sync.state === 'behind' || sync.state === 'disagree' ? 'bad' : 'wait';
-  const lit = sync.state === 'synced' ? 4 : sync.state === 'syncing' ? 1 + Math.min(3, Math.floor((sync.percent || 0) / 34)) : sync.state === 'offline' ? 0 : 1;
+  const cls = syncClass(sync);
+  const lit = sync.state === 'synced' || sync.state === 'refreshing' ? (sync.noSecond ? 3 : 4) : sync.state === 'syncing' ? 1 + Math.min(3, Math.floor((sync.percent || 0) / 34)) : sync.state === 'offline' || sync.state === 'error' ? 0 : 1;
   return h('button', { class: `icon-btn sync-bars ${cls}`, type: 'button', 'aria-label': t('{title}. Firo nodes', { title: sync.title }), title: sync.title, 'data-testid': 'sync-bars', 'data-state': sync.state, onclick }, ...[1, 2, 3, 4].map((i) => h('span', { class: `bar b${i}${i <= lit ? ' lit' : ''}` })));
 }
 
@@ -82,6 +100,10 @@ export function txRow(app, tx, onclick) {
 export default function home(app) {
   const balanceBox = h('div', { class: 'balance-wrap' });
   const proofBox = h('div');
+  const firstBox = h('div');
+  /** What the first-sync note last showed (built again only when that changes), and when the first sync was first seen. */
+  let firstShown = '';
+  let firstSeenAt = null;
   /** What the check's note last showed: built again only when that changes (a tap must not land on a button replaced under it). */
   let proofShown = '';
   let payShown = '';
@@ -128,8 +150,48 @@ export default function home(app) {
     put(proofBox, show ? proofNote(pp, checking) : null);
   }
 
+  /**
+   * A restored wallet's first private sync (audit F3): hundreds of MB, then every coin looked at, so
+   * longer than the auto-lock, which stopped it each time (it goes on from there at the next unlock,
+   * and the wallet showed 0 private meanwhile). Said once it has run a little, with the way to let it
+   * finish: the same "stay unlocked" as for the check above (lib/keep_awake.js), on a tap only.
+   */
+  function renderFirst(s) {
+    const on = Boolean(s.firstSync) && !['synced', 'refreshing'].includes(s.sync.state);
+    if (!on) firstSeenAt = null;
+    else if (firstSeenAt === null) firstSeenAt = Date.now();
+    const show = on && Date.now() - firstSeenAt >= FIRST_SYNC_NOTE_MS;
+    const awake = keepingAwake();
+    const pct = s.sync.percent;
+    const key = show ? JSON.stringify([pct, awake, screenKeptOn()]) : '';
+    if (key === firstShown) return;
+    firstShown = key;
+    put(
+      firstBox,
+      show
+        ? h(
+            'div',
+            { 'data-testid': 'first-sync' },
+            notice(
+              'info',
+              h('strong', { text: pct != null ? t('First sync: {pct}%. ', { pct }) : t('First sync. ') }),
+              awake
+                ? screenKeptOn()
+                  ? t('Firo PWA stays unlocked until it is done, for about an hour at most, with the screen kept on. Hiding or closing Firo PWA, or Lock, ends this.')
+                  : t('Firo PWA stays unlocked until it is done, for about an hour at most. Hiding or closing Firo PWA, or Lock, ends this.')
+                : t("It downloads Firo's lists of private coins (about 350 MB) and runs only while Firo PWA is open and unlocked: on a phone it can take half an hour. If it stops, it goes on from there next time."),
+            ),
+            awake
+              ? h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'first-sync-awake-stop', onclick: () => stopKeepingAwake() }, t('Stop: lock as usual'))
+              : h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'first-sync-awake', onclick: () => startKeepingAwake() }, t('Stay unlocked until it is done')),
+          )
+        : null,
+    );
+  }
+
   function render(s) {
     renderProof(s);
+    renderFirst(s);
     const b = s.balance;
     const known = s.sync.state === 'synced' || s.txsLoaded;
     const reading = !known && s.sync.state !== 'offline';
@@ -137,7 +199,7 @@ export default function home(app) {
     // Only once the whole wallet is read (audit: right after a Rescan, or with some addresses not
     // answered, a wallet with FIRO showed 0 and this). A restore from a file has no typed words to
     // blame, and says "Show my words" below already.
-    const foundNothing = s.sync.state === 'synced' && !s.privateCheck && restoredWords && app.record.wordsConfirmed !== false && !s.txs.length && b.private.available + b.private.pending + (b.private.checking ?? 0n) + b.public.available + b.public.pending === 0n;
+    const foundNothing = s.sync.state === 'synced' && !s.sparkOff && !s.privateCheck && restoredWords && app.record.wordsConfirmed !== false && !s.txs.length && b.private.available + b.private.pending + (b.private.checking ?? 0n) + b.public.available + b.public.pending === 0n;
     const other = shown === 'private' ? 'public' : 'private';
     // Private FIRO one node showed counts in the figure (owner, 2026-10-21: "show the private balance
     // that confirmed by the first node"), said as such right under it, with the second node's check;
@@ -146,7 +208,8 @@ export default function home(app) {
     const checking = b.private.checking ?? 0n;
     const counted = checking > 0n && !s.privateCheck ? checking : 0n;
     const figure = (side) => (side === 'private' ? b.private.available + counted : b[side].available);
-    const amountText = (side) => (known || figure(side) > 0n ? formatAmount(figure(side)) : '—');
+    // No private side in this browser (F2): no figure, rather than a 0 that reads as an empty wallet.
+    const amountText = (side) => (side === 'private' && s.sparkOff ? '—' : known || figure(side) > 0n ? formatAmount(figure(side)) : '—');
     const pp = s.privateProof;
     const pct = pp ? Math.min(99, Math.floor((pp.done / pp.total) * 100)) : null;
     const pending = [];
@@ -156,10 +219,16 @@ export default function home(app) {
     // Said as the node's word, not as received (third audit F7: a node that lies could show a coin
     // that never came, and "received" would vouch for it).
     if (checking > 0n && !counted) pending.push(t('+{amount} private, shown by the Firo node, being checked with a second one', { amount: formatAmount(checking) }));
-    if (b.public.pending > 0n) pending.push(t('+{amount} arriving publicly', { amount: formatAmount(b.public.pending) }));
+    // In a block on the node in use's word, no second node to confirm it yet (F4: with only one node
+    // reachable it stayed "arriving" for ever, read as a payment lost).
+    const unproven = b.public.unproven ?? 0n;
+    if (b.public.pending - unproven > 0n) pending.push(t('+{amount} arriving publicly', { amount: formatAmount(b.public.pending - unproven) }));
+    if (unproven > 0n) pending.push(t('+{amount} public, in a block, not yet confirmed by a second Firo node', { amount: formatAmount(unproven) }));
+    // Some public addresses not answered yet (F7): the public figure may be short until they are.
+    if (s.sync.partial) pending.push(t('The public balance may be incomplete until every address is answered'));
     // A masternode's collateral is kept out of what can be sent: said, so no FIRO seems to vanish (P3).
     if (b.public.mnLocked > 0n) pending.push(t('{amount} locked as masternode collateral (see Coins)', { amount: formatAmount(b.public.mnLocked) }));
-    const money = known ? moneyOf(app, figure(shown)) : null;
+    const money = known && !(shown === 'private' && s.sparkOff) ? moneyOf(app, figure(shown)) : null;
     const toggle = h(
       'button',
       { class: 'balance-toggle', type: 'button', 'data-testid': 'balance-toggle', 'aria-label': shown === 'private' ? t('Showing your private balance. Show the public one') : t('Showing your public balance. Show the private one'), onclick: () => ((shown = other), (app.homeBalance = shown), render(wallet.state)) },
@@ -192,8 +261,8 @@ export default function home(app) {
             h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'home-empty-words', onclick: () => app.go('backup') }, t('Check my words')),
           )
         : null,
-      // A node that is down, behind or disagreeing: the way to another one, right here.
-      ['offline', 'behind', 'disagree'].includes(s.sync.state) || s.sync.reconnecting
+      // A node that is down, slow, behind or disagreeing, or the only one reachable: the way to the others, right here.
+      nodeMayHelp(s.sync)
         ? h('button', { class: 'btn btn-text btn-small', type: 'button', 'data-testid': 'sync-choose-node', onclick: () => app.go('servers') }, t('Choose another Firo node'))
         : null,
       // Private FIRO received, waiting for its sets' check: how far it is and what it needs (owner,
@@ -280,7 +349,8 @@ export default function home(app) {
       recvBtn.prepend(icon('receive'));
       put(payBox, h('div', { class: 'btn-row three' }, ...(sends ? [sendBtn, recvBtn] : [recvBtn, sendBtn])));
     }
-    put(whyBox, !canSend && hasFunds ? h('p', { class: 'small center', 'data-testid': 'send-why', text: t('Sending is paused: {reason}.', { reason: (lang() === 'en' ? s.sync.title.toLowerCase() : s.sync.title).replace(/[.…。]+$/, '') }) }) : null);
+    // Not for a watch-only wallet (its own note says it cannot send: A0119c-5).
+    put(whyBox, !canSend && hasFunds && !s.viewOnly ? h('p', { class: 'small center', 'data-testid': 'send-why', text: t('Sending is paused: {reason}.', { reason: pauseReason(s.sync) }) }) : null);
     put(barsBox, syncBars(s.sync, () => app.go('servers')));
   }
 
@@ -417,7 +487,7 @@ export default function home(app) {
     },
     chainSwitch(app, 'firo'),
     bannerBox,
-    h('div', { class: 'home-cols' }, h('div', { class: 'home-main' }, balanceBox, proofBox, wordsBox, payBox, whyBox, privatizeBox, shortcutsBox, awayBox, askBox), h('div', { class: 'home-side' }, txBox)),
+    h('div', { class: 'home-cols' }, h('div', { class: 'home-main' }, balanceBox, proofBox, firstBox, wordsBox, payBox, whyBox, privatizeBox, shortcutsBox, awayBox, askBox), h('div', { class: 'home-side' }, txBox)),
   );
   return {
     el,

@@ -293,12 +293,35 @@ export class ElectrumClient {
     if (!this.pingIntervalMs) return;
     this._pingTimer = setInterval(() => {
       if (!this._ready) return;
+      // Not while a long answer is on its way (a coin set's part, the spent-coins list of ~24 MB):
+      // the ping's answer comes after it on the same connection, so on a slow link it took longer
+      // than the ping may wait, and a connection that was working was dropped, the download lost and
+      // begun again on the next node, over and over. That request's own timeout watches the line.
+      for (const p of this._pending.values()) if (p.long) return;
       this.request('server.ping', [], { timeoutMs: Math.min(this.timeoutMs, 15000) }).catch((e) => {
         // A server that does not answer a ping is gone: drop it and fail over.
         if (e.code === 'timeout') this._drop();
       });
     }, this.pingIntervalMs);
     this._pingTimer?.unref?.();
+  }
+
+  /**
+   * One ping now, whatever else is waiting: no answer to it either, and the connection is dropped and
+   * the next node tried (a line that went dead during a long download: its pings were held back, so
+   * nothing else would notice). A big answer still arriving on a slow line is lost with it, which
+   * its timeout had already given up on.
+   */
+  _probe() {
+    if (!this._ready || this._probing) return;
+    this._probing = true;
+    this.request('server.ping', [], { timeoutMs: Math.min(this.timeoutMs, 15000) })
+      .catch((e) => {
+        if (e.code === 'timeout') this._drop();
+      })
+      .finally(() => {
+        this._probing = false;
+      });
   }
 
   _stopPing() {
@@ -441,7 +464,7 @@ export class ElectrumClient {
     this._emit('scripthash', sh, status ?? null);
   }
 
-  _register(id, timeoutMs, method) {
+  _register(id, timeoutMs, method, long = false) {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         const p = this._pending.get(id);
@@ -450,9 +473,13 @@ export class ElectrumClient {
         // Still waiting for a connection: it never goes out now (audit FM-1: a broadcast the
         // caller was told had failed left on the next handshake).
         if (!p.written) this._unqueue(id);
+        // A long answer that never came: pings were held back for it (see _startPing), so whether
+        // the line still works is asked now.
+        if (p.long) this._probe();
         reject(new ElectrumError('timeout', t('The server did not answer {method} in time.', { method }), { written: p.written }));
       }, timeoutMs);
-      this._pending.set(id, { resolve, reject, timer, written: false });
+      // long: a big answer is on its way (see _startPing).
+      this._pending.set(id, { resolve, reject, timer, written: false, long: Boolean(long) });
     });
   }
 
@@ -460,12 +487,13 @@ export class ElectrumClient {
 
   /**
    * One call → its result; rejects ElectrumError. queue: false = only on the connection there is
-   * now; without one it is refused at once ('offline', written: false) instead of waiting.
+   * now; without one it is refused at once ('offline', written: false) instead of waiting. long: a
+   * big answer (megabytes), during which pings wait (see _startPing).
    */
-  request(method, params = [], { timeoutMs = this.timeoutMs, queue = true } = {}) {
+  request(method, params = [], { timeoutMs = this.timeoutMs, queue = true, long = false } = {}) {
     if (this._closed) return Promise.reject(new ElectrumError('closed', t('The connection was closed.')));
     const id = ++this._id;
-    const p = this._register(id, timeoutMs, method);
+    const p = this._register(id, timeoutMs, method, long);
     if (!this._send({ jsonrpc: '2.0', id, method, params }, { queue }) && !queue) {
       const entry = this._pending.get(id);
       if (entry && !entry.written) {
@@ -683,7 +711,9 @@ export class ElectrumClient {
 
   /** Coins [start, end) of a group as of `blockHash` (base64), newest first: [[coin, txHash, context] (base64)]. */
   async sparkSetSector(groupId, blockHash, start, end, { timeoutMs = Math.max(this.timeoutMs, 90000) } = {}) {
-    const r = await this.request('spark.getsparkanonymitysetsector', [String(groupId), blockHash, String(start), String(end)], { timeoutMs });
+    // A part of many coins (~0.9 MB a thousand) is a long answer; the few coins of a new block are
+    // not, so a line that dies meanwhile is found by the pings (round-2 audit A0119b-3).
+    const r = await this.request('spark.getsparkanonymitysetsector', [String(groupId), blockHash, String(start), String(end)], { timeoutMs, long: end - start >= 500 });
     if (!r || !Array.isArray(r.coins)) throw new ElectrumError('bad_response', t('getsparkanonymitysetsector: bad answer.'));
     for (const c of r.coins) {
       if (!Array.isArray(c) || c.length !== 3 || !c.every((x) => typeof x === 'string')) throw new ElectrumError('bad_response', t('getsparkanonymitysetsector: bad coin.'));
@@ -691,9 +721,14 @@ export class ElectrumClient {
     return r.coins;
   }
 
-  /** Used linking tags after the first `startNumber`: [[tag, txid] (base64)], oldest first. */
-  async sparkUsedTags(startNumber, { timeoutMs = Math.max(this.timeoutMs, 120000) } = {}) {
-    const r = await this.request('spark.getusedcoinstagstxhashes', [String(startNumber)], { timeoutMs });
+  /**
+   * Used linking tags after the first `startNumber`: [[tag, txid] (base64)], oldest first. From the
+   * start it is one answer of about 100 bytes a tag (24 MB for 242,538 tags, 2026-11): the caller
+   * says so (long, and a longer timeout: lib/firo/spark_sync.js syncTags); the few tags of a new block
+   * are a usual answer, and a line that dies meanwhile is found by the pings as before.
+   */
+  async sparkUsedTags(startNumber, { timeoutMs = Math.max(this.timeoutMs, 120000), long = false } = {}) {
+    const r = await this.request('spark.getusedcoinstagstxhashes', [String(startNumber)], { timeoutMs, long });
     if (!r || !Array.isArray(r.tagsandtxids)) throw new ElectrumError('bad_response', t('getusedcoinstagstxhashes: bad answer.'));
     for (const item of r.tagsandtxids) {
       if (!Array.isArray(item) || item.length !== 2 || typeof item[0] !== 'string' || typeof item[1] !== 'string') throw new ElectrumError('bad_response', t('getusedcoinstagstxhashes: bad entry.'));

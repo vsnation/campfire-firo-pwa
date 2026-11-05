@@ -51,6 +51,15 @@ export class FakeNet {
       deliver(obj) {
         if (this.readyState !== 1) return;
         const text = typeof obj === 'string' ? obj : JSON.stringify(obj);
+        const rate = this.server?.bytesPerMs;
+        if (rate > 0) {
+          // A slow line: one message after another, each taking its length / rate (a big answer
+          // holds back every answer sent after it, as on one TCP connection).
+          this._line = (this._line ?? Promise.resolve()).then(() => new Promise((r) => setTimeout(r, text.length / rate))).then(() => {
+            if (this.readyState === 1) this.onmessage?.({ data: text });
+          });
+          return;
+        }
         queueMicrotask(() => this.onmessage?.({ data: text }));
       }
     };
@@ -69,13 +78,14 @@ FakeNet.NO_ANSWER = Symbol('no answer');
 FakeNet.NO_RESULT = Symbol('no result');
 
 export class FakeServer {
-  constructor(url, handler, { refuse = false, silent = false, openDelayMs = 0, requireVersionFirst = true } = {}) {
+  constructor(url, handler, { refuse = false, silent = false, openDelayMs = 0, requireVersionFirst = true, bytesPerMs = 0 } = {}) {
     this.url = url;
     this.handler = handler;
     this.refuse = refuse;
     this.silent = silent;
     this.openDelayMs = openDelayMs; // ms before a new connection opens (a slow link); may change at any time
     this.requireVersionFirst = requireVersionFirst;
+    this.bytesPerMs = bytesPerMs; // > 0: answers reach the client in order at this speed (a slow line)
     this.sockets = new Set();
     this.calls = []; // {method, params, batch}
     this.messages = 0;

@@ -173,6 +173,64 @@ test('a ping that is not answered drops the server', async () => {
   c.close();
 });
 
+test('on a slow line, a long answer (the spent-coins list) is not cut off by a ping that waits behind it', async () => {
+  // 24 MB at a few Mbit/s takes longer than a ping may wait (15 s), and the ping's answer comes
+  // after the list on the same connection: 0.1.18 dropped a working connection, lost the download and
+  // began it again on the next node, over and over.
+  const net = new FakeNet();
+  const tags = Array.from({ length: 400 }, () => ['A'.repeat(46), 'B'.repeat(44)]);
+  let pings = 0;
+  net.addServer(
+    A,
+    electrumHandler({
+      'spark.getusedcoinstagstxhashes': { tagsandtxids: tags },
+    }),
+    { bytesPerMs: 50 }, // ~38 KB: ~770 ms
+  );
+  const sB = net.addServer(B, electrumHandler());
+  const c = client(net, [A, B], { pingIntervalMs: 20, timeoutMs: 60 });
+  const ping = c.request.bind(c);
+  c.request = (m, ...rest) => (m === 'server.ping' && pings++, ping(m, ...rest));
+  await c.connect();
+  const list = await c.sparkUsedTags(0, { long: true, timeoutMs: 600000 });
+  assert.equal(list.length, 400);
+  assert.equal(c.server, A, 'still on the node that sent it');
+  assert.equal(sB.calls.length, 0, 'never moved to the next node');
+  // Once it is in, pings go on, and a server that stops answering them is still dropped.
+  await until(() => pings > 0, 2000);
+  c.close();
+});
+
+test('a long answer that never comes: one ping right after; no answer to that either, and the next node is tried (pings were held back meanwhile)', async () => {
+  const net = new FakeNet();
+  let dead = false;
+  net.addServer(A, (m, p, s) => {
+    if (m === 'server.version') return ['ElectrumX 1.19.0', '1.4'];
+    if (m === 'server.ping') return dead ? FakeNet.NO_ANSWER : null;
+    if (m === 'spark.getsparkanonymitysetsector') return FakeNet.NO_ANSWER; // the line went dead mid-download
+    return null;
+  });
+  net.addServer(B, electrumHandler());
+  const c = client(net, [A, B], { pingIntervalMs: 20, timeoutMs: 60 });
+  await c.connect();
+  dead = true;
+  await assert.rejects(c.sparkSetSector(1, 'AA==', 0, 1000, { timeoutMs: 200 }), (e) => e.code === 'timeout');
+  await until(() => c.server === B, 3000);
+  c.close();
+
+  // The line works (it answers the ping): the connection stays.
+  const net2 = new FakeNet();
+  net2.addServer(A, electrumHandler({ 'spark.getsparkanonymitysetsector': FakeNet.NO_ANSWER }));
+  const sB = net2.addServer(B, electrumHandler());
+  const c2 = client(net2, [A, B], { pingIntervalMs: 0, timeoutMs: 60 });
+  await c2.connect();
+  await assert.rejects(c2.sparkSetSector(1, 'AA==', 0, 1000, { timeoutMs: 200 }), (e) => e.code === 'timeout');
+  await sleep(150);
+  assert.equal(c2.server, A);
+  assert.equal(sB.calls.length, 0);
+  c2.close();
+});
+
 test('close() fails what is pending with "closed" and stays closed', async () => {
   const net = new FakeNet();
   const s = net.addServer(A, electrumHandler({ slow: FakeNet.NO_ANSWER }));
