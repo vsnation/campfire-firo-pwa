@@ -61,16 +61,31 @@ export default function servers(app) {
     renderNodes(s);
   }
 
+  /**
+   * The highest block any node here has given: each row, the one in use too, is measured against it
+   * (audit F5: rows were measured against the node in use, so with that one stuck, the healthy ones
+   * read "Behind" and the stuck one "In use").
+   */
+  function highest(s) {
+    let top = s.tip ? s.tip.height : 0;
+    for (const c of checks.values()) if (c.state === 'ok' && c.height > top) top = c.height;
+    return top || null;
+  }
+
   /** What a public node's row says: in use, its newest block and speed, still checking, or down. */
   function nodeState(url, s) {
     const c = checks.get(url);
     const tip = s.tip ? s.tip.height : null;
+    const top = highest(s);
     if (switching === serverHost(url)) return { cls: 'wait', text: t('Connecting…') };
-    if (!own && s.server === url && s.connected) return { cls: 'ok', text: tip ? t('In use · block {tip}', { tip: tip.toLocaleString('en-US') }) : t('In use') };
+    if (!own && s.server === url && s.connected) {
+      if (tip && top && tip < top - 3) return { cls: 'bad', text: t('In use · behind: block\u00a0{tip}', { tip: tip.toLocaleString('en-US') }) };
+      return { cls: 'ok', text: tip ? t('In use · block {tip}', { tip: tip.toLocaleString('en-US') }) : t('In use') };
+    }
     if (!c) return { cls: 'wait', text: own ? t('Not checked: you use your own node') : t('Not checked yet') };
     if (c.state === 'checking') return { cls: 'wait', text: t('Checking…') };
     if (c.state === 'down') return { cls: 'bad', text: t('Not answering') };
-    const behind = tip && c.height < tip - 3;
+    const behind = top && c.height < top - 3;
     // A number and its unit stay on one line (no-break spaces); a second or more reads in seconds.
     const took = c.ms < 1000 ? t('{ms} ms', { ms: c.ms }) : `${(c.ms / 1000).toFixed(1)}\u00a0s`;
     return { cls: behind ? 'bad' : 'ok', text: behind ? t('Behind: block\u00a0{height} · {took}', { height: c.height.toLocaleString('en-US'), took }) : t('Block\u00a0{height} · {took}', { height: c.height.toLocaleString('en-US'), took }) };
