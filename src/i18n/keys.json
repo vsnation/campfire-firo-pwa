@@ -3504,6 +3504,11 @@
       "message"
     ]
   },
+  "Your earlier private payment may still go through, and this one cannot be made from the same coins, so nothing was sent. Wait until that payment is settled, or 48 hours after you let it go.": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
   "A private payment from earlier that showed as not sent may still go through, and this one can't be made from the same coins. If this is that payment again, check Activity first: both could go through.": {
     "where": [
       "lib/firo/backend.js"
@@ -3746,6 +3751,21 @@
       "lib/firo/backend.js"
     ]
   },
+  "Your earlier payment went through after all, so nothing more was sent.": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
+  "Your earlier payment is on its way after all, so nothing more was sent.": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
+  "Your earlier public payment may still go through, and this one cannot be made from the same coins, so nothing was sent. Wait until that payment is settled, or 48 hours after you let it go.": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
   "The public balance is still syncing.": {
     "where": [
       "lib/firo/backend.js"
@@ -3797,6 +3817,11 @@
     ]
   },
   "The mint came out larger than planned; try again.": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
+  "Your earlier private payment went through after all, so nothing more was sent.": {
     "where": [
       "lib/firo/backend.js"
     ]
@@ -4025,6 +4050,11 @@
     ]
   },
   "A coin this payment spends was used by another payment meanwhile, so it was not sent. Nothing left your wallet: try again.": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
+  "A public payment from earlier that showed as not sent may still go through, and this one would not have used the same coins, so nothing was sent. Check Activity, then review the payment again.": {
     "where": [
       "lib/firo/backend.js"
     ]
@@ -4570,12 +4600,27 @@
       "lib/firo/transparent.js"
     ]
   },
+  "A public payment from earlier that showed as not sent may still go through, and none of its coins can be spent right now, so nothing was sent. This ends once a Firo node confirms that coin again, or 48 hours after that payment at the latest.": {
+    "where": [
+      "lib/firo/transparent.js"
+    ]
+  },
+  "A public payment from earlier that showed as not sent may still go through, and its coins are being spent by a payment no second Firo node has confirmed yet, so nothing was sent. Try again once one does, or 48 hours after you let the earlier one go at the latest.": {
+    "where": [
+      "lib/firo/transparent.js"
+    ]
+  },
   "The server sent a bad transaction.": {
     "where": [
       "lib/firo/transparent.js"
     ]
   },
   "The server sent a different transaction than asked for.": {
+    "where": [
+      "lib/firo/transparent.js"
+    ]
+  },
+  "This coin belongs to a payment that showed as not sent and may still go through, so your next payment spends it. It cannot be frozen.": {
     "where": [
       "lib/firo/transparent.js"
     ]
@@ -6563,6 +6608,26 @@
       "lib/sell/pay.js"
     ]
   },
+  "Earlier payments for this sell may still go through, so nothing more is sent for it from this wallet for 48 hours after you let the last one go. If this sell ends first, start a new one.": {
+    "where": [
+      "lib/sell/pay.js"
+    ]
+  },
+  "Your earlier payment for this sell may still go through, so this one is paid from your public balance too: then only one of the two can arrive. Nothing was sent.": {
+    "where": [
+      "lib/sell/pay.js"
+    ]
+  },
+  "Your earlier payment for this sell may still go through, so this one is paid from your private balance too: then only one of the two can arrive. Nothing was sent.": {
+    "where": [
+      "lib/sell/pay.js"
+    ]
+  },
+  "Your earlier payment for this sell may still go through, and this one cannot be made from the same coins yet, so nothing was sent. Wait until it is settled (see Activity), or 48 hours after you let it go. If this sell ends first, start a new one.": {
+    "where": [
+      "lib/sell/pay.js"
+    ]
+  },
   "Chain {chainId}": {
     "where": [
       "lib/sell/sellfiro.js"
@@ -7060,6 +7125,11 @@
       "lib/session.js"
     ]
   },
+  "kept": {
+    "where": [
+      "lib/storage.js"
+    ]
+  },
   "may be cleared by the system": {
     "where": [
       "lib/storage.js"
@@ -7083,6 +7153,11 @@
     ]
   },
   "No second Firo node could be reached: incoming public payments wait until one can.": {
+    "where": [
+      "lib/sync.js"
+    ]
+  },
+  "No second Firo node could be reached: public payments received count on this node's word until one can confirm them.": {
     "where": [
       "lib/sync.js"
     ]
@@ -7788,7 +7863,8 @@
   "Later": {
     "where": [
       "lib/update_ui.js",
-      "screens/home.js"
+      "screens/home.js",
+      "screens/home_screen_guide.js"
     ]
   },
   "Update refused": {
@@ -8522,6 +8598,18 @@
       "screens/activity.js"
     ]
   },
+  "Confirmed by one Firo node ({n} confirmations)": {
+    "where": [
+      "screens/activity.js"
+    ],
+    "placeholders": [
+      "n"
+    ],
+    "count": {
+      "one": "Confirmed by one Firo node ({n} confirmation)",
+      "other": "Confirmed by one Firo node ({n} confirmations)"
+    }
+  },
   "Confirmed ({n} confirmations)": {
     "where": [
       "screens/activity.js"
@@ -8771,6 +8859,21 @@
     ]
   },
   "The two passphrases are not the same yet.": {
+    "where": [
+      "screens/backup.js"
+    ]
+  },
+  "Your browser filled in a passphrase. ": {
+    "where": [
+      "screens/backup.js"
+    ]
+  },
+  "A passphrase is not a password for this site: with one, these words open a different wallet. Clear it unless this wallet was made with one.": {
+    "where": [
+      "screens/backup.js"
+    ]
+  },
+  "Clear the passphrase": {
     "where": [
       "screens/backup.js"
     ]
@@ -14877,6 +14980,37 @@
       "title"
     ]
   },
+  "This wallet uses a passphrase": {
+    "where": [
+      "screens/home.js"
+    ]
+  },
+  "It was opened from its recovery words and a passphrase. The same words with no passphrase, or another one, open a different wallet with different coins.": {
+    "where": [
+      "screens/home.js"
+    ]
+  },
+  "Didn't type a passphrase? ": {
+    "where": [
+      "screens/home.js"
+    ]
+  },
+  "Your browser's password manager may have filled it in. Add the wallet again from the same words and leave the passphrase empty.": {
+    "where": [
+      "screens/home.js"
+    ]
+  },
+  "Got it": {
+    "where": [
+      "screens/home.js",
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Add the wallet again": {
+    "where": [
+      "screens/home.js"
+    ]
+  },
   "Second Firo node check: {pct}%. ": {
     "where": [
       "screens/home.js"
@@ -14962,6 +15096,14 @@
     ]
   },
   "+{amount} public, in a block, not yet confirmed by a second Firo node": {
+    "where": [
+      "screens/home.js"
+    ],
+    "placeholders": [
+      "amount"
+    ]
+  },
+  "Public includes {amount} FIRO confirmed by one Firo node": {
     "where": [
       "screens/home.js"
     ],
@@ -15193,6 +15335,194 @@
       "other": "This wallet came from a backup file. Its {n} words bring it back without the file or its password."
     }
   },
+  "Add Firo PWA to your Home Screen": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Add Firo PWA to the Dock": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "First, add Firo PWA to your Home Screen": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "First, add Firo PWA to the Dock": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Safari deletes a site's data after 7 days without a visit. The Home Screen app is not under that rule.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Safari deletes a site's data after 7 days without a visit. An app in the Dock is not under that rule.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "A wallet made in a Safari tab does not move to the Home Screen app.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "A wallet made in a Safari tab does not move to the Dock app.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "You don't need to wait here: the Home Screen app sets itself up separately.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "You don't need to wait here: the Dock app sets itself up separately.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Tap Share {share}. No Share button? Tap {more} or {menu} next to the address first.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ],
+    "placeholders": [
+      "menu",
+      "more",
+      "share"
+    ]
+  },
+  "Tap \"Add to Home Screen\" (scroll down, or tap More if it is not in the list). If you see \"Open as Web App\", leave it on. Tap Add.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "In the menu bar, choose File, then Add to Dock. Or click Share {share} in the toolbar, then Add to Dock.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ],
+    "placeholders": [
+      "share"
+    ]
+  },
+  "Click Add.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Open Firo PWA from your Home Screen and start your wallet there.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Open Firo PWA from your Home Screen and restore your wallet there with your recovery words.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Open Firo PWA from your Home Screen and restore your wallet there from your backup file.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Open Firo PWA from your Home Screen and watch your wallet there again with its view key.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Open Firo PWA from the Dock and start your wallet there.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Open Firo PWA from the Dock and restore your wallet there with your recovery words.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Open Firo PWA from the Dock and restore your wallet there from your backup file.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Open Firo PWA from the Dock and watch your wallet there again with its view key.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Safari can delete this wallet after 7 days without a visit.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Add Firo PWA to your Home Screen (Share, then Add to Home Screen) and restore your wallet there with your recovery words: the Home Screen app keeps its data.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Add Firo PWA to your Home Screen (Share, then Add to Home Screen) and restore your wallet there from your backup file: the Home Screen app keeps its data.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Add Firo PWA to your Home Screen (Share, then Add to Home Screen) and watch your wallet there again with its view key: the Home Screen app keeps its data.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Add Firo PWA to the Dock (File, then Add to Dock) and restore your wallet there with your recovery words: the Dock app keeps its data.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Add Firo PWA to the Dock (File, then Add to Dock) and restore your wallet there from your backup file: the Dock app keeps its data.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Add Firo PWA to the Dock (File, then Add to Dock) and watch your wallet there again with its view key: the Dock app keeps its data.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Install Firo PWA": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "It opens like an app, and the browser keeps its data instead of clearing it when space runs low.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Your wallet comes with it.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Install": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Firo PWA is installed.": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Show me how": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
+  "Hide this tip": {
+    "where": [
+      "screens/home_screen_guide.js"
+    ]
+  },
   "Starting setup…": {
     "where": [
       "screens/install.js"
@@ -15212,16 +15542,6 @@
       "doneBytes",
       "total",
       "totalBytes"
-    ]
-  },
-  "Adding it to your Home Screen? ": {
-    "where": [
-      "screens/install.js"
-    ]
-  },
-  "Do it now and open it from there: the Home Screen app sets itself up separately.": {
-    "where": [
-      "screens/install.js"
     ]
   },
   "Setting up Firo PWA on this device…": {
@@ -17334,6 +17654,14 @@
       "screens/review.js"
     ]
   },
+  "A payment of {what} to this address shows as not sent, but it may still go through.": {
+    "where": [
+      "screens/review.js"
+    ],
+    "placeholders": [
+      "what"
+    ]
+  },
   "A payment of {what} to this address may have left already: Firo PWA is still checking it.": {
     "where": [
       "screens/review.js"
@@ -18361,6 +18689,16 @@
       "screens/sell_order.js"
     ]
   },
+  "Your earlier payment for this sell may still go through. Paying again from your public balance spends the same coins, so only one of the two can arrive.": {
+    "where": [
+      "screens/sell_order.js"
+    ]
+  },
+  "Your earlier payment for this sell may still go through. Paying again from your private balance spends the same coins, so only one of the two can arrive.": {
+    "where": [
+      "screens/sell_order.js"
+    ]
+  },
   "You can leave this screen or close Firo PWA: once your FIRO is sent the sell keeps going, and the payout arrives even while Firo PWA is closed.": {
     "where": [
       "screens/sell_order.js"
@@ -18773,6 +19111,14 @@
     "placeholders": [
       "height",
       "took"
+    ]
+  },
+  "{address} · a community node, not on firo.org": {
+    "where": [
+      "screens/servers.js"
+    ],
+    "placeholders": [
+      "address"
     ]
   },
   " Firo's public nodes": {
@@ -19725,29 +20071,6 @@
     ]
   },
   "Your privacy. Your wallet. Your Firo.": {
-    "where": [
-      "screens/welcome.js"
-    ]
-  },
-  "First, add Firo PWA to your Home Screen": {
-    "where": [
-      "screens/welcome.js"
-    ]
-  },
-  "Hide this tip": {
-    "where": [
-      "screens/welcome.js"
-    ]
-  },
-  "Tap Share {icon} in Safari, choose \"Add to Home Screen\", then open Firo PWA from there.": {
-    "where": [
-      "screens/welcome.js"
-    ],
-    "placeholders": [
-      "icon"
-    ]
-  },
-  "Home Screen apps keep their data. Safari tabs may lose it after 7 days without use, and a wallet made in a Safari tab does not move to the Home Screen app.": {
     "where": [
       "screens/welcome.js"
     ]

@@ -101,17 +101,21 @@ export function mapTx(tx, tip = null) {
     dropped: tx.dropped === true,
     // Dropped because the person let it go on the word of the node in use alone (release re-audit 3 RE3-3).
     letGo: tx.letGo === true,
+    // When it was let go of (seconds; Review's "Paid before?" counts from it, round-4 audit of 0.1.20).
+    letGoAt: Number.isFinite(Number(tx.letGoAt)) && tx.letGoAt != null ? Number(tx.letGoAt) : null,
     // Ours, and the node in use says it never received it, with no second node to ask for an hour:
     // the person may let it go (wallet.letGo), told it is one node's word (RE3-3).
     oneNode: tx.oneNode === true,
     // To us, in a block on the node's word, not proven yet (audit FE-1): not confirmed, not spendable.
     unproven: tx.unproven === true,
+    // To us, confirmed on the node in use's proof alone, no second node answering (0.1.20).
+    oneNodeProof: tx.oneNodeProof === true,
   };
 }
 
 const balanceOf = (b) => ({
   private: { available: toSats((b && b.private && b.private.available) || '0'), pending: toSats((b && b.private && b.private.pending) || '0'), checking: toSats((b && b.private && b.private.checking) || '0') },
-  public: { available: toSats((b && b.public && b.public.available) || '0'), pending: toSats((b && b.public && b.public.pending) || '0'), mnLocked: toSats((b && b.public && b.public.mnLocked) || '0'), unproven: toSats((b && b.public && b.public.unproven) || '0') },
+  public: { available: toSats((b && b.public && b.public.available) || '0'), pending: toSats((b && b.public && b.public.pending) || '0'), mnLocked: toSats((b && b.public && b.public.mnLocked) || '0'), unproven: toSats((b && b.public && b.public.unproven) || '0'), byOneNode: toSats((b && b.public && b.public.byOneNode) || '0') },
 });
 
 const recipients = (to) => (to || []).map((r) => ({ address: String(r.address), amount: toSatString(r.amount), ...(r.memo ? { memo: String(r.memo) } : {}) }));
@@ -183,7 +187,7 @@ export class Wallet {
     // seal: {dbPass, imported} — the engine's data is sealed under the unlocked wallet's secret.
     const st = store || (seal && seal.dbPass ? await sealedStore(openWalletStore(walletId), { walletId, dbPass: seal.dbPass, imported: Boolean(seal.imported) }) : openWalletStore(walletId));
     const list = (servers || []).map((x) => (typeof x === 'string' ? { url: x } : { url: String(x.url) }));
-    const b = await createBackend({ network, ...(list.length ? { servers: list } : {}), ownNode: Boolean(ownNode), store: st, sparkTxDetails: sparkTxDetails === 'decoy' ? 'decoy' : 'none', sparkSetChecks: false });
+    const b = await createBackend({ network, ...(list.length ? { servers: list } : {}), ownNode: Boolean(ownNode), store: st, sparkTxDetails: sparkTxDetails === 'decoy' ? 'decoy' : 'none', sparkSetChecks: false, oneNodeReceipts: true, tagFullCheck: false });
     if (gen !== this.gen) return;
     this.backend = b;
     this.run = { walletId, store: st };
@@ -296,8 +300,8 @@ export class Wallet {
   }
 
   /** {from, to: [{address, amount (BigInt sats), memo?}], subtractFee} -> {fee, total, change (BigInt), warnings}. */
-  async quote({ from, to, subtractFee = false }) {
-    const q = await this.need().quote({ from, to: recipients(to), subtractFee });
+  async quote({ from, to, subtractFee = false, conflictWith = null }) {
+    const q = await this.need().quote({ from, to: recipients(to), subtractFee, ...(conflictWith ? { conflictWith: String(conflictWith) } : {}) });
     return { fee: toSats(q.fee), total: toSats(q.total), change: toSats(q.change), warnings: Array.isArray(q.warnings) ? q.warnings.map(String) : [] };
   }
 
@@ -310,8 +314,8 @@ export class Wallet {
    * other plan with code 'fee-changed', its new fee, total and change on the error as BigInt
    * (audit FE-3); nothing is built or sent then.
    */
-  async send({ from, to, subtractFee = false, expect = null }) {
-    const req = { from, to: recipients(to), subtractFee };
+  async send({ from, to, subtractFee = false, expect = null, conflictWith = null }) {
+    const req = { from, to: recipients(to), subtractFee, ...(conflictWith ? { conflictWith: String(conflictWith) } : {}) };
     if (expect) req.expect = { fee: toSatString(expect.fee), total: toSatString(expect.total) };
     try {
       return await this.need().send(req);

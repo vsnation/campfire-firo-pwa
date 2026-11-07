@@ -15,15 +15,16 @@ import { intentsConnectSources, intentsApiBase, intentsExplorerUrl } from '../..
 
 const pwa = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-test("the app uses exactly the servers the CSP allows: Firo's four ElectrumX servers over wss, by default", () => {
+test("the app uses exactly the servers the CSP allows: Firo's four ElectrumX servers and ru-firo-node over wss, by default", () => {
   assert.deepEqual(FIRO_SERVERS, HEADER_SERVERS);
   assert.deepEqual(FIRO_SERVERS, [
     'wss://electrumx.firo.org:50004',
     'wss://electrumx01.firo.org:50004',
     'wss://electrumx02.firo.org:50004',
     'wss://electrumx03.firo.org:50004',
+    'wss://94.156.77.196:50004',
   ]);
-  assert.equal(FIRO_SERVER_HOSTS.length, 4);
+  assert.equal(FIRO_SERVER_HOSTS.length, 5);
   assert.equal(DEFAULT_PREFS.server, FIRO_POOL);
   assert.deepEqual(serversFor(DEFAULT_PREFS), FIRO_SERVERS);
 });

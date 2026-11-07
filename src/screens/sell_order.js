@@ -35,7 +35,7 @@ import { sellFiro, paymentInWallet, mayPay } from '../lib/sell/wiring.js';
 import { firoText, firoFigure, usd, receiveText, otherChainNote, sellSteps, untilText, KEEP_ORDER_TEXT } from '../lib/sell/words.js';
 import { sellSiteUrl, payoutTxUrl } from '../lib/sell/hosts.js';
 import { WALLET_CHAINS } from '../lib/sell/sellfiro.js';
-import { paySell, unsureState, settleUnsure, expiryReason, sellPaymentUnderWay, onSellPayment } from '../lib/sell/pay.js';
+import { paySell, unsureState, settleUnsure, expiryReason, sellPaymentUnderWay, onSellPayment, sideAfterLetGo, letGoRule, sellConflictText, adoptLetGo } from '../lib/sell/pay.js';
 import { UNSURE_TITLE } from '../lib/send_outcome.js';
 import { paymentInFlight, onPaymentFlight, IN_FLIGHT_NOTE } from '../lib/payment_flight.js';
 import { letGoOffer } from './let_go.js';
@@ -80,6 +80,7 @@ export default function sellOrderScreen(app, params = {}) {
   const actions = h('div', { class: 'stack' });
   const fromBox = h('div', { class: 'segmented from-pick', role: 'radiogroup', 'aria-label': t('Pay from') });
   let payFrom = null;
+  let adopting = false;
   let pq = { key: null, quote: null, error: null, busy: false };
   let pqSeq = 0;
   let canPay = null; // mayPay(): null until known
@@ -100,7 +101,7 @@ export default function sellOrderScreen(app, params = {}) {
   // ------------------------------------------------------------ paying
   function payKey(o) {
     const token = target(o, payFrom);
-    return [o.orderId, payFrom, token.address, String(wallet.state.balance[payFrom].available), String(wallet.state.sync.canSend)].join('|');
+    return [o.orderId, payFrom, token.address, String(wallet.state.balance[payFrom].available), String(wallet.state.sync.canSend), sideAfterLetGo(o) || ''].join('|');
   }
 
   /** What the payment takes from the wallet, asked of the engine whenever what it depends on changes. */
@@ -113,7 +114,10 @@ export default function sellOrderScreen(app, params = {}) {
       pq.busy = false;
       return;
     }
-    wallet.quote({ from: payFrom, to: [{ address: target(o, payFrom).address, amount: o.amount }], subtractFee: false }).then(
+    // A payment of this sell let go of may still arrive: the quote is asked to spend the same coins,
+    // and says so at once when it cannot (round-5 audit of 0.1.20).
+    const rule = letGoRule(o, payFrom);
+    wallet.quote({ from: payFrom, to: [{ address: target(o, payFrom).address, amount: o.amount }], subtractFee: false, ...(rule.conflictWith ? { conflictWith: rule.conflictWith } : {}) }).then(
       (q) => {
         if (seq !== pqSeq || !alive) return;
         pq = { ...pq, quote: q, busy: false };
@@ -134,6 +138,9 @@ export default function sellOrderScreen(app, params = {}) {
     const ex = expiryReason(o);
     if (ex) return ex;
     if (canPay === null) return t('Checking the deposit address…');
+    // Refused by the let-go rule (two let go of, or none named): said before any tap (round-8 audit).
+    const refused = letGoRule(o, payFrom).refused;
+    if (refused) return refused.text;
     const sync = wallet.state.sync;
     if (!wallet.session || !sync.canSend) return t('Sending is paused: {reason}.', { reason: pauseReason(sync) });
     // Another payment from this wallet (Review, Privatize…) is still being sent: one at a time.
@@ -141,6 +148,7 @@ export default function sellOrderScreen(app, params = {}) {
     if (pq.error) {
       const have = wallet.available(payFrom);
       if (pq.error.code === 'insufficient') return have >= o.amount ? (payFrom === 'private' ? t('Your private balance has {amount}: sending {amount2} needs a little more.', { amount: firoText(have), amount2: firoText(o.amount) }) : t('Your public balance has {amount}: sending {amount2} needs a little more.', { amount: firoText(have), amount2: firoText(o.amount) })) : (payFrom === 'private' ? t('Your private balance has {amount}: not enough to send {amount2}.', { amount: firoText(have), amount2: firoText(o.amount) }) : t('Your public balance has {amount}: not enough to send {amount2}.', { amount: firoText(have), amount2: firoText(o.amount) }));
+      if (pq.error.code === 'conflict-coin') return sellConflictText(pq.error);
       return `${pq.error.message || pq.error}`;
     }
     if (pq.busy || !pq.quote) return t('Working out the payment…');
@@ -231,10 +239,13 @@ export default function sellOrderScreen(app, params = {}) {
 
   function renderFrom(o) {
     const b = wallet.state.balance;
+    // A payment of this sell let go of may still arrive: the same balance only (lib/sell/pay.js).
+    const only = sideAfterLetGo(o);
+    if (only) payFrom = only;
     const opt = (fid, label, avail) =>
       h(
         'button',
-        { type: 'button', class: `seg${payFrom === fid ? ' on' : ''}`, role: 'radio', 'aria-checked': String(payFrom === fid), 'data-testid': `sell-pay-from-${fid}`, disabled: underWay(), onclick: () => ((payFrom = fid), (sendMsg = null), render()) },
+        { type: 'button', class: `seg${payFrom === fid ? ' on' : ''}`, role: 'radio', 'aria-checked': String(payFrom === fid), 'data-testid': `sell-pay-from-${fid}`, disabled: underWay() || (only && only !== fid), onclick: () => ((payFrom = fid), (sendMsg = null), render()) },
         h('span', { class: 'seg-t' }, icon(fid === 'private' ? 'spark' : 'eye'), label),
         h('span', { class: 'seg-s', text: `${formatAmount(avail)} ${UNIT}` }),
       );
@@ -267,7 +278,8 @@ export default function sellOrderScreen(app, params = {}) {
       other ? notice('info', other) : null,
       o.expiresAt ? h('p', { class: 'small', 'data-testid': 'sell-expires', text: t('buyfiro.app takes it until {when}. A payment cannot be taken back once it is sent.', { when: untilText(o.expiresAt) }) }) : h('p', { class: 'small', text: t('A payment cannot be taken back once it is sent.') }),
       sendMsg,
-      o.payable && !expiryReason(o)
+      // Not while a payment of it let go of may still arrive: a payment from elsewhere cannot conflict with it.
+      o.payable && !expiryReason(o) && !sideAfterLetGo(o)
         ? h(
             'details',
             { class: 'more card flat', 'data-testid': 'sell-other-wallet', open: otherOpen, ontoggle: (ev) => (otherOpen = ev.currentTarget.open) },
@@ -380,7 +392,14 @@ export default function sellOrderScreen(app, params = {}) {
       put(actions, primary(t('Back to your wallet'), () => app.go('home'), { 'data-testid': 'sell-order-cta' }));
       return;
     }
-    if (payFrom === null) payFrom = o.sentFrom || o.payFrom;
+    // A let-go payment of this sell it does not carry yet (round-8 audit): adopted once per render pass.
+    if (!adopting) {
+      adopting = true;
+      adoptLetGo(c, id, wallet).catch(() => {}).finally(() => (adopting = false));
+    }
+    // The balance fixed by a payment let go of comes first (its quote is the one asked for).
+    if (sideAfterLetGo(o)) payFrom = sideAfterLetGo(o);
+    else if (payFrom === null) payFrom = o.sentFrom || o.payFrom;
     if (canPayFor !== o.orderId) {
       canPayFor = o.orderId;
       canPay = null;
@@ -443,6 +462,7 @@ export default function sellOrderScreen(app, params = {}) {
         : null,
       stateNotice(o, s, s === 'expired' || s === 'refused' ? claimed : paid),
       following ? null : offer,
+      unpaid && !following && !elsewhere && sideAfterLetGo(o) && !letGoRule(o, sideAfterLetGo(o)).refused ? h('div', { 'data-testid': 'sell-let-go-side' }, notice('warn', sideAfterLetGo(o) === 'public' ? t('Your earlier payment for this sell may still go through. Paying again from your public balance spends the same coins, so only one of the two can arrive.') : t('Your earlier payment for this sell may still go through. Paying again from your private balance spends the same coins, so only one of the two can arrive.'))) : null,
       ...(unpaid && !uncertain && !following && !elsewhere && !testOnly ? payment(o) : []),
       steps(o, s, paid),
       details(o, s, paid),
@@ -466,7 +486,7 @@ export default function sellOrderScreen(app, params = {}) {
       const cta = primary(sending ? sendingText : busy ? t('Sending…') : t('Send {amount} to buyfiro.app', { amount: firoText(o.amount) }), pay, { 'data-testid': 'sell-order-cta', disabled: busy || why !== null });
       cta.dataset.action = 'pay';
       const other = payFrom === 'private' ? 'public' : 'private';
-      const fix = pq.error && pq.error.code === 'insufficient' && wallet.available(other) > o.amount ? textButton((other === 'private' ? t('Pay from private instead') : t('Pay from public instead')), () => ((payFrom = other), render()), { 'data-testid': 'sell-pay-other' }) : null;
+      const fix = pq.error && pq.error.code === 'insufficient' && wallet.available(other) > o.amount && !sideAfterLetGo(o) ? textButton((other === 'private' ? t('Pay from private instead') : t('Pay from public instead')), () => ((payFrom = other), render()), { 'data-testid': 'sell-pay-other' }) : null;
       put(actions, why ? h('p', { class: 'hint center', 'data-testid': 'sell-pay-reason', text: why }) : null, cta, fix);
     } else if (s === 'delivered') {
       const ethSide = o.payout.own && WALLET_CHAINS.includes(o.payout.chainId) && app.has('ethHome');

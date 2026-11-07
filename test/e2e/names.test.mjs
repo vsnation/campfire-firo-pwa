@@ -290,12 +290,20 @@ test('a payment the node in use says never left, with no second node for an hour
     await page.waitForFunction(() => !document.querySelector('[data-testid="review"]').disabled, null, { timeout: 30000 });
     await page.click(tid('review'));
     await waitScreen(page, 'review');
+    // After a payment to this name was let go of, Review says it may still go through (round-3 audit
+    // of 0.1.20) and paying again takes a tap.
+    if (letGoBefore) {
+      await page.waitForSelector(tid('review-paid-before'));
+      assert.match(await page.textContent(tid('review-paid-before')), /A payment of 0\.1 FIRO to this address shows as not sent, but it may still go through\./);
+      await page.click(tid('review-pay-again'));
+    }
     await page.click(tid('confirm-send'));
     await page.waitForSelector(tid('auth-pw'));
     await page.fill(tid('auth-pw'), PASSWORD);
     await page.click(tid('auth-submit'));
     await waitScreen(page, 'txStatus', 30000);
   }
+  let letGoBefore = false;
   const state = () => page.getAttribute(tid('tx-title'), 'data-state');
   await fake.credit(page, { to: 'private', amount: String(100000000) });
   await page.waitForFunction(() => BigInt(window.__campfire.balance().private.available) >= 100000000n, null, { timeout: 30000 });
@@ -321,6 +329,7 @@ test('a payment the node in use says never left, with no second node for an hour
     assert.match(await page.textContent(tid('tx-let-go')), /^You let it go on the word of the Firo node in use: its FIRO is spendable again\./);
     assert.ok(BigInt((await page.evaluate(() => window.__campfire.balance())).private.available) > BigInt(spent), 'its FIRO is back');
     await both('names-14-let-go');
+    letGoBefore = true;
     // Activity's details offer it too, and say what became of it.
     await page.evaluate(() => globalThis.__firoFake.unsureNext({ arrives: false, oneNode: true }));
     await pay();
@@ -379,6 +388,8 @@ test('Review sends the figures it shows (audit FE-3): a fee that changed during 
   await page.click(tid('review'));
   await waitScreen(page, 'review');
   const feeBefore = await page.textContent(tid('review-fee'));
+  // The test before let payments to this name go: Review asks once whether to pay it again.
+  if (await page.locator(tid('review-pay-again')).count()) await page.click(tid('review-pay-again'));
   // A coin arrives while the person confirms: the engine would pay another fee.
   await page.evaluate(() => globalThis.__firoFake.feeChangeNext(7000));
   await page.click(tid('confirm-send'));

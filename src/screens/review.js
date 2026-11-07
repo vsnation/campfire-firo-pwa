@@ -172,9 +172,11 @@ export default function review(app, p) {
   function againNotice(earlier) {
     const e = earlier[0];
     const what = `${formatAmount(e.amount)} ${UNIT}`;
-    const said = e.unsure
-      ? t('A payment of {what} to this address may have left already: Firo PWA is still checking it.', { what })
-      : t('You already sent {what} to this address, and it is not confirmed yet.', { what });
+    const said = e.letGo
+      ? t('A payment of {what} to this address shows as not sent, but it may still go through.', { what })
+      : e.unsure
+        ? t('A payment of {what} to this address may have left already: Firo PWA is still checking it.', { what })
+        : t('You already sent {what} to this address, and it is not confirmed yet.', { what });
     return h(
       'div',
       { 'data-testid': 'review-paid-before' },

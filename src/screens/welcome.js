@@ -10,26 +10,23 @@
  *   - "Three buttons, which one is me?" -> the new wallet is the obvious (primary) one; the other two
  *     are named after what you bring: your words, or your backup file.
  *   - "I have a Campfire app wallet" -> its 12 or 24 words restore it here (same keys).
- *   - "Will I lose it if Safari clears data?" -> the Home Screen guide says when that happens.
+ *   - "Will I lose it if Safari clears data? Can I install it?" -> the install card under the logo:
+ *     Install (Chrome, Edge, Android) or the Home Screen / Dock steps (iPhone, iPad, Mac Safari), with
+ *     why (screens/home_screen_guide.js). Where nothing can be installed, nothing is offered.
  *   - "What does it cost?" -> nothing to install or sign up; network fees are shown before paying.
  *   - "It is not in my language" -> it follows the device's language; the language control at the top
  *     right (each language named in its own script) changes it at once.
  */
-import { h } from '../lib/dom.js';
-import { icon } from '../lib/icons.js';
+import { h, put } from '../lib/dom.js';
 import { screen, primary, secondary } from '../lib/ui.js';
 import { languagePicker } from '../lib/lang_ui.js';
-import { t, tNodes } from '../lib/i18n.js';
-
-export function isIosSafariTab() {
-  const ua = navigator.userAgent;
-  const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const standalone = navigator.standalone === true || window.matchMedia('(display-mode: standalone)') /* i18n-ignore: a media query */.matches;
-  return ios && !standalone;
-}
+import { t } from '../lib/i18n.js';
+import { welcomeInstallCard } from './home_screen_guide.js';
 
 export default function welcome(app) {
-  const guide = isIosSafariTab() && !app.prefs.a2hsDismissed ? a2hsGuide(app) : null;
+  // Compact when the install card must fit above the fold too (375x667 without scrolling).
+  const hero = h('div', { class: 'hero' });
+  const guide = welcomeInstallCard(app, (shown) => hero.classList.toggle('compact', shown));
   const el = screen(
     {
       topbar: false,
@@ -52,37 +49,13 @@ export default function welcome(app) {
       ],
     },
     h('div', { class: 'lang-bar' }, languagePicker()),
-    h(
-      'div',
-      { class: `hero${guide ? ' compact' : ''}` },
+    put(
+      hero,
       h('img', { src: 'img/logo.svg', alt: '' }),
       h('h1', { text: 'Firo PWA' }), // i18n-ignore: a name, the same in every language
       h('p', { text: t('Your privacy. Your wallet. Your Firo.') }),
     ),
-    guide,
+    guide.el,
   );
-  return { el };
-}
-
-function a2hsGuide(app) {
-  const card = h(
-    'div',
-    { class: 'card a2hs', 'data-testid': 'a2hs' },
-    h(
-      'div',
-      { class: 'banner' },
-      h('h3', { class: 'grow', text: t('First, add Firo PWA to your Home Screen') }),
-      h('button', {
-        class: 'icon-btn',
-        'aria-label': t('Hide this tip'),
-        onclick: async () => {
-          await app.setPrefs({ a2hsDismissed: true });
-          card.remove();
-        },
-      }, icon('close')),
-    ),
-    h('p', {}, ...tNodes('Tap Share {icon} in Safari, choose "Add to Home Screen", then open Firo PWA from there.', { icon: icon('share', 'inline-icon') })),
-    h('p', { class: 'small', text: t('Home Screen apps keep their data. Safari tabs may lose it after 7 days without use, and a wallet made in a Safari tab does not move to the Home Screen app.') }),
-  );
-  return card;
+  return { el, destroy: guide.destroy };
 }

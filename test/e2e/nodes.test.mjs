@@ -15,7 +15,9 @@ import { createWallet, waitHome, waitSynced, unlockWithPassword } from './flows.
 
 const PORT = 8851;
 const tid = (id) => `[data-testid="${id}"]`;
-const HOSTS = ['electrumx.firo.org', 'electrumx01.firo.org', 'electrumx02.firo.org', 'electrumx03.firo.org'];
+const HOSTS = ['electrumx.firo.org', 'electrumx01.firo.org', 'electrumx02.firo.org', 'electrumx03.firo.org', '94.156.77.196'];
+// Shown by name (lib/node_names.js): "Connected to ru-firo-node", its address on its row.
+const NAMES = { 'ru-firo-node': '94.156.77.196' };
 const PASSWORD = `nodes-${Math.random().toString(36).slice(2, 12)}`;
 let tmp, srv, browser, ctx, page, rec;
 
@@ -46,7 +48,7 @@ async function both(name) {
 
 const stateOf = (host) => page.textContent(tid(`node-${host}-state`));
 
-test('the signal bars open Firo nodes: all four public nodes, the one in use, the others checked; a dead one says so', { timeout: 5 * 60000 }, async () => {
+test('the signal bars open Firo nodes: all five public nodes, the one in use, the others checked; a dead one says so', { timeout: 5 * 60000 }, async () => {
   await page.goto(srv.url);
   await createWallet(page, { password: PASSWORD });
   await waitHome(page);
@@ -59,7 +61,10 @@ test('the signal bars open Firo nodes: all four public nodes, the one in use, th
   // Your own node: what that means for trust, said before it is chosen (P16).
   assert.match(await page.textContent(tid('own-node-trust')), /^Firo PWA then believes that node completely: what it says has arrived, been confirmed or left is checked with no other node\./);
   for (const host of HOSTS) await page.waitForSelector(tid(`node-${host}`));
-  const inUse = (await page.textContent(tid('servers-connected'))).trim();
+  const shown = (await page.textContent(tid('servers-connected'))).trim();
+  const inUse = NAMES[shown] ?? shown;
+  assert.equal((await page.textContent(`${tid('node-94.156.77.196')} .t`)).trim(), 'ru-firo-node');
+  assert.equal((await page.textContent(tid('node-94.156.77.196-address'))).trim(), '94.156.77.196 · a community node, not on firo.org');
   assert.ok(HOSTS.includes(inUse), `connected to one of Firo's public nodes: ${inUse}`);
   await page.waitForFunction((hosts) => hosts.every((h) => !/Checking|Not checked/.test(document.querySelector(`[data-testid="node-${h}-state"]`)?.textContent || 'x')), HOSTS, { timeout: 15000 });
   assert.match(await stateOf(inUse), /^In use · block [\d,]+$/);
@@ -107,7 +112,8 @@ test('"Use this one" mid-sync: a tap held as long as a finger holds it lands, an
   // At once: the row says it, its button can't be tapped twice, and the message is in sight.
   await page.waitForFunction((h) => document.querySelector(`[data-testid="node-${h}-state"]`)?.textContent === 'Connecting…', target, { timeout: 2000 });
   assert.equal(await page.isDisabled(tid(`node-${target}-use`)), true);
-  assert.match(await page.textContent(tid('node-msg')), new RegExp(`^Connecting to ${target.replace(/\./g, '\\.')}… Your coins and history stay as they are\.$`));
+  const targetName = Object.keys(NAMES).find((n) => NAMES[n] === target) ?? target;
+  assert.match(await page.textContent(tid('node-msg')), new RegExp(`^Connecting to ${targetName.replace(/\./g, '\\.')}… Your coins and history stay as they are\.$`));
   const box = await page.locator(tid('node-msg')).boundingBox();
   assert.ok(box && box.y + box.height <= 844, `the message is in sight (${JSON.stringify(box)})`);
   await both('nodes-04-connecting');

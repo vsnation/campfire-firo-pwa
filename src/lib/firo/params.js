@@ -77,12 +77,13 @@ const MAIN = Object.freeze({
   /** …and before it (+100 blocks of grace) to the development fund (stage3DevelopmentFundAddress). */
   sparkNameFeeAddressOld: 'aLgRaYSFk6iVw2FqY1oei8Tdn2aTsGPVmP',
 
-  /** ElectrumX over secure WebSocket: Firo's own four servers (port 50004, measured 2026-10-11). */
+  /** ElectrumX over secure WebSocket: Firo's own four servers (port 50004, measured 2026-10-11), and ru-firo-node (2026-11-07, lib/servers.js). */
   servers: Object.freeze([
     'wss://electrumx.firo.org:50004',
     'wss://electrumx01.firo.org:50004',
     'wss://electrumx02.firo.org:50004',
     'wss://electrumx03.firo.org:50004',
+    'wss://94.156.77.196:50004',
   ]),
   /**
    * Used Spark tags as the servers counted them on 2026-10-12 (240,045; tools/firo_sync_probe.mjs).

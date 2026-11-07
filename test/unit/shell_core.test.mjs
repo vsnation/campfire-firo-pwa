@@ -125,11 +125,11 @@ test('sync (round-3 audit A0119c-5): "Sending is paused: {reason}" keeps names a
 });
 
 test('servers (0.1.19 audit F5): with no node picked, a device starts at its own place in the list, the same each time', () => {
-  assert.deepEqual(serversFor({ server: FIRO_POOL, nodeStart: 2 }), [FIRO_SERVERS[2], FIRO_SERVERS[3], FIRO_SERVERS[0], FIRO_SERVERS[1]]);
-  assert.deepEqual(serversFor({ server: FIRO_POOL, nodeStart: 6 }), serversFor({ server: FIRO_POOL, nodeStart: 2 }));
+  assert.deepEqual(serversFor({ server: FIRO_POOL, nodeStart: 2 }), [FIRO_SERVERS[2], FIRO_SERVERS[3], FIRO_SERVERS[4], FIRO_SERVERS[0], FIRO_SERVERS[1]]);
+  assert.deepEqual(serversFor({ server: FIRO_POOL, nodeStart: 7 }), serversFor({ server: FIRO_POOL, nodeStart: 2 }));
   assert.deepEqual(serversFor({ server: FIRO_POOL, nodeStart: 'x' }), FIRO_SERVERS);
   assert.equal(serversFor({ server: FIRO_POOL, nodeStart: 3, node: 'electrumx01.firo.org' })[0], 'wss://electrumx01.firo.org:50004', 'a node picked comes first');
-  assert.deepEqual(new Set([0, 0.26, 0.5, 0.99].map((r) => startingNode(() => r))), new Set([0, 1, 2, 3]));
+  assert.deepEqual(new Set([0, 0.21, 0.41, 0.61, 0.99].map((r) => startingNode(() => r))), new Set([0, 1, 2, 3, 4]), 'ru-firo-node is a start too');
 });
 
 test('seed vault: the words come back only with the wallet\'s secret and id; an edit or a move is refused', async () => {
@@ -186,7 +186,7 @@ test('own server: wss host:port only (port 50004 when left out); exactly one ori
   assert.equal(cspWithServer(csp, null), csp);
   assert.equal(cspWithServer(csp, 'my.server:50004'), "default-src 'self'; connect-src 'self' wss://electrumx.firo.org:50004 wss://my.server:50004; img-src 'self'");
   assert.equal(serverOrigin('my.server'), 'wss://my.server:50004');
-  assert.deepEqual(FIRO_SERVERS, ['wss://electrumx.firo.org:50004', 'wss://electrumx01.firo.org:50004', 'wss://electrumx02.firo.org:50004', 'wss://electrumx03.firo.org:50004']);
+  assert.deepEqual(FIRO_SERVERS, ['wss://electrumx.firo.org:50004', 'wss://electrumx01.firo.org:50004', 'wss://electrumx02.firo.org:50004', 'wss://electrumx03.firo.org:50004', 'wss://94.156.77.196:50004']);
   assert.deepEqual(serversFor({ server: FIRO_POOL }), FIRO_SERVERS);
   assert.deepEqual(serversFor({ server: 'my.server:1' }), ['wss://my.server:1'], 'your own server only, never a fallback');
   assert.equal(serverWords({ server: 'my.server:1' }), 'Your own node: my.server:1');

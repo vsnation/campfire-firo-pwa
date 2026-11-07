@@ -57,7 +57,7 @@ test('a slow node: said as slow, not as "check your internet"; the way to anothe
   await ff('syncError', 'slow');
   await page.waitForFunction(() => document.querySelector('[data-testid="sync"]')?.dataset.state === 'slow');
   assert.equal(await text('sync'), 'A Firo node is slow to answer');
-  assert.match(await text('sync-detail'), /^electrumx\S*\.firo\.org did not answer in time\. Firo PWA asks again in a moment; on a slow connection the first sync takes a while\. Sending is paused until your wallet is up to date\.$/);
+  assert.match(await text('sync-detail'), /^(electrumx\S*\.firo\.org|ru-firo-node) did not answer in time\. Firo PWA asks again in a moment; on a slow connection the first sync takes a while\. Sending is paused until your wallet is up to date\.$/);
   assert.doesNotMatch(await text('sync-detail'), /internet/);
   assert.match(await dot(), /\bwait\b/);
   assert.equal(await has('sync-choose-node'), 1);

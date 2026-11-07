@@ -48,7 +48,7 @@ function nodeWorker(name) {
 const spark = adaptSparkClient(createSparkClient({ wasmBinary, createWorker: nodeWorker, identifyWorkers: 3 }));
 // FIRO_EXACT=1: Settings -> Exact dates (each own transaction asked for among 7 others).
 // As the app runs it (lib/wallet.js: no second-node set checks since 0.1.11); FIRO_SET_CHECKS=1 turns them on.
-const backend = createBackend({ network: 'main', store: createMemoryStore(), spark, WebSocket: globalThis.WebSocket, sparkTxDetails: process.env.FIRO_EXACT === '1' ? 'decoy' : 'none', sparkSetChecks: process.env.FIRO_SET_CHECKS === '1' });
+const backend = createBackend({ network: 'main', store: createMemoryStore(), spark, WebSocket: globalThis.WebSocket, sparkTxDetails: process.env.FIRO_EXACT === '1' ? 'decoy' : 'none', sparkSetChecks: process.env.FIRO_SET_CHECKS === '1', oneNodeReceipts: process.env.FIRO_STRICT !== '1', tagFullCheck: process.env.FIRO_STRICT === '1' }); // as the app (lib/wallet.js); FIRO_STRICT=1 for the engine's strict defaults
 
 async function synced() {
   await backend.open({ mnemonic: seed, birthdayHeight: BIRTHDAY });

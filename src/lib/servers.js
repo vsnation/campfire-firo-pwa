@@ -22,7 +22,11 @@ import { normalizeServerAddress } from './server_address.js';
 import { normalizeEvmServer, cleanEvmOrigins, ownEvmServerOf, EVM_SERVER_PREFS, EVM_OWN } from './evm_server_address.js';
 import { t, tk } from './i18n.js';
 
-export const FIRO_SERVER_HOSTS = Object.freeze(['electrumx.firo.org', 'electrumx01.firo.org', 'electrumx02.firo.org', 'electrumx03.firo.org']);
+// Firo's four ElectrumX nodes, and ru-firo-node (lib/node_names.js; owner, 2026-11-07: a node in
+// Russia). Measured that day from here: the same chain, Spark sets, names and spent-coins list as
+// Firo's; wss with a Let's Encrypt certificate for its IP address (6 days each, renewed on the node);
+// like Firo's, it drops an answer still arriving after ~40 s (slow lines: see TAGS_TOO_SLOW_MS).
+export const FIRO_SERVER_HOSTS = Object.freeze(['electrumx.firo.org', 'electrumx01.firo.org', 'electrumx02.firo.org', 'electrumx03.firo.org', '94.156.77.196']);
 export const FIRO_WSS_PORT = 50004;
 /** The servers' WebSocket origins, as the CSP lists them. */
 export const FIRO_SERVERS = Object.freeze(FIRO_SERVER_HOSTS.map((h) => `wss://${h}:${FIRO_WSS_PORT}`));

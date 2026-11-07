@@ -368,3 +368,99 @@ test('R-9: a new sell to that payout refused because of a mistaken "I paid it fr
   for (const over of [{ sentTxid: TXID }, { unsureTxid: TXID }, { sendStartedAt: 1 }]) assert.equal(r2.c.canUnmarkPaidElsewhere({ ...r2.c.order(r2.id), ...over }), false, JSON.stringify(over));
   assert.equal(r2.c.canUnmarkPaidElsewhere(null), false);
 });
+
+// ------------------------------------------- round-4 audit of 0.1.20: a let-go payment, paid again
+
+import { sideAfterLetGo, LET_GO_SAME_SIDE_MS, adoptLetGo } from '../../src/lib/sell/pay.js';
+import { orderToJson, orderFromJson } from '../../src/lib/sell/store.js';
+
+test('round-4 audit of 0.1.20: a sell whose payment was let go of is paid again only from the same balance, for 48 hours', async () => {
+  const r = await placed();
+  const w = quoting(wallet({ fail: err('unsure', { txid: TXID }) }));
+  await pay(r, w); // the private payment: no answer, kept as unsure
+  // The person let it go on the node in use's word: the sell may be paid again.
+  w.state.txs = [{ txid: TXID, confirmations: 0, dropped: true, letGo: true, direction: 'out', counterparty: SPARK_DEPOSIT }];
+  assert.equal(await settleUnsure(r.c, r.id, w), 'gone');
+  const o = r.c.order(r.id);
+  assert.equal(o.letGoFrom, 'private');
+  assert.equal(sideAfterLetGo(o, r.clock.now()), 'private');
+  // From the other balance: refused, nothing marked or sent.
+  const before = w.sent.length;
+  const out = await paySell({ c: r.c, w, orderId: r.id, from: 'public', to: [{ address: 'aPublicDeposit', amount: 500n * COIN }], reviewedTotal: REVIEWED, confirm: async () => true, clock: r.clock });
+  assert.equal(out.kind, 'refused');
+  assert.equal(out.code, 'let-go-side');
+  assert.match(out.text, /paid from your private balance too: then only one of the two can arrive\. Nothing was sent\.$/);
+  assert.equal(w.sent.length, before);
+  assert.equal(r.c.order(r.id).sendStartedAt, null);
+  // 48 hours on, either balance again.
+  assert.equal(sideAfterLetGo(o, r.clock.now() + LET_GO_SAME_SIDE_MS + 1), null);
+  // Kept on the device: the stored form brings the rule back after a reload or a lock (round-5 audit).
+  const back = orderFromJson(JSON.parse(JSON.stringify(orderToJson(o))));
+  assert.equal(back.letGoFrom, 'private');
+  assert.equal(back.letGoAt, o.letGoAt);
+  assert.equal(back.letGoTxid, TXID);
+  assert.equal(sideAfterLetGo(back, r.clock.now()), 'private');
+  const older = orderToJson(o);
+  delete older.letGoFrom;
+  delete older.letGoAt;
+  assert.equal(orderFromJson(older).letGoFrom, null, 'a record from before 0.1.20 loads');
+  // The private resend is asked to spend the let-go coins, and refused when it cannot (the engine's 'conflict-coin').
+  const asked = [];
+  w.quote = async (req) => {
+    asked.push(req);
+    throw Object.assign(new Error('Your earlier private payment may still go through, and this one cannot be made from the same coins, so nothing was sent.'), { code: 'conflict-coin' });
+  };
+  const out2 = await paySell({ c: r.c, w, orderId: r.id, from: 'private', to: [{ address: SPARK_DEPOSIT, amount: 500n * COIN }], reviewedTotal: REVIEWED, confirm: async () => true, clock: r.clock });
+  assert.equal(asked[0].conflictWith, TXID, 'its own let-go payment, by txid');
+  assert.deepEqual([out2.kind, out2.code], ['refused', 'conflict-coin']);
+  assert.match(out2.text, /If this sell ends first, start a new one\.$/);
+  assert.equal(w.sent.length, before);
+  // A payment that simply did not go through (not let go of): no such rule.
+  const r2 = await placed();
+  const w2 = quoting(wallet({ fail: err('unsure', { txid: TXID }) }));
+  await pay(r2, w2);
+  w2.state.txs = [{ txid: TXID, confirmations: 0, dropped: true, direction: 'out', counterparty: SPARK_DEPOSIT }];
+  await settleUnsure(r2.c, r2.id, w2);
+  assert.equal(sideAfterLetGo(r2.c.order(r2.id), r2.clock.now()), null);
+});
+
+test('round-7 audit of 0.1.20: the window starts when the engine let the payment go; a second payment let go of stops the sell here', async () => {
+  const r = await placed();
+  const w = quoting(wallet({ fail: err('unsure', { txid: TXID }) }));
+  await pay(r, w);
+  const engineAt = Math.floor(r.clock.now() / 1000) - 3600; // let go of an hour before this screen saw it
+  w.state.txs = [{ txid: TXID, confirmations: 0, dropped: true, letGo: true, letGoAt: engineAt, direction: 'out', counterparty: SPARK_DEPOSIT }];
+  await settleUnsure(r.c, r.id, w);
+  assert.equal(r.c.order(r.id).letGoAt, engineAt * 1000);
+  assert.equal(r.c.order(r.id).letGoCount, 1);
+  // Paid again (private, same balance), then that one let go of too: nothing more from this wallet.
+  await r.c.markUnsure(r.id, { txid: 'ef'.repeat(32), from: 'private', height: 1000 });
+  w.state.txs.push({ txid: 'ef'.repeat(32), confirmations: 0, dropped: true, letGo: true, letGoAt: engineAt + 60, direction: 'out', counterparty: SPARK_DEPOSIT });
+  await settleUnsure(r.c, r.id, w);
+  const o = r.c.order(r.id);
+  assert.equal(o.letGoCount, 2);
+  const out = await paySell({ c: r.c, w, orderId: r.id, from: 'private', to: [{ address: SPARK_DEPOSIT, amount: 500n * COIN }], reviewedTotal: REVIEWED, confirm: async () => true, clock: r.clock });
+  assert.deepEqual([out.kind, out.code], ['refused', 'let-go-twice']);
+  assert.match(out.text, /If this sell ends first, start a new one\.$/);
+  assert.equal(orderFromJson(JSON.parse(JSON.stringify(orderToJson(o)))).letGoCount, 2, 'kept on the device');
+});
+
+test('round-8 audit of 0.1.20: a let-go payment the sell does not carry is found in the wallet\'s history; adopting is stable, and two make the sell refused here', async () => {
+  const r = await placed();
+  const w = quoting(wallet());
+  const now = Math.floor(Date.now() / 1000);
+  w.state.txs = [{ txid: 'a1'.repeat(32), kind: 'spark', direction: 'out', dropped: true, letGo: true, letGoAt: now - 60, counterparty: SPARK_DEPOSIT, confirmations: 0 }];
+  await adoptLetGo(r.c, r.id, w);
+  let o = r.c.order(r.id);
+  assert.deepEqual([o.letGoTxid, o.letGoFrom, o.letGoCount], ['a1'.repeat(32), 'private', 1]);
+  await adoptLetGo(r.c, r.id, w);
+  assert.equal(r.c.order(r.id), o, 'nothing changes on a second look');
+  w.state.txs.push({ txid: 'b2'.repeat(32), kind: 'spark', direction: 'out', dropped: true, letGo: true, letGoAt: now - 30, counterparty: SPARK_DEPOSIT, confirmations: 0 });
+  await adoptLetGo(r.c, r.id, w);
+  o = r.c.order(r.id);
+  assert.deepEqual([o.letGoTxid, o.letGoCount], ['b2'.repeat(32), 2]);
+  await adoptLetGo(r.c, r.id, w);
+  assert.equal(r.c.order(r.id), o, 'stable with two');
+  const out = await paySell({ c: r.c, w, orderId: r.id, from: 'private', to: [{ address: SPARK_DEPOSIT, amount: 500n * COIN }], reviewedTotal: REVIEWED, confirm: async () => true, clock: { now: () => Date.now() } });
+  assert.equal(out.code, 'let-go-twice');
+});

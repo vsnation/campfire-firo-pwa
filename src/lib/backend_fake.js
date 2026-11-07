@@ -18,7 +18,7 @@
 // { credit({to, amount, memo, unproven}), offline(bool), mine(), speed(ms), state(), renameTo(name, address),
 // refuseSets(code), slowCoinCheck(ms), nodeDown(host, down), unsureNext({arrives}), refuseNext(message),
 // hold(on), feeChangeNext(sats), noSecond(syncs), slowSwitch(ms), proving(sats, done, total), unlistedAddress(kind, n),
-// otherAddress(kind), syncError(kind, message), sparkOff(reason), firstSync(pct), publicUnproven(sats) } on the open wallet. slowSwitch(ms): the next change of
+// otherAddress(kind), syncError(kind, message), sparkOff(reason), firstSync(pct), publicUnproven(sats), publicOneNode(sats) } on the open wallet. slowSwitch(ms): the next change of
 // node takes that long, as the real engine's does while a sync it waits for ends. hold(true): no fake block comes by itself (mine()
 // still makes one). feeChangeNext(sats): from the next send() on, the fee is that much higher (as
 // when a coin arrives during Face ID); a send() given the figures Review showed (expect) is then
@@ -43,7 +43,7 @@ import { generateMnemonic as bip39Generate, validateMnemonic as bip39Validate } 
 import { wordlist } from '../vendor/noble/scure-bip39/wordlists/english.js';
 import { sha256 } from '../vendor/noble/noble-hashes/sha2.js';
 
-export const DEFAULT_SERVERS = Object.freeze(['electrumx.firo.org', 'electrumx01.firo.org', 'electrumx02.firo.org', 'electrumx03.firo.org'].map((h) => Object.freeze({ url: `wss://${h}:50004` })));
+export const DEFAULT_SERVERS = Object.freeze(['electrumx.firo.org', 'electrumx01.firo.org', 'electrumx02.firo.org', 'electrumx03.firo.org', '94.156.77.196'].map((h) => Object.freeze({ url: `wss://${h}:50004` })));
 
 /** The stand-in's network fee for a Spark name registration (satoshi). */
 const NAME_NET_FEE = 21000n;
@@ -444,13 +444,15 @@ class FakeBackend {
       // __firoFake.sparkOff(reason) / firstSync(pct): as the real engine's getState() (0.1.19, audit F2, F3).
       ...(this._sparkOff ? { sparkOff: this._sparkOff } : {}),
       ...(this._firstSync ? { firstSync: true } : {}),
+      oneNodeReceipts: true, // as the app runs the real engine (lib/wallet.js)
       privateCheck: this._privateCheck ?? null,
       sending: this.sending ?? null,
       balance: {
         // __firoFake.proving(sats, done, total): received private FIRO waiting for its sets' check, as the real engine.
         private: this._proving ? { available: str(b.private.available), pending: str(b.private.pending + this._proving.sats), checking: str(this._proving.sats) } : out(b.private),
         // __firoFake.publicUnproven(sats): public FIRO in a block on one node's word (0.1.19, audit F4).
-        public: this._pubUnproven ? { available: str(b.public.available), pending: str(b.public.pending + this._pubUnproven), unproven: str(this._pubUnproven) } : out(b.public),
+        // __firoFake.publicOneNode(sats): public FIRO counted on one node's Merkle proof (0.1.20, COUNTED).
+        public: this._pubUnproven ? { available: str(b.public.available), pending: str(b.public.pending + this._pubUnproven), unproven: str(this._pubUnproven) } : this._pubOneNode ? { ...out(b.public), available: str(b.public.available + this._pubOneNode), byOneNode: str(this._pubOneNode) } : out(b.public),
       },
       ...(this._proving && this._proving.total ? { privateProof: { done: this._proving.done, total: this._proving.total } } : {}),
       txs: this.id
@@ -976,6 +978,12 @@ globalThis.__firoFake = Object.freeze({
   publicUnproven: (sats = 0) => {
     if (!current) return;
     current._pubUnproven = BigInt(sats || 0);
+    current.emit();
+  },
+  // Public FIRO counted on one node's Merkle proof, no second node answering (0.1.20); 0 clears it.
+  publicOneNode: (sats = 0) => {
+    if (!current) return;
+    current._pubOneNode = BigInt(sats || 0);
     current.emit();
   },
 });

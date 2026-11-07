@@ -159,21 +159,36 @@ test('audit F3 and F10: the first private sync is flagged until it is done; afte
   await backend.close();
 });
 
-test('audit F5: a node more than 3 blocks behind another of the list is left for that one; one that is level is kept', async () => {
+test('audit F5: a node more than 3 blocks behind another of the list is left for that one, once a third agrees; one that is level is kept', async () => {
   const chain = new FakeChain();
   const ahead = new FakeChain();
   ahead.height = chain.height + 10; // the same blocks (headerHex(height)), ten more
+  const URL3 = 'wss://fake3.example:50004';
   const net = new FakeNet();
   net.addServer(URL1, chain.handler());
   const s2 = net.addServer(URL2, ahead.handler());
-  const backend = createBackend({ network: 'main', servers: [{ url: URL1 }, { url: URL2 }], store: createMemoryStore(), spark: new FakeSpark(), WebSocket: net.WebSocket, sparkSetChecks: false, electrum });
+  const s3 = net.addServer(URL3, ahead.handler());
+  const backend = createBackend({ network: 'main', servers: [{ url: URL1 }, { url: URL2 }, { url: URL3 }], store: createMemoryStore(), spark: new FakeSpark(), WebSocket: net.WebSocket, sparkSetChecks: false, electrum });
   await backend.open({ mnemonic: W.mnemonic, birthdayHeight: chain.height });
   await backend.waitForSync();
-  await until(() => backend.getState().server === URL2 && backend.getState().sync.phase === 'done');
+  await until(() => [URL2, URL3].includes(backend.getState().server) && backend.getState().sync.phase === 'done');
   assert.equal(backend.getState().tip.height, ahead.height, 'reads the chain as far as it goes');
-  assert.ok(s2.calls.length > 0);
-  assert.deepEqual(backend.servers, [URL2, URL1], 'the lagging one stays in the list, behind');
+  assert.ok(s2.calls.length + s3.calls.length > 0);
+  assert.ok(backend.servers.includes(URL1) && backend.servers.indexOf(URL1) > backend.servers.indexOf(backend.getState().server), 'the lagging one stays in the list, behind');
   await backend.close();
+
+  // Round-3 audit of 0.1.20: the one node ahead alone, no other to back it: not moved to on its own
+  // word (a node could pull every wallet onto itself so); said as a disagreement, sending paused.
+  const net1 = new FakeNet();
+  net1.addServer(URL1, chain.handler());
+  net1.addServer(URL2, ahead.handler());
+  const b1 = createBackend({ network: 'main', servers: [{ url: URL1 }, { url: URL2 }], store: createMemoryStore(), spark: new FakeSpark(), WebSocket: net1.WebSocket, sparkSetChecks: false, electrum });
+  await b1.open({ mnemonic: W.mnemonic, birthdayHeight: chain.height });
+  await b1.waitForSync();
+  await sleep(50);
+  assert.equal(b1.getState().server, URL1);
+  assert.equal(b1.getState().serverCheck.state, 'disagree');
+  await b1.close();
 
   // Level (or 3 blocks apart): kept.
   const level = new FakeChain();

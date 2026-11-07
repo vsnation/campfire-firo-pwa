@@ -103,6 +103,10 @@ export function orderFromJson(j) {
     unsureTxid: optText('unsureTxid'),
     unsureHeight: optNum('unsureHeight'),
     paidElsewhereAt: optNum('paidElsewhereAt'),
+    letGoFrom: j.letGoFrom == null ? null : FROM.includes(j.letGoFrom) ? j.letGoFrom : bad('letGoFrom'),
+    letGoAt: optNum('letGoAt'),
+    letGoTxid: optText('letGoTxid'),
+    letGoCount: optNum('letGoCount'),
   });
 }
 
@@ -156,6 +160,18 @@ export function makeOrder(o) {
     unsureHeight: o.unsureHeight ?? null,
     /** The person said they paid it from another wallet (ms): never paid from this one. */
     paidElsewhereAt: o.paidElsewhereAt ?? null,
+    /**
+     * A payment of it the person let go of (on the node in use's word) may still be mined: its balance
+     * ('public' | 'private') and when (ms). Paid again within LET_GO_SAME_SIDE_MS, only from that
+     * balance, so the two conflict (round-4 audit of 0.1.20: a private resend of a let-go public one
+     * went to the sell's private address, and both could arrive).
+     */
+    letGoFrom: o.letGoFrom === 'public' || o.letGoFrom === 'private' ? o.letGoFrom : null,
+    letGoAt: Number.isFinite(o.letGoAt) ? o.letGoAt : null,
+    /** That payment's txid: the next one must spend one of its coins (round-6 audit). */
+    letGoTxid: typeof o.letGoTxid === 'string' && o.letGoTxid ? o.letGoTxid : null,
+    /** How many of its payments were let go of within one window: two or more, none is sent from here. */
+    letGoCount: Number.isSafeInteger(o.letGoCount) && o.letGoCount > 0 ? o.letGoCount : null,
     isOpen: !o.terminal,
   });
 }
@@ -175,7 +191,7 @@ export function orderToJson(o) {
     payable: o.payable,
     sandbox: o.sandbox,
   };
-  for (const k of ['sparkDepositAddress', 'receiveUsd', 'expiresAt', 'updatedAt', 'receivedFiro', 'proceedsUsd', 'payoutTxid', 'payoutExplorer', 'sendStartedAt', 'sentTxid', 'sentFrom', 'sentAt', 'unsureTxid', 'unsureHeight', 'paidElsewhereAt']) if (o[k] != null) j[k] = o[k];
+  for (const k of ['sparkDepositAddress', 'receiveUsd', 'expiresAt', 'updatedAt', 'receivedFiro', 'proceedsUsd', 'payoutTxid', 'payoutExplorer', 'sendStartedAt', 'sentTxid', 'sentFrom', 'sentAt', 'unsureTxid', 'unsureHeight', 'paidElsewhereAt', 'letGoFrom', 'letGoAt', 'letGoTxid', 'letGoCount']) if (o[k] != null) j[k] = o[k];
   if (o.lastState != null) j.state = o.lastState;
   return j;
 }

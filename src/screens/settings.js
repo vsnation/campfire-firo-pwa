@@ -15,6 +15,9 @@
  *   - "Why are there no dollar values?" -> the CoinGecko switch (it sees the IP address).
  *   - "It is not in my language" / "I want it in English" -> App: Language, like this device by
  *     default, or any of the app's languages.
+ *   - "How do I install it?" -> App: Install Firo PWA (Chrome, Edge, Android), or Add to your Home
+ *     Screen / the Dock (iPhone, iPad, Mac Safari), while it runs in a tab; also after the Welcome
+ *     card's X or Home's "Later".
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
@@ -33,6 +36,8 @@ import { isNotYet } from '../lib/chain.js';
 import { priceSettings } from './fiat_ui.js';
 import * as payments from '../lib/payments.js';
 import { t, tn } from '../lib/i18n.js';
+import { installWay, onInstallChange } from '../lib/install_prompt.js';
+import { HOME_SCREEN_TEXT, installAction, installRowTitle, lastStep } from './home_screen_guide.js';
 
 /** A settings row: icon, title, a line under it, a chevron. */
 export function settingsRow(ico, title, sub, onclick, extra = {}) {
@@ -91,7 +96,7 @@ export default function settings(app) {
     });
   }
 
-  const faceRowBox = h('div');
+  const faceRowBox = h('div', { class: 'row-slot' });
   (async () => {
     const on = hasPasskey(app);
     const avail = on || (await passkeyAvailable());
@@ -144,6 +149,16 @@ export default function settings(app) {
   });
   const inline = (ico, title, sub, control, testid) => h('div', { class: 'row', 'data-testid': testid }, h('span', { class: 'ico' }, icon(ico)), h('span', { class: 'main' }, h('div', { class: 't', text: title }), sub ? h('div', { class: 's', text: sub }) : null), control);
 
+  // Install, while Firo PWA runs in a tab of a browser that can install it.
+  const installBox = h('div', { class: 'row-slot' });
+  const renderInstall = () => {
+    const way = installWay();
+    const title = installRowTitle(way);
+    put(installBox, title ? settingsRow('apps', title, way === 'prompt' ? t(HOME_SCREEN_TEXT.installWhy) : t(HOME_SCREEN_TEXT.homeTitle), () => installAction(way, lastStep(app.record)), { 'data-testid': 'install-row', 'data-way': way }) : null);
+  };
+  const offInstall = onInstallChange(renderInstall);
+  renderInstall();
+
   const el = screen(
     { title: t('Settings'), tabs: 'settings', app, cls: 'settings' },
     h('div', { class: 'card list' }, walletsRow),
@@ -188,11 +203,18 @@ export default function settings(app) {
       { class: 'card list' },
       h('div', { class: 'row', 'data-testid': 'lang-row' }, h('span', { class: 'ico' }, icon('language')), h('span', { class: 'main' }, h('div', { class: 't', text: t('Language') }), languageRowNote()), langSel),
       inline('moon', t('Theme'), t('Light or dark'), themeSel, 'theme-row'),
+      installBox,
       updRow,
       otherRow,
       row('info', t('About'), null, () => app.go('about'), { 'data-testid': 'about' }),
       row('trash', t('Delete wallet from this device'), null, () => app.go('deleteWallet'), { 'data-testid': 'delete-wallet' }),
     ),
   );
-  return { el, destroy: offU };
+  return {
+    el,
+    destroy() {
+      offU();
+      offInstall();
+    },
+  };
 }

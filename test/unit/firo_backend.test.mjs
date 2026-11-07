@@ -899,12 +899,12 @@ test('the tip is checked with a second server: same chain agrees; a different bl
 test('release re-audit 3 RE3-2: one of Firo\'s nodes that never opens does not fail every second opinion (production timeouts): receipts are proven, the tip agrees', async () => {
   // Firo's four public nodes, the default list: the one in use, then a dark one (a blackholed host:
   // the open never completes), then two healthy ones.
-  const [IN_USE, DARK, OK2, OK3] = MAIN.servers;
+  const [IN_USE, DARK, OK2, OK3, RU] = MAIN.servers; // RU: ru-firo-node (0.1.20), healthy here
   const net = new FakeNet();
   const chain = new FakeChain();
   net.addServer(IN_USE, chain.handler());
   const dark = net.addServer(DARK, chain.handler(), { silent: true });
-  const ok = [net.addServer(OK2, chain.handler()), net.addServer(OK3, chain.handler())];
+  const ok = [net.addServer(OK2, chain.handler()), net.addServer(OK3, chain.handler()), net.addServer(RU, chain.handler())];
   const txid = fund(chain, W.addresses[0].address, 3n * COIN);
   // Production options: no connectTimeoutMs override (pings off only so the process can exit).
   const backend = createBackend({ network: 'main', servers: MAIN.servers.map((url) => ({ url })), store: createMemoryStore(), spark: new FakeSpark(), WebSocket: net.WebSocket, electrum: { pingIntervalMs: 0 } });
@@ -922,8 +922,8 @@ test('release re-audit 3 RE3-2: one of Firo\'s nodes that never opens does not f
   // second opinion for its 8 s; of the nodes open together, the first in the rotating order is asked;
   // no connection is left open after the answer. Re-audit 5 RE5-2: first in that order, it is waited
   // for a moment (SECOND_GRACE_MS, 1.5 s) after the others open, and no longer.
-  const others = [DARK, OK2, OK3];
-  for (let i = 0; i < 3; i++) {
+  const others = [DARK, OK2, OK3, RU];
+  for (let i = 0; i < 4; i++) {
     const turn = backend._secondTurn % others.length;
     const order = [...others.slice(turn), ...others.slice(0, turn)];
     const t1 = Date.now();
@@ -1057,11 +1057,12 @@ test('release re-audit 4 RE4-1: every other node dark: "offline" within the 8 s 
 });
 
 test('release re-audit 4 RE4-1: a node that opens after the answer, or while it is asked, is closed too; one that opens and drops the question hands it to the next', async () => {
-  const [IN_USE, A, B, C] = MAIN.servers;
+  const [IN_USE, A, B, C, D] = MAIN.servers;
   const net = new FakeNet();
   const chain = new FakeChain();
   net.addServer(IN_USE, chain.handler());
   const plain = chain.handler();
+  net.addServer(D, chain.handler()); // ru-firo-node (0.1.20): healthy, last in the rotation here
   // A: opens, then drops the connection on any question (no answer); B: healthy; C: slow to open.
   const dropper = net.addServer(A, (m, p, socket) => {
     if (m === 'server.version') return plain(m, p, socket);
@@ -1073,7 +1074,7 @@ test('release re-audit 4 RE4-1: a node that opens after the answer, or while it 
   const backend = createBackend({ network: 'main', servers: MAIN.servers.map((url) => ({ url })), store: createMemoryStore(), spark: new FakeSpark(), WebSocket: net.WebSocket, electrum: { pingIntervalMs: 0 } });
   await backend.open({ mnemonic: W.mnemonic, birthdayHeight: chain.height });
   await backend.waitForSync();
-  const others = [A, B, C];
+  const others = [A, B, C, D];
   const ask = async ({ hold = 0 } = {}) => {
     const before = net.sockets.length;
     const asked = [];
@@ -1407,13 +1408,13 @@ test('release re-audit 6 RE6-2: a lock during the second opinion learns nothing:
 // on until an answer or the 8 s cap (up to 120 s for a used-tag list), a node that opened after the
 // lock was still asked, and Lock waited for it (close() waits for the sync the check runs in).
 test('release re-audit 5 RE5-5: a lock ends a second opinion in flight: nothing more is asked, every connection is closed, and Lock does not wait for it', async () => {
-  const [IN_USE, A, B, C] = MAIN.servers;
+  const [IN_USE, A, B, C, D] = MAIN.servers; // D: ru-firo-node (0.1.20)
   const net = new FakeNet();
   const chain = new FakeChain();
   net.addServer(IN_USE, chain.handler());
   const plain = chain.handler();
   let hold = false; // the node asked keeps the question unanswered
-  const others = [A, B, C].map((u) =>
+  const others = [A, B, C, D].map((u) =>
     net.addServer(u, (m, p, socket) => {
       if (hold && m === 'blockchain.headers.subscribe') return FakeNet.NO_ANSWER;
       return plain(m, p, socket);
@@ -1453,7 +1454,7 @@ test('release re-audit 5 RE5-5: a lock ends a second opinion in flight: nothing 
   assert.equal(q.r.code, 'closed', `ended by the lock, not answered (${q.r})`);
   assert.ok(q.ms < 200, `at once (${q.ms} ms)`);
   assert.deepEqual(q.asked, [], 'a node that opened after the lock is not asked');
-  assert.ok(q.mine.length === 3 && q.mine.every((x) => x.readyState === 3), 'every connection it began is closed');
+  assert.ok(q.mine.length === 4 && q.mine.every((x) => x.readyState === 3), 'every connection it began is closed');
   assert.ok(others.every((o) => o.sockets.size === 0));
 
   // While a node holds the question: it ends at once, no other node is asked.
@@ -2343,6 +2344,24 @@ test('audit N4: the library\'s pick at the real fee leaves the let-go coin out t
   assert.equal(plan.fee, 5000n);
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /may still go through/);
+  // A payment that must conflict with ONE let-go payment (a sell paid again, round-5/6 audits of
+  // 0.1.20): refused, never only warned of; only that payment's coins count.
+  backend.sends.set('p1'.padEnd(64, '0'), { coins: ['c0'] });
+  await assert.rejects(backend._planSparkSpend({ recips: [{ kind: 'spark', address: to, amount: 1070200n }], tip: 1400000, subtractFee: false, warnings: [], conflictWith: 'p1'.padEnd(64, '0') }), (e) => e.code === 'conflict-coin' && /nothing was sent/.test(e.message));
+  // No record of the let-go payment's coins: what would conflict cannot be told, refused (round-7 audit).
+  await assert.rejects(backend._planSparkSpend({ recips: [{ kind: 'spark', address: to, amount: 100000n }], tip: 1400000, subtractFee: false, warnings: [], conflictWith: 'p9'.padEnd(64, '0') }), (e) => e.code === 'conflict-coin');
+  // Another let-go payment's coin does not do: c1 let go of too, but p1 spent c0 only.
+  backend.ownCoins.get('c1').conflictAt = Date.now();
+  backend.ownCoins.get('c0').pendingSpentTxid = 'p2'.padEnd(64, '0'); // held by another payment
+  await assert.rejects(backend._planSparkSpend({ recips: [{ kind: 'spark', address: to, amount: 100000n }], tip: 1400000, subtractFee: false, warnings: [], conflictWith: 'p1'.padEnd(64, '0') }), (e) => e.code === 'conflict-coin');
+  // Its coin spent in a block by another payment: p1 can never be mined; nothing to conflict with.
+  delete backend.ownCoins.get('c0').pendingSpentTxid;
+  backend.ownCoins.get('c0').spentTxid = 'p2'.padEnd(64, '0');
+  const free = await backend._planSparkSpend({ recips: [{ kind: 'spark', address: to, amount: 100000n }], tip: 1400000, subtractFee: false, warnings: [], conflictWith: 'p1'.padEnd(64, '0') });
+  assert.ok(free.fee > 0n);
+  // Spent by p1 itself: it went through after all, nothing more is sent.
+  backend.ownCoins.get('c0').spentTxid = 'p1'.padEnd(64, '0');
+  await assert.rejects(backend._planSparkSpend({ recips: [{ kind: 'spark', address: to, amount: 100000n }], tip: 1400000, subtractFee: false, warnings: [], conflictWith: 'p1'.padEnd(64, '0') }), (e) => e.code === 'conflict-coin' && /went through after all/.test(e.message));
 });
 
 test('P7: payments are signed with the lower of the two nodes\' tips; a node far ahead of the other disagrees', async () => {
