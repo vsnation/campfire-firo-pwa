@@ -17,10 +17,16 @@
  *   - "What if this phone, or the browser's storage, is lost?" -> a wallet restored from a backup
  *     file never showed its words: a card under the balance asks to write them down (one tap to
  *     Backup; "Later" for a week) until the person says they did.
+ *   - "Should this be an app?" -> a wallet in a browser tab: a card under the balance offers Install
+ *     (Chrome, Edge, Android: the wallet comes with it), or says Safari can delete it after 7 days
+ *     and shows the Home Screen / Dock steps; "Later" for a week (screens/home_screen_guide.js).
+ *   - "Zero, and no names: is this my wallet?" -> a wallet opened with a passphrase says so under the
+ *     sync line, always; a tap says what it means and what to do if none was typed (a browser's
+ *     password manager can fill one in: tester, 2026-11-01).
  */
 import { h, fmtDate, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, notice, progressBar, primary, secondary } from '../lib/ui.js';
+import { screen, notice, progressBar, primary, secondary, openSheet } from '../lib/ui.js';
 import { isOwnServer } from '../lib/servers.js';
 import { keepingAwake, startKeepingAwake, stopKeepingAwake, onKeepAwakeChange, screenKeptOn } from '../lib/keep_awake.js';
 import { formatAmount, UNIT } from '../lib/amount.js';
@@ -33,7 +39,7 @@ import { openSell } from './sell_screens.js';
 import { loaderBehind } from '../lib/loader.js';
 import { rowExtra } from './payment_extras.js';
 import { loadContacts } from '../lib/contacts.js';
-import { walletChip } from './wallets.js';
+import { walletChip, startAddWallet } from './wallets.js';
 import { awayNow, dismissAway } from '../lib/notify.js';
 import { moneyOf, priceQuestion, shouldAsk } from './fiat_ui.js';
 import { firoPrice } from '../lib/fiat.js';
@@ -43,6 +49,8 @@ import { wordsReminderDue, WORDS_REMINDER_SNOOZE_MS } from '../lib/session.js';
 import { t, tn, sentences } from '../lib/i18n.js';
 import { pauseReason } from '../lib/sync.js';
 import { loaderText } from '../lib/loader_words.js';
+import { homeInstallCard } from './home_screen_guide.js';
+import { refreshPersistence } from '../lib/storage.js';
 
 /** The sync state's colour: green synced, red when something is wrong, amber while waiting (and on one node's word: F4). */
 export function syncClass(sync) {
@@ -72,6 +80,21 @@ export function syncBars(sync, onclick) {
   const cls = syncClass(sync);
   const lit = sync.state === 'synced' || sync.state === 'refreshing' ? (sync.noSecond ? 3 : 4) : sync.state === 'syncing' ? 1 + Math.min(3, Math.floor((sync.percent || 0) / 34)) : sync.state === 'offline' || sync.state === 'error' ? 0 : 1;
   return h('button', { class: `icon-btn sync-bars ${cls}`, type: 'button', 'aria-label': t('{title}. Firo nodes', { title: sync.title }), title: sync.title, 'data-testid': 'sync-bars', 'data-state': sync.state, onclick }, ...[1, 2, 3, 4].map((i) => h('span', { class: `bar b${i}${i <= lit ? ' lit' : ''}` })));
+}
+
+/**
+ * What "This wallet uses a passphrase" means, and the way out when none was typed: a password manager
+ * can fill the passphrase box, and the words then open another, empty wallet (tester, 2026-11-01).
+ */
+export function passphraseSheet(app) {
+  const title = t('This wallet uses a passphrase');
+  return openSheet((close) => [
+    h('h2', { text: title }),
+    h('p', { class: 'lead', text: t('It was opened from its recovery words and a passphrase. The same words with no passphrase, or another one, open a different wallet with different coins.') }),
+    notice('info', h('strong', { text: t("Didn't type a passphrase? ") }), t("Your browser's password manager may have filled it in. Add the wallet again from the same words and leave the passphrase empty.")),
+    primary(t('Got it'), () => close(true), { 'data-testid': 'passphrase-got-it' }),
+    h('button', { class: 'btn btn-text', type: 'button', 'data-testid': 'passphrase-add-again', onclick: () => (close(false), startAddWallet(app)) }, t('Add the wallet again')),
+  ], { label: title });
 }
 
 /** The round icon of a payment row, as Campfire draws them: received, sent, privatized, waiting. */
@@ -224,6 +247,10 @@ export default function home(app) {
     const unproven = b.public.unproven ?? 0n;
     if (b.public.pending - unproven > 0n) pending.push(t('+{amount} arriving publicly', { amount: formatAmount(b.public.pending - unproven) }));
     if (unproven > 0n) pending.push(t('+{amount} public, in a block, not yet confirmed by a second Firo node', { amount: formatAmount(unproven) }));
+    // Counted on the node in use's proof alone, no second node answering (0.1.20, the Campfire way):
+    // in the figure, and said so; a second node is asked again at every sync.
+    const byOneNode = b.public.byOneNode ?? 0n;
+    if (byOneNode > 0n) pending.push(t('Public includes {amount} FIRO confirmed by one Firo node', { amount: formatAmount(byOneNode) }));
     // Some public addresses not answered yet (F7): the public figure may be short until they are.
     if (s.sync.partial) pending.push(t('The public balance may be incomplete until every address is answered'));
     // A masternode's collateral is kept out of what can be sent: said, so no FIRO seems to vanish (P3).
@@ -250,6 +277,10 @@ export default function home(app) {
       ),
       h('div', { class: 'sync-row' }, syncLine(s.sync), reading && s.sync.percent != null ? progressBar(s.sync.percent / 100) : null),
       h('p', { class: 'small sync-detail', 'data-testid': 'sync-detail', text: s.sync.detail }),
+      // Always said for a wallet opened with a passphrase (the found-nothing notice below says it itself).
+      app.record && app.record.passphrase && !app.record.watchOnly && !foundNothing
+        ? h('button', { class: 'btn btn-text btn-small pass-line', type: 'button', 'data-testid': 'home-passphrase', onclick: () => passphraseSheet(app) }, icon('key', 'inline-icon'), h('span', { text: t('This wallet uses a passphrase') }))
+        : null,
       // A restore that found nothing (user report, 2026-11-01: "the balance is not seen, though it is
       // there"): one wrong word, their order or a passphrase open another, empty wallet. Said under
       // the 0, with the way to compare them, not "receive some FIRO" further down.
@@ -469,6 +500,10 @@ export default function home(app) {
   const offAway = wallet.onChange(renderAway);
   renderAway();
 
+  // A wallet in a browser tab: Install, or Safari's 7 days and the Home Screen / Dock steps.
+  const install = homeInstallCard(app);
+  refreshPersistence(app).then(() => install.render(), () => {});
+
   const el = screen(
     // The title is the open wallet's name: a tap opens the switcher (screens/wallets.js).
     {
@@ -487,7 +522,7 @@ export default function home(app) {
     },
     chainSwitch(app, 'firo'),
     bannerBox,
-    h('div', { class: 'home-cols' }, h('div', { class: 'home-main' }, balanceBox, proofBox, firstBox, wordsBox, payBox, whyBox, privatizeBox, shortcutsBox, awayBox, askBox), h('div', { class: 'home-side' }, txBox)),
+    h('div', { class: 'home-cols' }, h('div', { class: 'home-main' }, balanceBox, proofBox, firstBox, wordsBox, payBox, whyBox, install.el, privatizeBox, shortcutsBox, awayBox, askBox), h('div', { class: 'home-side' }, txBox)),
   );
   return {
     el,
@@ -497,6 +532,7 @@ export default function home(app) {
       offU();
       offPrice();
       offAway();
+      install.destroy();
       clearTimeout(bannerLater);
       if (navigator.serviceWorker) navigator.serviceWorker.removeEventListener('controllerchange', onController);
     },

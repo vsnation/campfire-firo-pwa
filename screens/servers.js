@@ -20,6 +20,7 @@ import { icon } from '../lib/icons.js';
 import { screen, primary, secondary, notice, toast } from '../lib/ui.js';
 import { wallet } from '../lib/wallet.js';
 import { serverHost } from '../lib/sync.js';
+import { nodeName } from '../lib/node_names.js';
 import { FIRO_SERVERS, isOwnServer, useOwnServer, useFiroServers, usePublicNode, canUseOwnServer } from '../lib/servers.js';
 import { normalizeServerAddress, SERVER_EXAMPLE } from '../lib/server_address.js';
 import { syncLine } from './home.js';
@@ -53,7 +54,7 @@ export default function servers(app) {
         'div',
         { class: 'card' },
         kv(t('In use'), own ? t('Your own node, {own}', { own }) : t("Firo's public nodes"), 'servers-mode'),
-        kv(t('Connected to'), s.server ? serverHost(s.server) : t('not connected'), 'servers-connected'),
+        kv(t('Connected to'), s.server ? nodeName(serverHost(s.server)) : t('not connected'), 'servers-connected'),
         kv(t('Newest block'), s.tip ? s.tip.height.toLocaleString('en-US') : '—', 'servers-height'),
         syncLine(s.sync),
       ),
@@ -114,7 +115,8 @@ export default function servers(app) {
         'div',
         { class: 'row node-row', 'data-testid': `node-${host}`, 'data-state': st.cls },
         h('span', { class: 'ico' }, h('span', { class: `dot ${st.cls}` })),
-        h('span', { class: 'main' }, h('div', { class: 't', text: host }), h('div', { class: 's', 'data-testid': `node-${host}-state`, text: st.text })),
+        // A node not on firo.org is said to be one (round-3 audit: the list read as all Firo's own).
+        h('span', { class: 'main' }, h('div', { class: 't', text: nodeName(host) }), nodeName(host) !== host ? h('div', { class: 's', 'data-testid': `node-${host}-address`, text: t('{address} · a community node, not on firo.org', { address: host }) }) : null, h('div', { class: 's', 'data-testid': `node-${host}-state`, text: st.text })),
         button,
       );
     });
@@ -160,12 +162,13 @@ export default function servers(app) {
     switching = host;
     renderNodes(wallet.state);
     lockActions(true);
-    put(nodeMsg, notice('info', (own ? t('Moving to {host}… Your coins and history stay as they are.', { host }) : t('Connecting to {host}… Your coins and history stay as they are.', { host }))));
-    nodeMsg.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    put(nodeMsg, notice('info', (own ? t('Moving to {host}… Your coins and history stay as they are.', { host: nodeName(host) }) : t('Connecting to {host}… Your coins and history stay as they are.', { host: nodeName(host) }))));
+    // At once (five nodes push it below a phone's fold; a smooth scroll left it out of sight a while).
+    nodeMsg.scrollIntoView?.({ block: 'nearest' });
     try {
       await usePublicNode(app, host);
       if (gone) return;
-      toast(t('Using {host}', { host }));
+      toast(t('Using {host}', { host: nodeName(host) }));
       app.go('servers', {}, { replace: true });
     } catch (e) {
       busy = false;
@@ -173,7 +176,7 @@ export default function servers(app) {
       if (gone) return;
       renderNodes(wallet.state);
       lockActions(false);
-      put(nodeMsg, notice('error', t('It did not switch to {host}: {message} Try again, or another node.', { host, message: loaderText(e.message) })));
+      put(nodeMsg, notice('error', t('It did not switch to {host}: {message} Try again, or another node.', { host: nodeName(host), message: loaderText(e.message) })));
     }
   }
 

@@ -21,7 +21,7 @@
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary, notice, openSheet, toast, focusSoon, textButton, onHidden } from '../lib/ui.js';
+import { screen, primary, notice, openSheet, toast, focusSoon, textButton, onHidden, textDots } from '../lib/ui.js';
 import { keys } from '../lib/chain.js';
 import { openWithPasswordFor, markExported, isAdding, openSeedFor, MIN_PASSWORD, markWordsConfirmed } from '../lib/session.js';
 import { passwordWeakness } from '../lib/password_strength.js';
@@ -69,11 +69,19 @@ export function wordReveal(onReveal) {
  */
 export function passphraseField(setup, { restoring = false, onChange = () => {} } = {}) {
   // Not a login: password managers are asked to leave it alone (autocomplete=off alone is ignored for
-  // password boxes, and a saved app password filled in here opens another wallet).
-  const field = (attrs) => h('input', { class: 'input', type: 'password', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other', ...attrs });
+  // password boxes, and a saved app password filled in here opens another wallet: tester, 2026-11-01,
+  // the same words showed 0 and no names in Chrome on Windows). With a mouse, where Chrome fills a
+  // saved password unasked, it is a text box drawn as dots: password managers fill password boxes
+  // only. With a touch screen it stays a password box: keyboards learn what is typed in text boxes.
+  const dots = textDots();
+  const field = (attrs) => h('input', { class: dots ? 'input pp dots' : 'input pp', type: dots ? 'text' : 'password', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other', ...attrs });
   const input = field({ 'aria-label': t('BIP39 passphrase'), 'data-testid': 'passphrase' });
   const again = restoring ? null : field({ 'aria-label': t('The same passphrase again'), 'data-testid': 'passphrase2' });
   const hint = h('p', { class: 'hint', 'data-testid': 'passphrase-hint', 'aria-live': 'polite' });
+  // Filled by the browser all the same (its autofill style starts an animation, css/app.css): said,
+  // with one tap to clear it. Chrome hides such a value from the page until the next tap, so it is
+  // noticed by the style, not by its text.
+  const filledNote = h('div', { 'data-testid': 'passphrase-autofilled', 'aria-live': 'polite' });
   input.value = (setup && setup.passphrase) || '';
   if (again) again.value = input.value;
   const ok = () => !again || input.value === again.value;
@@ -82,18 +90,41 @@ export function passphraseField(setup, { restoring = false, onChange = () => {} 
     hint.textContent = differ ? t('The two passphrases are not the same yet.') : '';
     hint.className = differ ? 'hint bad' : 'hint'; // i18n-ignore: class names
   };
+  const changed = () => {
+    if (setup) setup.passphrase = input.value;
+    check();
+    onChange();
+  };
+  const clear = () => {
+    for (const f of [input, again]) if (f) f.value = '';
+    put(filledNote);
+    changed();
+  };
   const show = h('input', {
     type: 'checkbox',
     'data-testid': 'passphrase-show',
     onchange: (e) => {
-      for (const f of [input, again]) if (f) f.type = e.target.checked ? 'text' : 'password';
+      for (const f of [input, again]) {
+        if (!f) continue;
+        if (dots) f.classList.toggle('dots', !e.target.checked);
+        else f.type = e.target.checked ? 'text' : 'password';
+      }
     },
   });
   for (const f of [input, again]) {
     if (!f) continue;
     f.addEventListener('input', () => {
-      if (setup) setup.passphrase = input.value;
-      check();
+      if (!input.value && !(again && again.value)) put(filledNote);
+      changed();
+    });
+    f.addEventListener('animationstart', (e) => {
+      if (e.animationName !== 'cf-autofill') return;
+      el.open = true;
+      put(
+        filledNote,
+        notice('warn', h('strong', { text: t('Your browser filled in a passphrase. ') }), t('A passphrase is not a password for this site: with one, these words open a different wallet. Clear it unless this wallet was made with one.')),
+        h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'passphrase-clear', onclick: clear }, t('Clear the passphrase')),
+      );
       onChange();
     });
   }
@@ -108,9 +139,19 @@ export function passphraseField(setup, { restoring = false, onChange = () => {} 
     h('label', { class: 'field' }, t('BIP39 passphrase'), input),
     again ? h('label', { class: 'field' }, t('The same passphrase again'), again) : null,
     hint,
+    filledNote,
     h('label', { class: 'check-row' }, show, h('span', { text: t('Show the passphrase') })),
   );
-  return { el, value: () => input.value, ok };
+  return {
+    el,
+    value: () => input.value,
+    ok,
+    showDifference: () => {
+      el.open = true;
+      check();
+      (again && input.value && !again.value ? again : input).focus();
+    },
+  };
 }
 
 export default function backup(app) {
@@ -123,7 +164,14 @@ export default function backup(app) {
   const count = setup.count === 12 ? 12 : 24;
   // On once the words were shown, and while a passphrase typed is the same both times (P10).
   let revealed = false;
-  const cta = primary(t('I wrote them down'), () => pass.ok() && app.go('confirmWords'), { disabled: true, 'data-testid': 'wrote-down' });
+  // The passphrase as the box has it now (audit of 0.1.20: a value the browser filled in reaches the
+  // page only after a tap, with no input event, so setup could hold another one than the box showed).
+  const cta = primary(t('I wrote them down'), () => {
+    // A box the browser filled without telling the page: the difference said where it is.
+    if (!pass.ok()) return pass.showDifference();
+    setup.passphrase = pass.value();
+    app.go('confirmWords');
+  }, { disabled: true, 'data-testid': 'wrote-down' });
   const reveal = wordReveal(() => {
     revealed = true;
     cta.disabled = !pass.ok();

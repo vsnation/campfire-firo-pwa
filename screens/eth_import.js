@@ -15,7 +15,7 @@
  */
 import { h, put, shorten } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { screen, primary } from '../lib/ui.js';
+import { screen, primary, textDots } from '../lib/ui.js';
 import { mnemonicProblem, normalizeMnemonic, secretKind, privateKeyProblem, privateKeyFromText, privateKeyToAddress, wipe } from '../lib/eth/crypto.js';
 import { t, tn, tNodes } from '../lib/i18n.js';
 
@@ -55,7 +55,10 @@ export default function ethImport(app) {
   if (!app.ethSetup || app.ethSetup.mode !== 'import') app.ethSetup = { mode: 'import', from: 'home' };
   forgetTyped(app.ethSetup);
   const area = h('textarea', { class: 'input', rows: 4, autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', placeholder: t('word1 word2 word3 … or 0x…'), 'aria-label': t('Recovery words or private key'), 'data-testid': 'eth-words-input', 'data-autofocus': true });
-  const pass = h('input', { class: 'input', type: 'password', autocomplete: 'off', autocapitalize: 'none', spellcheck: 'false', 'aria-label': t('Passphrase'), placeholder: t('Passphrase'), 'data-testid': 'eth-passphrase' });
+  // Like the Firo passphrase (screens/backup.js passphraseField): not a login, so password managers
+  // are kept out; drawn as dots in a text box where a mouse is used.
+  const dots = textDots();
+  const pass = h('input', { class: dots ? 'input pp dots' : 'input pp', type: dots ? 'text' : 'password', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other', 'aria-label': t('Passphrase'), placeholder: t('Passphrase'), 'data-testid': 'eth-passphrase' });
   const hint = h('p', { class: 'hint', 'data-testid': 'eth-words-hint' });
   const pasteBtn = h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'eth-paste' }, icon('paste'), t('Paste'));
   const cta = primary(t('Import Ethereum wallet'), go, { disabled: true, 'data-testid': 'eth-import-submit' });

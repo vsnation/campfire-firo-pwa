@@ -52,6 +52,8 @@ export function statusWords(item) {
   if (item.unsure) return t('Firo PWA is checking whether it left');
   if (item.unproven) return t('Reported by the Firo node, checking…');
   if (isPendingTx(item)) return t('Waiting for its first block');
+  // A seller watching for a payment should know only one node vouches for it (audit of 0.1.20).
+  if (item.oneNodeProof) return tn({ one: 'Confirmed by one Firo node ({n} confirmation)', other: 'Confirmed by one Firo node ({n} confirmations)' }, item.confirmations);
   return tn({ one: 'Confirmed ({n} confirmation)', other: 'Confirmed ({n} confirmations)' }, item.confirmations);
 }
 

@@ -10,15 +10,17 @@
  *   - "Nothing happens for a minute" -> measured: Safari can take about a minute to start a site's
  *     first service worker. Until setup has begun the screen says the browser is preparing it (no
  *     false "stopped"); only after 150 s without a start does it offer Try again.
- *   - "I want it on my Home Screen" (iPhone Safari tab) -> says to add it now: the Home Screen app sets
- *     itself up separately.
+ *   - "Will I keep it?" (iPhone, iPad, Mac Safari tab) -> right under the progress: Safari deletes a
+ *     site's data after 7 days without a visit, so add it to the Home Screen (Dock) now: the three
+ *     steps, inline; the installed app sets itself up separately (screens/home_screen_guide.js).
  *   - "Is this download safe?" -> every file is checked against the release signature before use.
  */
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, notice, progressBar } from '../lib/ui.js';
 import { registerLoader, readInstallProgress, reloadOnceIntoVerifiedCopy, INTEGRITY_CODES } from '../lib/loader.js';
-import { isIosSafariTab } from './welcome.js';
+import { installWay, SEPARATE_STORAGE } from '../lib/install_prompt.js';
+import { HOME_SCREEN_TEXT, homeScreenSteps } from './home_screen_guide.js';
 import { t, tn, sentences } from '../lib/i18n.js';
 
 export const STALL_MS = 30000; // no bytes for this long, once downloading: stalled
@@ -52,8 +54,17 @@ export default function install(app) {
   const line = h('p', { class: 'small', 'aria-live': 'polite', 'data-testid': 'install-line', text: t('Starting…') });
   const status = h('div', { 'data-testid': 'install-status' });
   const actions = h('div', { class: 'actions' });
-  const tip = isIosSafariTab()
-    ? notice('info', h('strong', { text: t('Adding it to your Home Screen? ') }), t('Do it now and open it from there: the Home Screen app sets itself up separately.'))
+  // In a Safari tab (iPhone, iPad, Mac), the first thing to do is to leave it: right under the progress.
+  const way = installWay();
+  const tip = SEPARATE_STORAGE.has(way)
+    ? h(
+        'div',
+        { class: 'card a2hs', 'data-testid': 'install-a2hs', 'data-way': way },
+        h('h3', { text: t(HOME_SCREEN_TEXT.title[way]) }),
+        h('p', { text: sentences(t(HOME_SCREEN_TEXT.why[way]), t(HOME_SCREEN_TEXT.notMoved[way])) }),
+        homeScreenSteps(way, 'start'),
+        h('p', { class: 'small', 'data-testid': 'install-a2hs-nowait', text: t(HOME_SCREEN_TEXT.noWait[way]) }),
+      )
     : null;
 
   const el = screen(
@@ -63,9 +74,9 @@ export default function install(app) {
     bar,
     line,
     status,
+    tip,
     notice('info', h('strong', { text: t('This happens once. Keep this screen open. ') }), t('Every file is checked against the Firo PWA release signature before it is used.')),
     h('p', { class: 'small', text: t('If the connection drops, nothing is lost: the files already checked are kept, and setup continues the next time you open Firo PWA.') }),
-    tip,
   );
   el.appendChild(actions);
 

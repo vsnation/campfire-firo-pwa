@@ -17,6 +17,7 @@ import { APP_VERSION, BUILT } from '../lib/version.js';
 import { wallet } from '../lib/wallet.js';
 import { backendKind } from '../lib/chain.js';
 import { serverHost } from '../lib/sync.js';
+import { nodeName } from '../lib/node_names.js';
 import { serverWords } from '../lib/servers.js';
 import { lastCheckText, copyAt, releaseDate } from '../lib/update.js';
 import { refreshPersistence, persistenceText } from '../lib/storage.js';
@@ -81,7 +82,7 @@ export default function about(app) {
       engineKv,
       kv(t('Network'), s.raw && s.raw.network === 'test' ? t('Firo testnet') : t('Firo mainnet')),
       kv(t('Servers'), serverWords(app.prefs), 'about-servers'),
-      kv(t('Connected to'), s.server ? serverHost(s.server) : t('not connected'), 'about-connection'),
+      kv(t('Connected to'), s.server ? nodeName(serverHost(s.server)) : t('not connected'), 'about-connection'),
       kv(t('Latest block'), s.tip ? s.tip.height.toLocaleString('en-US') : '—'),
       kv(t('Cross-origin isolated'), String(self.crossOriginIsolated)),
       storageKv,
