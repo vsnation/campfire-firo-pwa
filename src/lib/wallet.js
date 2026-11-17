@@ -25,6 +25,7 @@ export const isPendingTx = (tx) => !(Number(tx && tx.confirmations) >= MIN_CONFI
 
 /** The balance a payment touched, for its row: private (Spark), public (transparent), or the move between. */
 export function txSide(tx) {
+  if (tx && tx.toPublic) return 'publicize';
   switch (tx && tx.kind) {
     case 'privatize':
       return 'privatize';
@@ -37,7 +38,7 @@ export function txSide(tx) {
   }
 }
 
-export const SIDE_WORDS = lazyWords({ private: tk('Private'), public: tk('Public'), privatize: tk('Public → Private') });
+export const SIDE_WORDS = lazyWords({ private: tk('Private'), public: tk('Public'), privatize: tk('Public → Private'), publicize: tk('Private → Public') });
 
 /** What a payment was, in words: "Received", "Privatizing", "Sent to yourself"… */
 export function txTitle(tx) {
@@ -46,6 +47,7 @@ export function txTitle(tx) {
   if (tx.dropped) return tx.letGo ? t('Let go') : t('Did not go through');
   const p = isPendingTx(tx);
   if (tx.kind === 'privatize') return p ? t('Privatizing') : t('Privatized');
+  if (tx.toPublic) return p ? t('Making public') : t('Made public');
   if (tx.kind === 'spark-name') return p ? t('Registering a Spark name') : t('Spark name registered');
   if (tx.direction === 'self') return p ? t('Sending to yourself') : t('Sent to yourself');
   if (tx.direction === 'in') {
@@ -110,6 +112,8 @@ export function mapTx(tx, tip = null) {
     unproven: tx.unproven === true,
     // To us, confirmed on the node in use's proof alone, no second node answering (0.1.20).
     oneNodeProof: tx.oneNodeProof === true,
+    // Ours, from the private balance, all of it to this wallet's own public addresses (0.1.21).
+    toPublic: tx.toPublic === true,
   };
 }
 
@@ -354,6 +358,22 @@ export class Wallet {
   /** Public -> private. amount: BigInt sats, or 'all'. -> {txid}; errors as send() ('unsure' with txid). */
   async privatize(amount = 'all', { subtractFee = false, expect = null } = {}) {
     return this.need().privatize({ amount: amount === 'all' ? 'all' : toSatString(amount), ...(subtractFee ? { subtractFee: true } : {}), ...(expect ? { expect: { fee: toSatString(expect.fee), total: toSatString(expect.total) } } : {}) });
+  }
+
+  /**
+   * Private -> public, to `address` (this wallet's own public Receive address, as the screen showed it).
+   * amount: BigInt sats. -> {txid}; errors as send() ('unsure' with txid, 'fee-changed').
+   */
+  async makePublic(amount, { address, subtractFee = false, expect = null } = {}) {
+    const req = { address: String(address || ''), amount: toSatString(amount), ...(subtractFee ? { subtractFee: true } : {}), ...(expect ? { expect: { fee: toSatString(expect.fee), total: toSatString(expect.total) } } : {}) };
+    try {
+      return await this.need().makePublic(req);
+    } catch (e) {
+      if (e && e.code === 'fee-changed') {
+        for (const k of ['fee', 'total', 'change']) if (e[k] != null) e[k] = toSats(e[k]);
+      }
+      throw e;
+    }
   }
 
   newSparkAddress() {

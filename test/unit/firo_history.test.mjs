@@ -231,3 +231,33 @@ test('exact details of our own spends (Settings -> Exact dates): block, date, fe
   assert.deepEqual([e.kind, e.direction, e.amount, e.fee, e.height, e.time, e.heightApprox], ['spark-name', 'out', '100000000', '3630', 117, 1791809076, undefined]);
   assert.equal(e.confirmations, 34);
 });
+
+test('0.1.21 Make public: our logged Spark payment to our own public address is "self", made public (release audit: it read "Sent")', () => {
+  const t = fx('spark-spend-v1');
+  const d = decodeTx(t.hex, MAIN);
+  const out = d.vout.find((o) => o.type === 'p2pkh');
+  const tm = transparentEntries({ net: MAIN, records: new Map([rec(t.hex, t.height)]), isOwnScript: (s) => scriptHash(s) === scriptHash(out.script), tipHeight: t.height });
+  // As the engine logs it (backend _recordPayment): the amount counts our own public address too.
+  const sends = new Map([[t.txid, { amount: String(out.value), fee: '3083', to: 'a-own-public-address', time: 1 }]]);
+  const sm = sparkEntries({ coins: [{ txid: '44'.repeat(32), value: out.value + 3083n, isChange: false, height: 5, spentTxid: t.txid, spentHeight: t.height }], sends, tipHeight: t.height });
+  const e = mergeEntries(tm, sm).find((x) => x.txid === t.txid);
+  assert.deepEqual([e.direction, e.amount, e.fee, e.kind, e.toPublic], ['self', String(out.value), '3083', 'spark', true]);
+});
+
+test('0.1.21: a logged Spark payment to someone else\'s public address is never "made public"', () => {
+  const t = fx('spark-spend-v1');
+  const d = decodeTx(t.hex, MAIN);
+  const out = d.vout.find((o) => o.type === 'p2pkh');
+  const tm = transparentEntries({ net: MAIN, records: new Map([rec(t.hex, t.height)]), isOwnScript: () => false, tipHeight: t.height });
+  const sends = new Map([[t.txid, { amount: String(out.value), fee: '3083', to: 'a-someone', time: 1 }]]);
+  const sm = sparkEntries({ coins: [{ txid: '44'.repeat(32), value: out.value + 3083n, isChange: false, height: 5, spentTxid: t.txid, spentHeight: t.height }], sends, tipHeight: t.height });
+  const e = mergeEntries(tm, sm).find((x) => x.txid === t.txid);
+  assert.equal(e.direction, 'out');
+  assert.equal(e.toPublic, undefined);
+  // Restored (no log), the coin it spent not found: outflow looks small, but a public output to
+  // someone else rules "made public" out.
+  const sm2 = sparkEntries({ coins: [], tipHeight: t.height });
+  const own = transparentEntries({ net: MAIN, records: new Map([rec(t.hex, t.height)]), isOwnScript: () => false, tipHeight: t.height });
+  const e2 = mergeEntries(own, sm2).find((x) => x.txid === t.txid);
+  assert.notEqual(e2.toPublic, true);
+});

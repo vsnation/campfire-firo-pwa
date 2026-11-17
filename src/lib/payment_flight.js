@@ -18,7 +18,7 @@ export const IN_FLIGHT_NOTE = tk('Your last payment is still being sent. You can
 let flight = null; // {kind} while a payment is under way
 const watchers = new Set();
 
-/** The payment under way, {kind: 'send' | 'privatize' | 'name' | 'sell' | 'bridge'}, or null. */
+/** The payment under way, {kind: 'send' | 'privatize' | 'makePublic' | 'name' | 'sell' | 'bridge'}, or null. */
 export function paymentInFlight() {
   return flight;
 }

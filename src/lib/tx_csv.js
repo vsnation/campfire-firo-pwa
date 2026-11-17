@@ -58,6 +58,7 @@ const confirmed = (item) => Number(item.confirmations) >= 1;
 /** What a payment was, in words (the same words as Activity, without "…ing"). */
 export function typeWords(item) {
   if (item.kind === 'privatize') return 'Privatized'; // i18n-ignore: the file is data, English in every language (spreadsheets and tax tools read it)
+  if (item.toPublic) return 'Made public'; // i18n-ignore: the file is data, English in every language (spreadsheets and tax tools read it)
   if (item.kind === 'spark-name') return 'Spark name registration'; // i18n-ignore: the file is data, English in every language (spreadsheets and tax tools read it)
   if (item.direction === 'self') return 'Sent to yourself'; // i18n-ignore: the file is data, English in every language (spreadsheets and tax tools read it)
   if (item.direction === 'in') {
@@ -69,9 +70,10 @@ export function typeWords(item) {
   return 'Sent'; // i18n-ignore: the file is data, English in every language (spreadsheets and tax tools read it)
 }
 
-/** Which balance it touched: Private, Public, or Public → Private. */
+/** Which balance it touched: Private, Public, Public → Private, or Private → Public. */
 export function balanceWords(item) {
   if (item.kind === 'privatize') return 'Public → Private'; // i18n-ignore: the file is data, English in every language (spreadsheets and tax tools read it)
+  if (item.toPublic) return 'Private → Public'; // i18n-ignore: the file is data, English in every language (spreadsheets and tax tools read it)
   return PRIVATE_KINDS.has(item.kind) ? 'Private' : 'Public'; // i18n-ignore: the file is data, English in every language (spreadsheets and tax tools read it)
 }
 

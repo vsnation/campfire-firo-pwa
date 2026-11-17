@@ -463,6 +463,7 @@ class FakeBackend {
               const tx = { txid: t.txid, height: t.height, time: t.time, confirmations: t.height != null && tip != null && !t.dropped ? Math.max(0, tip - t.height + 1) : 0, direction: t.direction, kind: t.kind, amount: str(t.amount), fee: str(t.fee) };
               if (t.memo) tx.memo = t.memo;
               if (t.counterparty) tx.counterparty = t.counterparty;
+              if (t.toPublic) tx.toPublic = true;
               if (t.dropped) {
                 tx.dropped = true;
                 if (t.letGo) tx.letGo = true;
@@ -673,7 +674,10 @@ class FakeBackend {
     const delta = -p.total;
     const effect = { [opts.from === 'public' ? 'public' : 'private']: delta };
     if (mine) for (const r of p.list) effect[r.kind === 'spark' ? 'private' : 'public'] = (effect[r.kind === 'spark' ? 'private' : 'public'] || 0n) + (opts.subtractFee ? r.amount - p.fee / BigInt(p.list.length) : r.amount);
-    const t = this.addTx({ direction: mine ? 'self' : 'out', kind, amount: opts.subtractFee ? sum - p.fee : sum, fee: p.fee, memo: p.list[0].memo || undefined, counterparty: p.list[0].address, effect });
+    // A private payment all to this wallet's own public addresses: FIRO made public (0.1.21), as the
+    // real engine's history says it (history.js toPublic).
+    const toPublic = mine && opts.from === 'private' && p.list.every((r) => r.kind !== 'spark');
+    const t = this.addTx({ direction: mine ? 'self' : 'out', kind, amount: opts.subtractFee ? sum - p.fee : sum, fee: p.fee, memo: p.list[0].memo || undefined, counterparty: p.list[0].address, effect, ...(toPublic ? { toPublic: true } : {}) });
     return this.answered(t);
   }
 
@@ -725,6 +729,13 @@ class FakeBackend {
     this.refusedHere();
     const t = this.addTx({ direction: 'self', kind: 'privatize', amount: a, fee, effect: { public: -(a + fee), private: a } });
     return this.answered(t);
+  }
+
+  /** As the real engine: a private payment to one of this wallet's own public addresses. */
+  async makePublic({ address, amount, subtractFee = false, expect = null } = {}) {
+    const c = this.classifyAddress(address);
+    if (c.kind !== 'transparent' || !this.isMine(c.address)) throw fail('invalid-address', 'FIRO can only be made public to a public address of this wallet.');
+    return this.send({ from: 'private', to: [{ address: c.address, amount }], subtractFee, ...(expect ? { expect } : {}) });
   }
 
   addTx(t) {

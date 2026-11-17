@@ -4,6 +4,8 @@
 //
 //   node test/live/firo_money.mjs status
 //   node test/live/firo_money.mjs privatize <FIRO|all>
+//   node test/live/firo_money.mjs privatize-part <FIRO>   (as the Privatize screen: quoted, then exactly that)
+//   node test/live/firo_money.mjs makepublic <FIRO>       (private -> this wallet's own public address)
 //   node test/live/firo_money.mjs send <private|public> <to address> <FIRO> [memo]
 //   node test/live/firo_money.mjs wait <txid> [confirmations=1]
 //   node test/live/firo_money.mjs name <name> [years=1]     (a Spark Name: 1 FIRO a year from 6 characters)
@@ -91,7 +93,7 @@ function show(s) {
     }
     console.log(`  private check: ${JSON.stringify(s.privateCheck ?? null)}`);
   }
-  for (const t of s.txs.slice(0, 12)) console.log(`  ${t.txid.slice(0, 16)}… ${t.kind.padEnd(11)} ${t.direction.padEnd(4)} ${fmt(t.amount)} fee ${fmt(t.fee ?? 0)} ${t.height ? `block ${t.height}` : t.heightApprox ? `about block ${t.heightApprox}` : 'unconfirmed'}${t.memo ? ` memo "${t.memo}"` : ''}${t.counterparty ? ` to ${t.counterparty.slice(0, 18)}` : ''}`);
+  for (const t of s.txs.slice(0, 12)) console.log(`  ${t.txid.slice(0, 16)}… ${t.kind.padEnd(11)} ${t.direction.padEnd(4)} ${fmt(t.amount)} fee ${fmt(t.fee ?? 0)} ${t.height ? `block ${t.height}` : t.heightApprox ? `about block ${t.heightApprox}` : 'unconfirmed'}${t.memo ? ` memo "${t.memo}"` : ''}${t.counterparty ? ` to ${t.counterparty.slice(0, 18)}` : ''}${t.toPublic ? ' MADE PUBLIC' : ''}`);
 }
 
 const [cmd, ...args] = process.argv.slice(2);
@@ -106,6 +108,24 @@ try {
   else if (cmd === 'privatize') {
     const amount = args[0] === 'all' ? 'all' : toSat(args[0]);
     const r = await backend.privatize({ amount });
+    console.log('privatize txid', r.txid);
+  } else if (cmd === 'makepublic') {
+    // As the Make public screen (0.1.21): quoted to this wallet's own public Receive address, then
+    // sent with exactly those figures (expect).
+    const st = backend.getState();
+    const address = st.receive.transparent;
+    const req = { from: 'private', to: [{ address, amount: toSat(args[0]) }] };
+    const q = await backend.quote(req);
+    console.log(`make public ${args[0]} FIRO to own ${address}: fee ${fmt(q.fee)} total ${fmt(q.total)}`);
+    const r = await backend.makePublic({ address, amount: toSat(args[0]), expect: { fee: q.fee, total: q.total } });
+    console.log('make public txid', r.txid);
+  } else if (cmd === 'privatize-part') {
+    // As the Privatize screen with an amount (0.1.21): quoted to this wallet's Spark address, sent with those figures.
+    const st = backend.getState();
+    const req = { from: 'public', to: [{ address: st.receive.spark, amount: toSat(args[0]) }] };
+    const q = await backend.quote(req);
+    console.log(`privatize ${args[0]} FIRO: fee ${fmt(q.fee)} total ${fmt(q.total)}`);
+    const r = await backend.privatize({ amount: toSat(args[0]), expect: { fee: q.fee, total: q.total } });
     console.log('privatize txid', r.txid);
   } else if (cmd === 'send') {
     const [from, to, amt, memo] = args;

@@ -28,6 +28,7 @@ import { t, tn, tk } from '../lib/i18n.js';
 export const KIND_WORDS = Object.freeze({
   transparent: tk('Public payment'),
   privatize: tk('Privatize (public → private)'),
+  publicize: tk('Make public (private → public)'),
   spark: tk('Private payment (Spark)'),
   'spark-name': tk('Spark name registration'),
   lelantus: tk('From Lelantus (older private coins)'),
@@ -60,7 +61,7 @@ export function statusWords(item) {
 export function matchesFilter(tx, f) {
   if (f === 'all') return true;
   const side = txSide(tx);
-  return side === 'privatize' || side === f;
+  return side === 'privatize' || side === 'publicize' || side === f;
 }
 
 /** Payments drawn at a time. */
@@ -114,7 +115,7 @@ export default function activity(app, params = {}) {
         h(
           'div',
           { class: 'card' },
-          kv(t('Kind'), KIND_WORDS[tx2.kind] ? t(KIND_WORDS[tx2.kind]) : tx2.kind, { testid: 'tx-kind' }),
+          kv(t('Kind'), tx2.toPublic ? t(KIND_WORDS.publicize) : KIND_WORDS[tx2.kind] ? t(KIND_WORDS[tx2.kind]) : tx2.kind, { testid: 'tx-kind' }),
           kv(t('Balance'), SIDE_WORDS[txSide(tx2)]),
           kv(t('Status'), statusWords(tx2), { testid: 'tx-status' }),
           kv(t('Date'), txWhen(tx2, fmtDate) || t('Not known yet'), { testid: 'tx-date' }),

@@ -1,6 +1,6 @@
 {
   "name": "campfire-firo-pwa",
-  "version": "0.1.20",
+  "version": "0.1.21",
   "private": true,
   "description": "Campfire: a private Firo wallet in the browser - installable, runs fully on the device.",
   "license": "MIT",
@@ -33,6 +33,7 @@
     "e2e:watch": "node --test --test-concurrency=1 test/e2e/watch.test.mjs",
     "e2e:bridge": "node --test --test-concurrency=1 test/e2e/bridge.test.mjs",
     "e2e:home": "node --test --test-concurrency=1 test/e2e/home_shortcuts.test.mjs",
+    "e2e:move": "node --test --test-concurrency=1 test/e2e/move.test.mjs",
     "e2e:back": "node --test --test-concurrency=1 test/e2e/back.test.mjs",
     "e2e:addresses": "node --test --test-concurrency=1 test/e2e/addresses.test.mjs",
     "e2e:nodes": "node --test --test-concurrency=1 test/e2e/nodes.test.mjs",

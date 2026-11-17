@@ -62,7 +62,10 @@ function mapError(e) {
  * @returns {{credId:string, prfSalt:Uint8Array, prf:Uint8Array}}
  */
 export async function createPasskey(walletId, walletName = '') {
-  if (!(await passkeyAvailable())) throw new PasskeyError('unsupported', t('Face ID / Touch ID passkeys are not available here.'));
+  // Nothing awaited before create(): Safari lets a page make a passkey only within its short window
+  // after the person's tap (owner, 2026-11-17: "MacOS Desktop Save Passkey doesn't work"). The
+  // screens that offer this asked passkeyAvailable() before showing it.
+  if (!window.PublicKeyCredential || !navigator.credentials) throw new PasskeyError('unsupported', t('Face ID / Touch ID passkeys are not available here.'));
   const prfSalt = randomBytes(32);
   let cred;
   try {
@@ -87,9 +90,20 @@ export async function createPasskey(walletId, walletName = '') {
   }
   const credId = b64url(new Uint8Array(cred.rawId));
   const ext = cred.getClientExtensionResults ? cred.getClientExtensionResults() : {};
-  if (!ext.prf || ext.prf.enabled === false) throw new PasskeyError('no_prf', t('This device made a passkey but cannot use it to protect a key (no PRF support).'));
+  if (!ext.prf || ext.prf.enabled === false) {
+    forgetPasskey(credId);
+    throw new PasskeyError('no_prf', t('This device made a passkey but cannot use it to protect a key (no PRF support).'));
+  }
   let prf = ext.prf.results && ext.prf.results.first ? new Uint8Array(ext.prf.results.first) : null;
-  if (!prf) prf = await evaluatePrf(credId, prfSalt);
+  if (!prf) {
+    try {
+      prf = await evaluatePrf(credId, prfSalt);
+    } catch (e) {
+      // Made, but it cannot hold the key: nothing will use it, so the password manager is told to drop it.
+      if (e && e.code === 'no_prf') forgetPasskey(credId);
+      throw e;
+    }
+  }
   return { credId, prfSalt, prf };
 }
 
@@ -119,6 +133,20 @@ export async function evaluatePrf(credId, prfSalt, names = null) {
   if (!first) throw new PasskeyError('no_prf', t('This passkey cannot unlock the wallet on this device (no PRF result).'));
   if (names) renamePasskey(a, names);
   return new Uint8Array(first);
+}
+
+/**
+ * A passkey this app made but cannot use (no PRF): the password manager is asked to delete it
+ * (WebAuthn signalUnknownCredential), so no useless "Campfire Firo wallet" entry is left there.
+ * Best effort, never awaited.
+ */
+function forgetPasskey(credId) {
+  try {
+    if (typeof PublicKeyCredential.signalUnknownCredential !== 'function') return;
+    PublicKeyCredential.signalUnknownCredential({ rpId: location.hostname, credentialId: credId }).catch(() => {});
+  } catch {
+    /* only tidying */
+  }
 }
 
 /** Best effort, never awaited: a browser without the Signal API, or one that refuses, changes nothing. */

@@ -22,15 +22,32 @@ export default function passkeySetup(app, params = {}) {
   const next = () => (first ? app.openWallet() : app.go('settings'));
   const cta = primary(h('span', {}, t('Turn on Face ID')), turnOn, { 'data-testid': 'passkey-on' });
   cta.prepend(icon('face'));
+  // The password was given: just set (first), or checked here within the last minute and no attempt
+  // failed since (release audit of 0.1.21: a password checked once must not leave the screen open to
+  // whoever picks the phone up next).
+  let checkedAt = first ? Infinity : 0;
+  const CHECK_KEEP_MS = 60000;
+  const checked = () => Date.now() - checkedAt < CHECK_KEEP_MS;
 
   async function turnOn() {
     cta.disabled = true;
     // From Settings: the password first. An unlocked phone in someone else's hands must not be able
     // to add a passkey of theirs (a security key, another account) to this wallet (public audit, P2).
     // Right after the password was set (first), it was just typed.
-    if (!first && !(await confirmIdentity(app, { title: t('Turn on Face ID'), detail: t('Your password first.'), cta: t('Continue'), passwordOnly: true }))) {
-      cta.disabled = false;
-      return;
+    if (!checked()) {
+      if (!(await confirmIdentity(app, { title: t('Turn on Face ID'), detail: t('Your password first.'), cta: t('Continue'), passwordOnly: true }))) {
+        cta.disabled = false;
+        return;
+      }
+      checkedAt = Date.now();
+      // Checking the password takes a moment, and Safari lets a page make a passkey only right after
+      // a tap (owner, 2026-11-17: on a Mac it "doesn't work": Safari refused, and it read as
+      // cancelled). Where that window has closed, one more tap starts it.
+      if (navigator.userActivation && !navigator.userActivation.isActive) {
+        cta.disabled = false;
+        put(msg, h('div', { 'data-testid': 'passkey-tap-again' }, notice('info', t('Password checked. Tap Turn on Face ID again to save the passkey.'))));
+        return;
+      }
     }
     try {
       await addPasskey(app);
@@ -38,11 +55,12 @@ export default function passkeySetup(app, params = {}) {
       setTimeout(next, 700);
     } catch (e) {
       cta.disabled = false;
+      if (!first) checkedAt = 0; // the next try asks for the password again
       const text =
         e.code === 'cancelled'
           ? t('Face ID was cancelled. You can try again, or skip and use your password.')
           : e.code === 'no_prf' || e.code === 'unsupported'
-            ? t("This device can't use a passkey to protect the wallet key (it needs iOS 18 or newer). Your password keeps working.")
+            ? t("This device or browser can't use a passkey to protect the wallet key (it needs iOS 18, macOS 15 or newer). Your password keeps working.")
             : t('That didn\'t work: {message} Your password keeps working.', { message: e.message });
       put(msg, notice(e.code === 'cancelled' ? 'info' : 'warn', text));
     }

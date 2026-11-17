@@ -3685,6 +3685,20 @@ export class FiroBackend {
     return this.send(req);
   }
 
+  /**
+   * Private → public (0.1.21, owner: both ways, not only Campfire's "Anonymize all"): a Spark spend of
+   * `amount` (satoshi string) to `address`, which must be one of this wallet's own public addresses
+   * (the Receive one the screen showed): an ordinary send otherwise, with every check of one (expect,
+   * one at a time, the second node, let-go coins). -> {txid}; errors as send().
+   */
+  async makePublic({ address, amount, subtractFee = false, expect = null } = {}) {
+    if (!this._sparkEnabled() || !this._sparkKey) throw notYet(t('Making FIRO public'));
+    if (this.viewOnly || !this.transparent) throw err('NotYet', t('A view-only wallet cannot sign.'));
+    const c = classify(String(address ?? ''), this.net);
+    if (c.kind !== 'transparent' || !this.transparent.isOwnScript(addressToScript(c.address, this.net))) throw err('invalid-address', t('FIRO can only be made public to a public address of this wallet.'));
+    return this.send({ from: 'private', to: [{ address: c.address, amount }], ...(subtractFee ? { subtractFee: true } : {}), ...(expect ? { expect } : {}) });
+  }
+
   // ------------------------------------------------------------ explicit transactions
 
   /** Builds and signs a public transaction from exactly the chosen coins. Does not broadcast. */

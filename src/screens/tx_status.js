@@ -1,4 +1,4 @@
-/* Payment status (after Send or Privatize)
+/* Payment status (after Send, Privatize or Make public)
  * Spec: ONE job: see that the payment left, and when it is confirmed.
  *       Primary CTA: "Done".
  *       Taps from app open: 3 (right after confirming a payment).
@@ -37,6 +37,8 @@ export default function txStatus(app, p) {
   }
   const body = h('div', { class: 'status-body' });
   const privatizing = p.kind === 'privatize';
+  // Private -> public (0.1.21): its own words, as privatizing has.
+  const publicizing = p.kind === 'makePublic';
   const naming = p.kind === 'spark-name';
 
   function render() {
@@ -55,13 +57,17 @@ export default function txStatus(app, p) {
         ? t('@{name} was not registered', { name: p.name })
         : privatizing
           ? t('Not privatized')
-          : t('Not sent')
+          : publicizing
+            ? t('Not made public')
+            : t('Not sent')
       : checking || offer
         ? naming
           ? t('Checking @{name}…', { name: p.name })
           : privatizing
             ? t('Checking the privatizing…')
-            : t('Checking your payment…')
+            : publicizing
+              ? t('Checking the move to public…')
+              : t('Checking your payment…')
         : naming
           ? done
             ? t('@{name} is yours', { name: p.name })
@@ -72,6 +78,10 @@ export default function txStatus(app, p) {
             ? done
               ? t('Privatized')
               : t('Privatizing…')
+            : publicizing
+              ? done
+                ? t('Made public')
+                : t('Making public…')
             : done
               ? t('Payment confirmed')
               : t('Payment sent');
@@ -84,9 +94,9 @@ export default function txStatus(app, p) {
       h(
         'div',
         { class: 'card' },
-        naming ? kv(t('For'), (p.renew ? t('@{name} (renewal)', { name: p.name }) : `@${p.name}`)) : privatizing ? kv(t('From'), t('Your public balance')) : kv(t('To'), p.name ? `@${p.name}` : shorten(p.address, 10, 8), { class: p.name ? 'v' : 'v mono' }),
+        naming ? kv(t('For'), (p.renew ? t('@{name} (renewal)', { name: p.name }) : `@${p.name}`)) : privatizing ? kv(t('From'), t('Your public balance')) : publicizing ? kv(t('From'), t('Your private balance')) : kv(t('To'), p.name ? `@${p.name}` : shorten(p.address, 10, 8), { class: p.name ? 'v' : 'v mono' }),
         naming ? kv(t('Paid to'), t("Firo's community fund")) : null,
-        privatizing ? kv(t('To'), t('Your private balance')) : kv(t('From'), p.from === 'public' ? t('Your public balance') : t('Your private balance')),
+        privatizing ? kv(t('To'), t('Your private balance')) : publicizing ? kv(t('To'), t('Your public balance')) : kv(t('From'), p.from === 'public' ? t('Your public balance') : t('Your private balance')),
         naming && !p.fee ? null : kv(t('Network fee'), `${formatAmount(p.fee)} ${UNIT}`),
         h('div', { class: 'kv' }, h('span', { class: 'k', text: t('Transaction ID') }), h('button', { class: 'v mono btn-text', 'data-testid': 'tx-id', onclick: () => copyText(p.txid, t('Transaction ID copied')), text: shorten(p.txid, 10, 8) })),
         tx && tx.confirmations > 0 ? kv(t('Confirmations'), String(tx.confirmations)) : null,
@@ -106,8 +116,8 @@ export default function txStatus(app, p) {
               secondary(t('See it in Activity'), () => app.go('activity', { txid: p.txid }), { 'data-testid': 'tx-unsure-activity' }),
             )
           : done
-            ? notice('success', privatizing ? t('Your coins are private now: spend them from your private balance.') : t('It is in a block on the Firo blockchain.'))
-            : notice('info', privatizing ? t('It moves to your private balance once it is in a block, usually within 5 minutes. You can close the app meanwhile.') : t('It is on its way: it shows as confirmed once it is in a block, usually within 5 minutes. You can close the app meanwhile.')),
+            ? notice('success', privatizing ? t('Your coins are private now: spend them from your private balance.') : publicizing ? t('Your coins are public now: spend them from your public balance.') : t('It is in a block on the Firo blockchain.'))
+            : notice('info', privatizing ? t('It moves to your private balance once it is in a block, usually within 5 minutes. You can close the app meanwhile.') : publicizing ? t('It moves to your public balance once it is in a block, usually within 5 minutes. You can close the app meanwhile.') : t('It is on its way: it shows as confirmed once it is in a block, usually within 5 minutes. You can close the app meanwhile.')),
       dropped ? null : explorerLink(p.txid, app.prefs && app.prefs.explorer),
     );
   }
@@ -115,6 +125,6 @@ export default function txStatus(app, p) {
   const off = wallet.onChange(render);
   render();
   // Done stays in sight however long the status grows (a payment in doubt says more).
-  const el = screen({ title: naming ? t('Spark name') : privatizing ? t('Privatize') : t('Payment'), actions: [primary(t('Done'), () => app.go('home'), { 'data-testid': 'tx-done' })], cls: 'sticky-actions' }, body);
+  const el = screen({ title: naming ? t('Spark name') : privatizing ? t('Privatize') : publicizing ? t('Make public') : t('Payment'), actions: [primary(t('Done'), () => app.go('home'), { 'data-testid': 'tx-done' })], cls: 'sticky-actions' }, body);
   return { el: el, destroy: off };
 }

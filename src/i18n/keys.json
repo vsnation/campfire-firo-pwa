@@ -66,6 +66,7 @@
       "screens/eth_swap.js",
       "screens/eth_swap_bsc.js",
       "screens/near_intents.js",
+      "screens/privatize.js",
       "screens/sell_firo.js",
       "screens/send.js"
     ]
@@ -3981,7 +3982,17 @@
       "lib/wallet.js"
     ]
   },
+  "Making FIRO public": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
   "A view-only wallet cannot sign.": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
+  "FIRO can only be made public to a public address of this wallet.": {
     "where": [
       "lib/firo/backend.js"
     ]
@@ -5936,6 +5947,24 @@
       "lib/notify_rules.js"
     ]
   },
+  "{amt} is now public": {
+    "where": [
+      "lib/notify_rules.js"
+    ],
+    "placeholders": [
+      "amt"
+    ]
+  },
+  "Your funds are now public": {
+    "where": [
+      "lib/notify_rules.js"
+    ]
+  },
+  "Making it public is confirmed: it is in your public balance.": {
+    "where": [
+      "lib/notify_rules.js"
+    ]
+  },
   "Tap to see them in Activity.": {
     "where": [
       "lib/notify_rules.js"
@@ -5952,6 +5981,11 @@
     ]
   },
   "your privatized funds are now private": {
+    "where": [
+      "lib/notify_rules.js"
+    ]
+  },
+  "the funds you made public are now public": {
     "where": [
       "lib/notify_rules.js"
     ]
@@ -7993,7 +8027,14 @@
   },
   "Public → Private": {
     "where": [
-      "lib/wallet.js"
+      "lib/wallet.js",
+      "screens/privatize.js"
+    ]
+  },
+  "Private → Public": {
+    "where": [
+      "lib/wallet.js",
+      "screens/privatize.js"
     ]
   },
   "Let go": {
@@ -8008,6 +8049,17 @@
     ]
   },
   "Privatized": {
+    "where": [
+      "lib/wallet.js",
+      "screens/tx_status.js"
+    ]
+  },
+  "Making public": {
+    "where": [
+      "lib/wallet.js"
+    ]
+  },
+  "Made public": {
     "where": [
       "lib/wallet.js",
       "screens/tx_status.js"
@@ -8358,6 +8410,11 @@
       "screens/activity.js"
     ]
   },
+  "Make public (private → public)": {
+    "where": [
+      "screens/activity.js"
+    ]
+  },
   "Private payment (Spark)": {
     "where": [
       "screens/activity.js"
@@ -8375,7 +8432,8 @@
   },
   "All": {
     "where": [
-      "screens/activity.js"
+      "screens/activity.js",
+      "screens/privatize.js"
     ]
   },
   "No payments yet.": {
@@ -9459,6 +9517,7 @@
     "where": [
       "screens/bridge.js",
       "screens/eth_send.js",
+      "screens/privatize.js",
       "screens/send.js"
     ]
   },
@@ -15229,6 +15288,11 @@
       "screens/home.js"
     ]
   },
+  "Make FIRO public": {
+    "where": [
+      "screens/home.js"
+    ]
+  },
   "More with FIRO": {
     "where": [
       "screens/home.js"
@@ -15874,6 +15938,7 @@
   "Working it out…": {
     "where": [
       "screens/name_register.js",
+      "screens/privatize.js",
       "screens/send.js"
     ]
   },
@@ -16873,6 +16938,11 @@
       "screens/passkey_setup.js"
     ]
   },
+  "Password checked. Tap Turn on Face ID again to save the passkey.": {
+    "where": [
+      "screens/passkey_setup.js"
+    ]
+  },
   "Face ID / Touch ID is on for this wallet.": {
     "where": [
       "screens/passkey_setup.js"
@@ -16883,7 +16953,7 @@
       "screens/passkey_setup.js"
     ]
   },
-  "This device can't use a passkey to protect the wallet key (it needs iOS 18 or newer). Your password keeps working.": {
+  "This device or browser can't use a passkey to protect the wallet key (it needs iOS 18, macOS 15 or newer). Your password keeps working.": {
     "where": [
       "screens/passkey_setup.js"
     ]
@@ -16967,7 +17037,58 @@
       "screens/tx_status.js"
     ]
   },
-  "{amount} {UNIT} is arriving publicly. You can privatize it once it is confirmed.": {
+  "Confirm privatizing": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "{amount} {UNIT} from your public balance into your private balance.": {
+    "where": [
+      "screens/privatize.js"
+    ],
+    "placeholders": [
+      "UNIT",
+      "amount"
+    ]
+  },
+  "Privatizing…": {
+    "where": [
+      "screens/privatize.js",
+      "screens/tx_status.js"
+    ]
+  },
+  "Public FIRO can be followed on the blockchain by anyone. Once private, nobody can see how much you have or where it goes.": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "Arrives privately": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "Leaves your public balance": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "Available: {amount} {UNIT} (public)": {
+    "where": [
+      "screens/privatize.js",
+      "screens/send.js"
+    ],
+    "placeholders": [
+      "UNIT",
+      "amount"
+    ]
+  },
+  "Everything in your public balance; the network fee comes out of it.": {
+    "where": [
+      "screens/privatize.js",
+      "screens/send.js"
+    ]
+  },
+  "That's more than your public balance can move now ({amount} {UNIT}).": {
     "where": [
       "screens/privatize.js"
     ],
@@ -16981,56 +17102,7 @@
       "screens/privatize.js"
     ]
   },
-  "Back to Home": {
-    "where": [
-      "screens/privatize.js"
-    ]
-  },
-  "Move from public to private": {
-    "where": [
-      "screens/privatize.js"
-    ]
-  },
-  "{amount} {UNIT}, taken from the amount": {
-    "where": [
-      "screens/privatize.js"
-    ],
-    "placeholders": [
-      "UNIT",
-      "amount"
-    ]
-  },
-  "Taken from the amount": {
-    "where": [
-      "screens/privatize.js"
-    ]
-  },
-  "Arrives privately": {
-    "where": [
-      "screens/privatize.js"
-    ]
-  },
-  "Public FIRO can be followed on the blockchain by anyone. Once private, nobody can see how much you have or where it goes.": {
-    "where": [
-      "screens/privatize.js"
-    ]
-  },
-  "The network fee couldn't be worked out just now. Tap Privatize to try again.": {
-    "where": [
-      "screens/privatize.js"
-    ]
-  },
-  "Working out the network fee first. Check it, then privatize.": {
-    "where": [
-      "screens/privatize.js"
-    ]
-  },
-  "Confirm privatizing": {
-    "where": [
-      "screens/privatize.js"
-    ]
-  },
-  "All {amount} {UNIT} of your public balance into your private balance.": {
+  "{amount} {UNIT} is arriving publicly. You can privatize it once it is confirmed.": {
     "where": [
       "screens/privatize.js"
     ],
@@ -17042,12 +17114,6 @@
   "Your last payment is still being sent, so nothing was moved. Privatize once it has left.": {
     "where": [
       "screens/privatize.js"
-    ]
-  },
-  "Privatizing…": {
-    "where": [
-      "screens/privatize.js",
-      "screens/tx_status.js"
     ]
   },
   "Privatizing {amount} {UNIT}: it shows in Activity.": {
@@ -17069,7 +17135,7 @@
       "screens/privatize.js"
     ]
   },
-  "Nothing was moved: {value}": {
+  "Firo PWA couldn't tell whether it went through: {value} Look in Activity before you privatize again.": {
     "where": [
       "screens/privatize.js"
     ],
@@ -17077,7 +17143,187 @@
       "value"
     ]
   },
-  "Firo PWA couldn't tell whether it went through: {value} Look in Activity before you privatize again.": {
+  "Working out the network fee first. Check it, then privatize.": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "The network fee couldn't be worked out just now. Tap Privatize to try again.": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "Make public": {
+    "where": [
+      "screens/privatize.js",
+      "screens/tx_status.js"
+    ]
+  },
+  "Make {amount} {UNIT} public": {
+    "where": [
+      "screens/privatize.js"
+    ],
+    "placeholders": [
+      "UNIT",
+      "amount"
+    ]
+  },
+  "Confirm making public": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "{amount} {UNIT} from your private balance into your public balance.": {
+    "where": [
+      "screens/privatize.js"
+    ],
+    "placeholders": [
+      "UNIT",
+      "amount"
+    ]
+  },
+  "Making public…": {
+    "where": [
+      "screens/privatize.js",
+      "screens/tx_status.js"
+    ]
+  },
+  "Once public, anyone can see this amount on the blockchain, and where it goes next. You can privatize it again at any time.": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "Arrives publicly": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "Leaves your private balance": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "Available: {amount} {UNIT} (private)": {
+    "where": [
+      "screens/privatize.js",
+      "screens/send.js"
+    ],
+    "placeholders": [
+      "UNIT",
+      "amount"
+    ]
+  },
+  "Everything in your private balance; the network fee comes out of it.": {
+    "where": [
+      "screens/privatize.js",
+      "screens/send.js"
+    ]
+  },
+  "That's more than your private balance can move now ({amount} {UNIT}).": {
+    "where": [
+      "screens/privatize.js"
+    ],
+    "placeholders": [
+      "UNIT",
+      "amount"
+    ]
+  },
+  "Your private balance is empty: there is nothing to make public.": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "{amount} {UNIT} is arriving privately. You can make it public once it is confirmed.": {
+    "where": [
+      "screens/privatize.js"
+    ],
+    "placeholders": [
+      "UNIT",
+      "amount"
+    ]
+  },
+  "Your last payment is still being sent, so nothing was moved. Make it public once that one has left.": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "Making {amount} {UNIT} public: it shows in Activity.": {
+    "where": [
+      "screens/privatize.js"
+    ],
+    "placeholders": [
+      "UNIT",
+      "amount"
+    ]
+  },
+  "The network fee changed, so nothing was moved. Open Make public to check the new figures.": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "The network fee or your private balance changed, so nothing was moved. Check the new figures, then make it public.": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "Firo PWA couldn't tell whether it went through: {value} Look in Activity before you make it public again.": {
+    "where": [
+      "screens/privatize.js"
+    ],
+    "placeholders": [
+      "value"
+    ]
+  },
+  "Working out the network fee first. Check it, then make it public.": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "The network fee couldn't be worked out just now. Tap Make public to try again.": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "How much": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "Move": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "Back to Home": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "{amount} FIRO more can be sent once a second Firo node has checked it ({pct}% done).": {
+    "where": [
+      "screens/privatize.js",
+      "screens/send.js"
+    ],
+    "placeholders": [
+      "amount",
+      "pct"
+    ]
+  },
+  "{amount} FIRO more can be sent once a second Firo node has checked it.": {
+    "where": [
+      "screens/privatize.js",
+      "screens/send.js"
+    ],
+    "placeholders": [
+      "amount"
+    ]
+  },
+  "Shown once the amount is in": {
+    "where": [
+      "screens/privatize.js"
+    ]
+  },
+  "Nothing was moved: {value}": {
     "where": [
       "screens/privatize.js"
     ],
@@ -18835,23 +19081,6 @@
       "screens/send.js"
     ]
   },
-  "{amount} FIRO more can be sent once a second Firo node has checked it ({pct}% done).": {
-    "where": [
-      "screens/send.js"
-    ],
-    "placeholders": [
-      "amount",
-      "pct"
-    ]
-  },
-  "{amount} FIRO more can be sent once a second Firo node has checked it.": {
-    "where": [
-      "screens/send.js"
-    ],
-    "placeholders": [
-      "amount"
-    ]
-  },
   "This isn't a Firo address or a Spark name. Copy it again from the person you're paying.": {
     "where": [
       "screens/send.js"
@@ -18940,34 +19169,6 @@
     ]
   },
   "That's more than can be sent publicly now ({amount} {UNIT}).": {
-    "where": [
-      "screens/send.js"
-    ],
-    "placeholders": [
-      "UNIT",
-      "amount"
-    ]
-  },
-  "Everything in your private balance; the network fee comes out of it.": {
-    "where": [
-      "screens/send.js"
-    ]
-  },
-  "Everything in your public balance; the network fee comes out of it.": {
-    "where": [
-      "screens/send.js"
-    ]
-  },
-  "Available: {amount} {UNIT} (private)": {
-    "where": [
-      "screens/send.js"
-    ],
-    "placeholders": [
-      "UNIT",
-      "amount"
-    ]
-  },
-  "Available: {amount} {UNIT} (public)": {
     "where": [
       "screens/send.js"
     ],
@@ -19611,6 +19812,11 @@
       "screens/tx_status.js"
     ]
   },
+  "Not made public": {
+    "where": [
+      "screens/tx_status.js"
+    ]
+  },
   "Checking @{name}…": {
     "where": [
       "screens/tx_status.js"
@@ -19620,6 +19826,11 @@
     ]
   },
   "Checking the privatizing…": {
+    "where": [
+      "screens/tx_status.js"
+    ]
+  },
+  "Checking the move to public…": {
     "where": [
       "screens/tx_status.js"
     ]
@@ -19660,12 +19871,22 @@
       "screens/tx_status.js"
     ]
   },
+  "Your coins are public now: spend them from your public balance.": {
+    "where": [
+      "screens/tx_status.js"
+    ]
+  },
   "It is in a block on the Firo blockchain.": {
     "where": [
       "screens/tx_status.js"
     ]
   },
   "It moves to your private balance once it is in a block, usually within 5 minutes. You can close the app meanwhile.": {
+    "where": [
+      "screens/tx_status.js"
+    ]
+  },
+  "It moves to your public balance once it is in a block, usually within 5 minutes. You can close the app meanwhile.": {
     "where": [
       "screens/tx_status.js"
     ]

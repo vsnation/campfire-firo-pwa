@@ -72,7 +72,7 @@ try {
   // Firo nodes: the four public nodes, checked live from this browser.
   await page.click(tid('sync-bars'));
   await page.waitForSelector(tid('public-nodes'));
-  const hosts = ['electrumx.firo.org', 'electrumx01.firo.org', 'electrumx02.firo.org', 'electrumx03.firo.org'];
+  const hosts = ['electrumx.firo.org', 'electrumx01.firo.org', 'electrumx02.firo.org', 'electrumx03.firo.org', '94.156.77.196']; // the last: ru-firo-node (0.1.20)
   await page.waitForFunction((hs) => hs.every((h) => !/Checking|Not checked/.test(document.querySelector(`[data-testid="node-${h}-state"]`)?.textContent || 'x')), hosts, { timeout: 30000 }).catch(() => {});
   for (const h of hosts) console.log('node', h, '|', (await page.textContent(tid(`node-${h}-state`))).trim());
   ok((await page.textContent('h1')).trim() === 'Firo nodes', 'the signal bars open Firo nodes');
