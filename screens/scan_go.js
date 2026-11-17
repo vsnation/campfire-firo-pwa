@@ -48,9 +48,11 @@ export async function destination(r, { hasEth = async () => false, tokens = [] }
       if (r.token) {
         const token2 = tokens.find((x) => x.address && x.address.toLowerCase() === r.token.toLowerCase());
         if (!token2) return { sheet: 'token' };
-        return { to: 'ethSend', draft: { to: r.to, amount: '', symbol: token2.symbol } };
+        return { to: 'ethSend', draft: { to: r.to, amount: '', symbol: token2.symbol, chain: 'ethereum' } };
       }
-      return { to: 'ethSend', draft: { to: r.to, amountWei: r.valueWei || null, symbol: 'ETH' } };
+      // An "ethereum:" link is for Ethereum mainnet: opened there, never on whichever chain holds coins
+      // (release audit of the 0.1.21 fixes: it opened on BNB Chain with BNB and the link's amount).
+      return { to: 'ethSend', draft: { to: r.to, amountWei: r.valueWei || null, symbol: 'ETH', ...(r.link ? { chain: 'ethereum' } : {}) } };
     }
     case 'unsupported':
       return { sheet: r.reason };
@@ -80,7 +82,7 @@ export async function scanAndGo(app) {
     return app.go('send');
   }
   if (d.to === 'ethSend') {
-    app.ethSendDraft = { to: d.draft.to, amount: d.draft.amountWei ? toInputString(BigInt(d.draft.amountWei), 18) : d.draft.amount || '', symbol: d.draft.symbol };
+    app.ethSendDraft = { to: d.draft.to, amount: d.draft.amountWei ? toInputString(BigInt(d.draft.amountWei), 18) : d.draft.amount || '', symbol: d.draft.symbol, ...(d.draft.chain ? { chain: d.draft.chain } : {}) };
     return app.go('ethSend');
   }
   if (d.sheet === 'noEth') {

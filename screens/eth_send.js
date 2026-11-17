@@ -232,10 +232,32 @@ export default function ethSend(app, params = {}) {
     const r = await scanEthAddress();
     if (!r) return;
     if (r.paste) return pasteBtn.click();
+    // A payment link asks for a coin on a chain (security audit of 0.1.21): one for Ethereum scanned
+    // while on BNB Chain, or one for a token this wallet does not know there, is refused, never filled
+    // in with the coin the screen happens to show (the amount would be paid in BNB, or ETH paid where
+    // a token was asked for).
+    // Refused: the address box emptied too, so no earlier address stays ready to pay (release audit).
+    const refuse = (words) => {
+      addr.value = draft.to = '';
+      evaluate();
+      addrHint.textContent = words;
+      addrHint.className = 'hint bad';
+    };
+    if ((r.link || r.valueWei || r.token) && chainKey() !== 'ethereum') return refuse(t('That payment link is for Ethereum. Choose Ethereum at the top, then scan it again.'));
+    const token2 = r.token ? tokensFor('ethereum').find((x) => x.address === r.token.toLowerCase()) : null;
+    if (r.token && !token2) return refuse(t("That payment link asks for a token this wallet doesn't have, so nothing was filled in."));
+    // A link is for Ethereum: the chain is pinned, so the screen's opening never moves it to BNB Chain
+    // after (release audit of the 0.1.21 fixes: a link scanned while it opened was carried over).
+    if (r.link && !draft.chain) {
+      draft.chain = 'ethereum';
+      fillTabs();
+      titleEl.textContent = t('Send on {name}', { name: chain().name });
+      fillAssets();
+    }
     addr.value = draft.to = r.to;
-    const token2 = r.token ? tokensFor(chainKey()).find((x) => x.address === r.token.toLowerCase()) : null;
     if (token2) {
       draft.symbol = token2.symbol;
+      fillAssets(); // a token with no balance is offered once picked (round-2 audit)
       assetSel.value = token2.symbol;
     }
     if (r.valueWei && !r.token) {

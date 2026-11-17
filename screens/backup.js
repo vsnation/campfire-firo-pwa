@@ -398,7 +398,7 @@ function fileSheet(app, { cloud }) {
   const p = cloud ? 'cloud' : 'export';
   // Not saved by the browser (any of them): a password kept in the same account as the copy, or in
   // the same browser profile as the wallet, would protect nothing.
-  const field = (attrs) => h('input', { class: 'input', type: 'password', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', ...attrs });
+  const field = (attrs) => h('input', { class: 'input', type: 'password', autocomplete: 'off', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', ...attrs });
   const pw = field({ 'aria-label': t('Firo PWA password'), placeholder: t('Password'), 'data-testid': `${p}-pw` });
   const pw1 = field({ 'aria-label': t('Password for the file'), placeholder: tn({ one: 'At least {n} character', other: 'At least {n} characters' }, minPw), 'data-testid': `${p}-pw1` });
   const pw2 = field({ 'aria-label': t('The same password again'), placeholder: t('The same password again'), 'data-testid': `${p}-pw2` });

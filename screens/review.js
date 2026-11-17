@@ -139,8 +139,10 @@ export default function review(app, p) {
             ),
           )
         : contact
-          ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('To') }), h('span', { class: 'v list' }, h('span', { 'data-testid': 'review-contact', text: contact }), h('span', { class: 'mono', 'data-testid': 'review-to', text: shorten(p.address, 10, 8) })))
-          : kv(t('To'), shorten(p.address, 10, 8), 'review-to', 'mono'),
+          ? h('div', { class: 'kv' }, h('span', { class: 'k', text: t('To') }), h('span', { class: 'v list' }, h('span', { 'data-testid': 'review-contact', text: contact }), h('span', { class: 'mono small wrap', 'data-testid': 'review-to', text: p.address })))
+          : // The whole address, never a shortened one (security audit of 0.1.21): an address swapped in the
+            // clipboard, or a contact changed, can be checked against the receiver's in full here.
+            h('div', { class: 'kv' }, h('span', { class: 'k', text: t('To') }), h('span', { class: 'v mono small wrap', 'data-testid': 'review-to', text: p.address })),
       kv(t('Address'), kind.label, 'review-kind'),
       kv(t('From'), p.from === 'public' ? t('Your public balance') : t('Your private balance'), 'review-from'),
       kv(t('Network fee'), `${formatAmount(q.fee)} ${UNIT}`, 'review-fee'),

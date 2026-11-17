@@ -15,9 +15,9 @@ import { notSavedNote } from '../lib/auth_ui.js';
 import { t, tn } from '../lib/i18n.js';
 
 export default function changePasswordScreen(app) {
-  const cur = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': t('Current password'), 'data-testid': 'cp-current' });
-  const n1 = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': t('New password'), 'data-testid': 'cp-new' });
-  const n2 = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': t('Repeat new password'), 'data-testid': 'cp-new2' });
+  const cur = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other', 'aria-label': t('Current password'), 'data-testid': 'cp-current' });
+  const n1 = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other', 'aria-label': t('New password'), 'data-testid': 'cp-new' });
+  const n2 = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other', 'aria-label': t('Repeat new password'), 'data-testid': 'cp-new2' });
   const msg = h('div', { 'aria-live': 'polite' });
   const cta = primary(t('Save new password'), save, { 'data-testid': 'cp-save' });
 

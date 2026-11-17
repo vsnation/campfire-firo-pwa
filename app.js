@@ -4,7 +4,7 @@ import { t, onLanguageChange } from './lib/i18n.js';
 import { applyTheme, readTheme } from './lib/theme.js';
 import { h, clear } from './lib/dom.js';
 import { getPrefs } from './lib/store.js';
-import { listWallets, initialWallet, loadPrefs, savePrefs, scopeTo, forgetStoredBalances, nameOf } from './lib/wallets.js';
+import { listWallets, initialWallet, loadPrefs, savePrefs, scopeTo, forgetStoredBalances, nameOf, migrateTrust } from './lib/wallets.js';
 import { setScopeOpen } from './lib/wallet_scope.js';
 import { wallet } from './lib/wallet.js';
 import { backendKind, closeSparkCache } from './lib/chain.js';
@@ -442,6 +442,8 @@ app.continueBoot = async function continueBoot() {
   app.prefs = await getPrefs();
   // The person's own server must be in this page's policy before the engine can reach it.
   if (BUILT && (await reconcileOwnServer(app))) return;
+  // Once: the wallets already here keep their own node and servers (lib/wallets.js migrateTrust).
+  await migrateTrust().catch(() => {});
   // Several wallets: the one last opened comes first.
   app.record = initialWallet(await listWallets(), app.prefs);
   app.prefs = await loadPrefs(app.record);

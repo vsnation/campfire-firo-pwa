@@ -18,6 +18,7 @@
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, secondary, notice, toast } from '../lib/ui.js';
+import { confirmIdentity } from '../lib/auth_ui.js';
 import { wallet } from '../lib/wallet.js';
 import { serverHost } from '../lib/sync.js';
 import { nodeName } from '../lib/node_names.js';
@@ -36,6 +37,10 @@ export default function servers(app) {
   const nodeMsg = h('div', { 'aria-live': 'polite', 'data-testid': 'node-msg' });
   const input = h('input', { class: 'input', type: 'text', inputmode: 'url', autocomplete: 'off', autocapitalize: 'none', autocorrect: 'off', spellcheck: 'false', placeholder: SERVER_EXAMPLE, 'aria-label': t('Your own node'), 'data-testid': 'own-server' });
   if (own) input.value = own;
+  // An own node another wallet on this device set (and its password approved): not used by this one
+  // until this wallet's password approves it too (lib/wallets.js withTrust, security audit of 0.1.21).
+  const elsewhere = !own && app.prefs.untrustedServer ? normalizeServerAddress(app.prefs.untrustedServer).address : null;
+  if (elsewhere) input.value = elsewhere;
   const hint = h('p', { class: 'hint', text: t('The host and its secure WebSocket (wss) port. Without a port, 50004.') });
   let busy = false;
   let gone = false;
@@ -200,7 +205,17 @@ export default function servers(app) {
     if (!n.ok) return put(msg, notice('warn', n.error));
     if (appPort(n)) return put(msg, notice('warn', appPortText(appPort(n))));
     if (!canUseOwnServer()) return put(msg, notice('info', t('Your own node works in the installed app (after the first install finished). Reload and try again.')));
+    // The password first (security audit of 0.1.21): a node of one's own is the only one asked, so it
+    // decides what this wallet sees and which address a Spark name pays. Someone holding the unlocked
+    // phone must not be able to set theirs.
     busy = true;
+    const ok = await confirmIdentity(app, { title: t('Use my node'), detail: t('Your password first.'), cta: t('Continue'), passwordOnly: true });
+    if (!ok || gone) {
+      busy = false;
+      // The node rows were drawn as disabled while the sheet was open (release audit of the fixes).
+      if (!gone) renderNodes(wallet.state);
+      return;
+    }
     useBtn.disabled = true;
     renderNodes(wallet.state);
     put(msg, notice('info', t('Saving… Firo PWA reopens once so it may connect there; then unlock again.')));
@@ -233,6 +248,7 @@ export default function servers(app) {
 
   const useBtn = primary(t('Use my node'), useMine, { disabled: true, 'data-testid': 'use-own-server' });
   const backBtn = own ? secondary(t("Use Firo's public nodes"), useFiro, { 'data-testid': 'use-firo-servers' }) : null;
+  if (elsewhere) useBtn.disabled = false;
   if (own) {
     useBtn.classList.replace('btn-primary', 'btn-secondary');
     backBtn.classList.replace('btn-secondary', 'btn-primary');
@@ -245,6 +261,7 @@ export default function servers(app) {
   if (!own) checkAll();
   const el = screen(
     { title: t('Firo nodes'), back: () => app.back('settings'), actions: own ? [backBtn, useBtn] : [useBtn] },
+    elsewhere ? h('div', { 'data-testid': 'own-node-elsewhere' }, notice('info', t("{address} was set as your own node in another wallet on this device. This wallet uses Firo's public nodes until this wallet's password approves it: tap Use my node.", { address: elsewhere }))) : null,
     status,
     nodesBox,
     nodeMsg,

@@ -29,7 +29,7 @@ export default function restoreFile(app) {
   const chosen = h('div');
   const input = h('input', { type: 'file', class: 'file-input', id: 'backup-file', 'data-testid': 'backup-file' });
   const pick = h('label', { class: 'btn btn-secondary', for: 'backup-file', 'data-testid': 'backup-pick' }, icon('file'), t('Choose the backup file'));
-  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': t('Backup password'), 'data-testid': 'backup-pw', placeholder: t('The password of the file') });
+  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other', 'aria-label': t('Backup password'), 'data-testid': 'backup-pw', placeholder: t('The password of the file') });
   const pwField = h('label', { class: 'field hidden' }, t('Password of the file'), pw);
   const cta = primary(t('Open my backup'), open, { disabled: true, 'data-testid': 'backup-open' });
   cta.classList.add('hidden');

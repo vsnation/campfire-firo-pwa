@@ -43,7 +43,7 @@ export default function unlock(app, params = {}) {
   // A screen waits for the unlock (a notification was tapped, a buy is followed): say where it goes next.
   const follow = app.afterUnlock ? h('div', { 'data-testid': 'unlock-follow' }, notice('info', h('strong', { text: app.afterUnlock.lead || t('Unlock to go on. ') }), app.afterUnlock.note || t('Firo PWA goes back to it once the wallet is open.'))) : null;
 
-  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'aria-label': t('Password'), 'data-testid': 'unlock-pw', placeholder: t('Password') });
+  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other', 'aria-label': t('Password'), 'data-testid': 'unlock-pw', placeholder: t('Password') });
   const pwBtn = primary(t('Unlock'), () => withPassword(), { 'data-testid': 'unlock-submit' });
   const pwBlock = h('div', { class: passkey ? 'hidden' : '' }, h('label', { class: 'field' }, t('Password'), pw), notSavedNote(app));
   pw.addEventListener('keydown', (e) => e.key === 'Enter' && withPassword());
