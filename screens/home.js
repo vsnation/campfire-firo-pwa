@@ -10,6 +10,8 @@
  *     Public (transparent: visible to anyone) is the line under it; the card's title swaps them.
  *   - "Some of my FIRO is public - what now?" -> the wide "Privatize" pill under Send / Receive, with
  *     what public means.
+ *   - "I need some FIRO public (an exchange, a service)" -> "Make FIRO public" under it, any amount
+ *     (0.1.21: both ways, the person decides).
  *   - "Why can't I send?" -> the reason is written under the buttons, never a silent grey button.
  *   - "Where did my payment go?" -> recent payments with plain status right below.
  *   - "Empty wallet, now what?" -> the primary button becomes Receive; Buy is beside it.
@@ -100,7 +102,7 @@ export function passphraseSheet(app) {
 /** The round icon of a payment row, as Campfire draws them: received, sent, privatized, waiting. */
 function txIcon(tx) {
   const pending = isPendingTx(tx);
-  if (tx.kind === 'privatize') return h('span', { class: `ico tx-ico privatized${pending ? ' pending' : ''}` }, icon('refresh'));
+  if (tx.kind === 'privatize' || tx.toPublic) return h('span', { class: `ico tx-ico privatized${pending ? ' pending' : ''}` }, icon('refresh'));
   if (tx.direction === 'in') return h('span', { class: `ico tx-ico in${pending ? ' pending' : ''}` }, icon('receive'));
   if (tx.direction === 'out') return h('span', { class: `ico tx-ico out${pending ? ' pending' : ''}` }, icon('send'));
   return h('span', { class: `ico tx-ico self${pending ? ' pending' : ''}` }, icon('swap'));
@@ -320,17 +322,20 @@ export default function home(app) {
         : null,
     );
 
-    // Campfire's wide pill, under Send / Receive: public FIRO can be followed by anyone.
+    // Campfire's wide pill, under Send / Receive: public FIRO can be followed by anyone. And the other
+    // way, as a link under it (0.1.21, owner: the person decides; Campfire has "Anonymize all" only).
+    const canPublic = !s.sparkOff && b.private.available > 0n;
     put(
       privatizeBox,
       s.viewOnly
         ? h('div', { 'data-testid': 'watch-only-note' }, notice('info', h('strong', { text: t('Watch-only. ') }), t('This wallet sees payments from its view key; it cannot send.')))
-        : b.public.available > 0n
+        : b.public.available > 0n || canPublic
         ? h(
             'div',
             { class: 'privatize-wrap' },
-            h('button', { class: 'btn btn-secondary pill', 'data-testid': 'privatize', onclick: () => app.go('privatize') }, icon('privatize'), t('Privatize {amount} {UNIT}', { amount: formatAmount(b.public.available), UNIT })),
-            h('p', { class: 'small center', 'data-testid': 'public-note', text: t('Your public FIRO can be seen on the blockchain. Privatize it to hide it.') }),
+            b.public.available > 0n ? h('button', { class: 'btn btn-secondary pill', 'data-testid': 'privatize', onclick: () => app.go('privatize') }, icon('privatize'), t('Privatize {amount} {UNIT}', { amount: formatAmount(b.public.available), UNIT })) : null,
+            b.public.available > 0n ? h('p', { class: 'small center', 'data-testid': 'public-note', text: t('Your public FIRO can be seen on the blockchain. Privatize it to hide it.') }) : null,
+            canPublic ? h('button', { class: 'btn btn-text btn-small make-public-link', type: 'button', 'data-testid': 'make-public', onclick: () => app.go('makePublic') }, icon('eye', 'inline-icon'), h('span', { text: t('Make FIRO public') })) : null,
           )
         : null,
     );
