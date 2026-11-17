@@ -26,8 +26,8 @@ export default function setPassword(app) {
     return { el: h('div') };
   }
   const restoring = app.setup.mode !== 'create';
-  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'data-testid': 'pw1', 'data-autofocus': true, 'aria-label': t('Password') });
-  const pw2 = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'data-testid': 'pw2', 'aria-label': t('Repeat password') });
+  const pw = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other', 'data-testid': 'pw1', 'data-autofocus': true, 'aria-label': t('Password') });
+  const pw2 = h('input', { class: 'input', type: 'password', autocomplete: 'off', 'data-1p-ignore': 'true', 'data-lpignore': 'true', 'data-bwignore': 'true', 'data-form-type': 'other', 'data-testid': 'pw2', 'aria-label': t('Repeat password') });
   const showBtn = h('button', { class: 'btn btn-text btn-small inside', type: 'button', 'aria-label': t('Show password') }, icon('eye'));
   showBtn.addEventListener('click', () => {
     const item = pw.type === 'password' ? 'text' : 'password';

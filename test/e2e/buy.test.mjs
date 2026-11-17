@@ -26,7 +26,7 @@ import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import jsQR from 'jsqr';
 import { startServer, launch, recordedPage, shot, waitScreen, foreignHosts, sleep, SHOTS } from './harness.mjs';
-import { createWallet, waitHome, unlockWithPassword } from './flows.mjs';
+import { createWallet, waitHome, unlockWithPassword, givePassword } from './flows.mjs';
 import { ETH_RPC_HOSTS, BSC_RPC_HOSTS } from '../../src/lib/eth/hosts.js';
 import { FakeBuyFiro, ASSETS, BTC, assetJson, answer, errorJson } from '../unit/buy_fakes.mjs';
 import { SANDBOX_KEY } from '../../src/lib/buy/wiring.js';
@@ -275,6 +275,7 @@ test("Buy FIRO with ETH: the order offers to pay from this wallet's Ethereum bal
   await page.click(tid('eth-import-submit'));
   await waitScreen(page, 'ethPrivacy');
   await page.click(tid('eth-connect'));
+  await givePassword(page, PASSWORD);
   await waitScreen(page, 'ethHome', 30000);
   // A new buy (the earlier one, at the fake's first address, has been delivered).
   bf.depositAddress = 'sbx_1791800000_e2e0eth0test';

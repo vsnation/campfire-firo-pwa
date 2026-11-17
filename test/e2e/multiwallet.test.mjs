@@ -423,7 +423,8 @@ test('8. deleting the last wallet also takes Campfire\'s settings in this browse
   assert.deepEqual(left, ['not-campfire']);
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme || null), null, 'the theme follows the device again');
   assert.deepEqual(await engineDbs(), []);
-  assert.deepEqual(await kvDump(), {});
+  // Only the note that per-wallet trust needs no migration (round-2 audit of the 0.1.21 fixes).
+  assert.deepEqual(await kvDump(), { prefs: '{"trustMigrated":true}' });
   assert.ok(!(await page.evaluate(async () => (await indexedDB.databases()).map((d) => d.name))).includes('campfire-firo-spark-cache'));
   assert.deepEqual(rec.errors, []);
 });

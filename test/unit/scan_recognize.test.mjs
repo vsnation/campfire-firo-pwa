@@ -24,9 +24,12 @@ test('Spark names: "@alice", also in a firo: link', () => {
 
 test('Ethereum: address, EIP-681 link with value or token; BNB Chain and other chains are named, not opened', () => {
   assert.deepEqual(recognize(ETH_ADDR), { kind: 'eth', to: ETH_ADDR });
-  assert.deepEqual(recognize(`ethereum:${ETH_ADDR}?value=1e18`), { kind: 'eth', to: ETH_ADDR, valueWei: '1000000000000000000' });
-  assert.deepEqual(recognize(`ethereum:${ETH_ADDR}@1?value=1.5`), { kind: 'eth', to: ETH_ADDR });
-  assert.deepEqual(recognize(`ethereum:0xdac17f958d2ee523a2206206994597c13d831ec7/transfer?address=${ETH_ADDR}&uint256=1`), { kind: 'eth', to: ETH_ADDR, token: '0xdac17f958d2ee523a2206206994597c13d831ec7' });
+  assert.deepEqual(recognize(`ethereum:${ETH_ADDR}?value=1e18`), { kind: 'eth', to: ETH_ADDR, valueWei: '1000000000000000000', link: true });
+  // An amount that cannot be read (not whole wei, hex): no link to fill in (release audit of the 0.1.21 fixes).
+  assert.deepEqual(recognize(`ethereum:${ETH_ADDR}@1?value=1.5`), { kind: 'unknown' });
+  assert.deepEqual(recognize(`ethereum:${ETH_ADDR}?value=0x10`), { kind: 'unknown' });
+  assert.deepEqual(recognize(`ethereum:${ETH_ADDR}@1`), { kind: 'eth', to: ETH_ADDR, link: true });
+  assert.deepEqual(recognize(`ethereum:0xdac17f958d2ee523a2206206994597c13d831ec7/transfer?address=${ETH_ADDR}&uint256=1`), { kind: 'eth', to: ETH_ADDR, token: '0xdac17f958d2ee523a2206206994597c13d831ec7', link: true });
   assert.deepEqual(recognize(`ethereum:${ETH_ADDR}@56?value=1`), { kind: 'unsupported', reason: 'bsc' });
   assert.deepEqual(recognize(`ethereum:${ETH_ADDR}@137`), { kind: 'unsupported', reason: 'chain' });
   assert.deepEqual(recognize(`ethereum:${ETH_ADDR}/approve?x=1`), { kind: 'unknown' });

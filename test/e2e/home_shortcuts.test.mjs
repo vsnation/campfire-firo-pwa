@@ -13,10 +13,11 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startServer, launch, recordedPage, waitScreen, shot, sleep, PWA, SHOTS } from './harness.mjs';
-import { createWallet, waitHome, waitSynced } from './flows.mjs';
+import { createWallet, waitHome, waitSynced, givePassword } from './flows.mjs';
 import { ETH_RPC_HOSTS, BSC_RPC_HOSTS } from '../../src/lib/eth/hosts.js';
 
 const PORT = 8837;
+const HOME_PW = `home-${Math.random().toString(36).slice(2, 10)}`;
 const tid = (id) => `[data-testid="${id}"]`;
 let tmp, srv, browser, ctx, page;
 
@@ -61,7 +62,7 @@ async function chooser(from = 'sc-buy') {
 
 test('Home shows Buy FIRO, Sell FIRO, Bridge and Spark name in one row; Send / Receive and Wallet / Activity / Settings stay on a small phone', { timeout: 5 * 60000 }, async () => {
   await page.goto(srv.url);
-  await createWallet(page, { password: `home-${Math.random().toString(36).slice(2, 10)}` });
+  await createWallet(page, { password: HOME_PW });
   await waitHome(page);
   await waitSynced(page);
   await page.waitForSelector(tid('home-shortcuts'));
@@ -190,6 +191,7 @@ test('rsFIRO without an Ethereum & BNB wallet: set one up (it says why), then st
   await page.click(tid('eth-import-submit'));
   await waitScreen(page, 'ethPrivacy');
   await page.click(tid('eth-connect'));
+  await givePassword(page, HOME_PW);
   await waitScreen(page, 'nearIntents', 30000);
   assert.equal(await page.textContent(tid('ni-step')), 'Step 1 of 2 · your coin becomes ETH or BNB in this wallet');
   assert.equal(await page.textContent('.topbar h1'), 'Buy rsFIRO');

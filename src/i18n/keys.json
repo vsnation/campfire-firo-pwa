@@ -1138,6 +1138,14 @@
       "name"
     ]
   },
+  "{name} is already in your contacts. Give this one another name.": {
+    "where": [
+      "lib/contacts.js"
+    ],
+    "placeholders": [
+      "name"
+    ]
+  },
   "Bad round count.": {
     "where": [
       "lib/contacts.js"
@@ -9302,7 +9310,12 @@
   "Continue": {
     "where": [
       "screens/backup.js",
-      "screens/passkey_setup.js"
+      "screens/contacts.js",
+      "screens/eth_privacy.js",
+      "screens/eth_servers.js",
+      "screens/passkey_setup.js",
+      "screens/servers.js",
+      "screens/settings.js"
     ]
   },
   "Choose a password for the file": {
@@ -11110,6 +11123,16 @@
       "screens/contacts.js"
     ]
   },
+  "Your password first.": {
+    "where": [
+      "screens/contacts.js",
+      "screens/eth_privacy.js",
+      "screens/eth_servers.js",
+      "screens/passkey_setup.js",
+      "screens/servers.js",
+      "screens/settings.js"
+    ]
+  },
   "{name} deleted": {
     "where": [
       "screens/contacts.js"
@@ -11186,6 +11209,11 @@
       "screens/contacts.js"
     ]
   },
+  "Edit contact": {
+    "where": [
+      "screens/contacts.js"
+    ]
+  },
   "Contact saved": {
     "where": [
       "screens/contacts.js"
@@ -11197,11 +11225,6 @@
     ],
     "placeholders": [
       "name"
-    ]
-  },
-  "Edit contact": {
-    "where": [
-      "screens/contacts.js"
     ]
   },
   "Save a contact": {
@@ -11748,12 +11771,12 @@
       "screens/ip_notice.js"
     ]
   },
-  "Setting up…": {
+  "Connect": {
     "where": [
       "screens/eth_privacy.js"
     ]
   },
-  "Connect": {
+  "Setting up…": {
     "where": [
       "screens/eth_privacy.js"
     ]
@@ -12278,6 +12301,16 @@
       "name"
     ]
   },
+  "That payment link is for Ethereum. Choose Ethereum at the top, then scan it again.": {
+    "where": [
+      "screens/eth_send.js"
+    ]
+  },
+  "That payment link asks for a token this wallet doesn't have, so nothing was filled in.": {
+    "where": [
+      "screens/eth_send.js"
+    ]
+  },
   "BNB Chain server changed": {
     "where": [
       "screens/eth_server_note.js"
@@ -12487,6 +12520,11 @@
       "screens/eth_servers.js"
     ]
   },
+  "Use my server": {
+    "where": [
+      "screens/eth_servers.js"
+    ]
+  },
   "Checking {name}… ": {
     "where": [
       "screens/eth_servers.js"
@@ -12550,11 +12588,6 @@
       "name2"
     ]
   },
-  "Use my server": {
-    "where": [
-      "screens/eth_servers.js"
-    ]
-  },
   "Use {name}": {
     "where": [
       "screens/eth_servers.js",
@@ -12570,6 +12603,14 @@
     ],
     "placeholders": [
       "name"
+    ]
+  },
+  "{address} was set as your own server in another wallet on this device. This wallet uses a listed server until this wallet's password approves it: tap Use my server.": {
+    "where": [
+      "screens/eth_servers.js"
+    ],
+    "placeholders": [
+      "address"
     ]
   },
   "The private key is the only way back to it: keep it somewhere safe and never share it.": {
@@ -16933,11 +16974,6 @@
       "screens/passkey_setup.js"
     ]
   },
-  "Your password first.": {
-    "where": [
-      "screens/passkey_setup.js"
-    ]
-  },
   "Password checked. Tap Turn on Face ID again to save the passkey.": {
     "where": [
       "screens/passkey_setup.js"
@@ -19396,17 +19432,17 @@
       "screens/servers.js"
     ]
   },
+  "Use my node": {
+    "where": [
+      "screens/servers.js"
+    ]
+  },
   "Saving… Firo PWA reopens once so it may connect there; then unlock again.": {
     "where": [
       "screens/servers.js"
     ]
   },
   "Using Firo's public nodes": {
-    "where": [
-      "screens/servers.js"
-    ]
-  },
-  "Use my node": {
     "where": [
       "screens/servers.js"
     ]
@@ -19420,6 +19456,14 @@
     "where": [
       "screens/servers.js",
       "screens/settings.js"
+    ]
+  },
+  "{address} was set as your own node in another wallet on this device. This wallet uses Firo's public nodes until this wallet's password approves it: tap Use my node.": {
+    "where": [
+      "screens/servers.js"
+    ],
+    "placeholders": [
+      "address"
     ]
   },
   "A Firo node with ElectrumX and a secure WebSocket port. Only that node is used: no fallback and no cross-check with Firo's public nodes, so no one else sees your IP address or which payments are yours.": {

@@ -109,8 +109,7 @@ test('typing an amount turns the picks off; a too-large amount says so and moves
   await fee();
   assert.equal(await page.textContent(tid('privatize-confirm')), 'Privatize 123.45 FIRO');
   await page.fill(tid('move-amount'), '999999');
-  await sleep(400);
-  assert.match(await page.textContent(tid('move-amount-hint')), /more than your public balance/);
+  await page.waitForFunction(() => /more than your public balance/.test(document.querySelector('[data-testid="move-amount-hint"]')?.textContent || ''), null, { timeout: 10000 });
   assert.equal(await page.isDisabled(tid('privatize-confirm')), true);
   await both('move-04-too-much');
 });

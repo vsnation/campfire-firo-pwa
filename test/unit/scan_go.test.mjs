@@ -18,9 +18,11 @@ test('a Firo address, a firo: link with amount and memo, and a Spark name: Send,
 
 test('Ethereum: its Send with the recipient (and value), a known token, or a way to add the wallet', async () => {
   const tok = TOKENS[0];
-  assert.deepEqual(await destination(recognize(`ethereum:${ETH_ADDR}?value=1e18`), { hasEth: yes, tokens: TOKENS }), { to: 'ethSend', draft: { to: ETH_ADDR, amountWei: '1000000000000000000', symbol: 'ETH' } });
+  assert.deepEqual(await destination(recognize(`ethereum:${ETH_ADDR}?value=1e18`), { hasEth: yes, tokens: TOKENS }), { to: 'ethSend', draft: { to: ETH_ADDR, amountWei: '1000000000000000000', symbol: 'ETH', chain: 'ethereum' } });
+  // A plain address: no chain pinned (the screen picks the one holding coins).
+  assert.deepEqual(await destination(recognize(ETH_ADDR), { hasEth: yes, tokens: TOKENS }), { to: 'ethSend', draft: { to: ETH_ADDR, amountWei: null, symbol: 'ETH' } });
   assert.deepEqual(await destination(recognize(ETH_ADDR), { hasEth: no }), { sheet: 'noEth' });
-  assert.deepEqual(await destination(recognize(`ethereum:${tok.address}/transfer?address=${ETH_ADDR}&uint256=100`), { hasEth: yes, tokens: TOKENS }), { to: 'ethSend', draft: { to: ETH_ADDR, amount: '', symbol: tok.symbol } });
+  assert.deepEqual(await destination(recognize(`ethereum:${tok.address}/transfer?address=${ETH_ADDR}&uint256=100`), { hasEth: yes, tokens: TOKENS }), { to: 'ethSend', draft: { to: ETH_ADDR, amount: '', symbol: tok.symbol, chain: 'ethereum' } });
   assert.deepEqual(await destination(recognize(`ethereum:0x1111111111111111111111111111111111111111/transfer?address=${ETH_ADDR}`), { hasEth: yes, tokens: TOKENS }), { sheet: 'token' });
 });
 

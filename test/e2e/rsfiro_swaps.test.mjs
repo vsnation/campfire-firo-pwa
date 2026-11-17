@@ -19,7 +19,7 @@ import { tmpdir, homedir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { startServer, launch, recordedPage, waitScreen, shot, sleep, PWA, SHOTS } from './harness.mjs';
-import { createWallet, waitHome } from './flows.mjs';
+import { createWallet, waitHome, givePassword } from './flows.mjs';
 import { ETH_RPC_HOSTS, BSC_RPC_HOSTS, ethRpcHost, DEFAULT_ETH_RPC, DEFAULT_BSC_RPC } from '../../src/lib/eth/hosts.js';
 import { otherServers } from '../../src/lib/eth/second_opinion.js';
 import { privateKeyToAddress } from '../../src/lib/eth/crypto.js';
@@ -165,6 +165,7 @@ test('a Firo wallet with an Ethereum & BNB side from a fresh key', { skip: skip 
   await page.click(tid('eth-import-submit'));
   await waitScreen(page, 'ethPrivacy');
   await page.click(tid('eth-connect'));
+  await givePassword(page, PASSWORD);
   await waitScreen(page, 'ethHome', 30000);
 });
 

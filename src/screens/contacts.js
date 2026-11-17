@@ -18,6 +18,7 @@ import { wallet } from '../lib/wallet.js';
 import { vaultFor, loadContacts, searchContacts, checkContact, cleanAddress, cleanName, NAME_MAX } from '../lib/contacts.js';
 import { addressShape } from '../lib/firo_uri.js';
 import { scanAddress } from './scan_sheet.js';
+import { confirmIdentity } from '../lib/auth_ui.js';
 import { t } from '../lib/i18n.js';
 
 /** "sm1qpzr9x8g…3jn54khc": an address shortened to `edge` characters at each end (a Spark name stays whole). */
@@ -147,6 +148,9 @@ function confirmDelete(app, c, onChanged) {
           class: 'btn btn-danger',
           'data-testid': 'contact-delete-confirm',
           onclick: async () => {
+            // The password first (release audit of the 0.1.21 fixes): deleted, "Alice" could be added
+            // again with another address.
+            if (!(await confirmIdentity(app, { title: t('Delete contact'), detail: t('Your password first.'), cta: t('Continue'), passwordOnly: true }))) return;
             try {
               await (await vaultFor(app)).remove(c.id);
               await loadContacts(app).catch(() => {});
@@ -237,6 +241,14 @@ export function contactForm(app, { contact = null, address = '', name = '', from
         }
         const own = wallet.state.receive || {};
         if (r.address === own.spark || r.address === own.transparent) return put(msg, notice('warn', t("This is one of your own addresses. Save the other person's address.")));
+        // A saved contact pointed at another address: the password first (security audit of 0.1.21:
+        // someone holding the unlocked phone could point "Alice" at their own address, and the owner's
+        // next payment to Alice would go to them).
+        // Every write to the address book needs the password (round-2 audit: a second "Alice" made
+        // with an invisible or look-alike letter, with another address, could be picked as Alice).
+        // An edit that changes nothing does not ask.
+        const changes = !editing || r.address !== contact.address || r.name !== contact.name;
+        if (changes && !(await confirmIdentity(app, { title: editing ? t('Edit contact') : t('Add a contact'), detail: t('Your password first.'), cta: t('Continue'), passwordOnly: true }))) return;
         const saved = editing ? await v.update(contact.id, r) : await v.add(r);
         await loadContacts(app).catch(() => {});
         sheet.close(saved);

@@ -28,7 +28,7 @@
 import test, { before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startServer, launch, recordedPage, shot, waitScreen, foreignHosts, sleep, fake, SHOTS } from './harness.mjs';
-import { createWallet, waitHome, waitSynced, unlockWithPassword } from './flows.mjs';
+import { createWallet, waitHome, waitSynced, unlockWithPassword, givePassword } from './flows.mjs';
 import { ETH_RPC_HOSTS, BSC_RPC_HOSTS } from '../../src/lib/eth/hosts.js';
 import { FakeSellFiro, answer, envelope, sellErrorJson, SPARK_DEPOSIT, T_DEPOSIT, USDT_BSC, TXID } from '../unit/sell_fakes.mjs';
 import { SANDBOX_KEY } from '../../src/lib/sell/wiring.js';
@@ -198,6 +198,7 @@ test('Sell FIRO without an Ethereum & BNB wallet: the smallest sell, a pasted ad
   await page.click(tid('eth-import-submit'));
   await waitScreen(page, 'ethPrivacy');
   await page.click(tid('eth-connect'));
+  await givePassword(page, PASSWORD);
   await waitScreen(page, 'sellFiro', 30000);
   assert.equal(await page.inputValue(tid('sell-amount')), '300', 'the amount is still there');
   await page.waitForSelector(tid('sell-paid-to'));

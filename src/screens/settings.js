@@ -75,6 +75,13 @@ export default function settings(app) {
   const lockSel = h('select', { class: 'inline', 'aria-label': t('Auto-lock'), 'data-testid': 'autolock-select' }, ...[1, 5, 15].map((m) => h('option', { value: String(m), text: t('{n} min', { n: m }) })));
   lockSel.value = String(app.prefs.autoLockMin);
   lockSel.addEventListener('change', async () => {
+    // Longer needs the password (security audit of 0.1.21: someone holding the unlocked phone could
+    // keep it open for 15 minutes); shorter never does.
+    const was = Number(app.prefs.autoLockMin);
+    if (Number(lockSel.value) > was && !(await confirmIdentity(app, { title: t('Auto-lock'), detail: t('Your password first.'), cta: t('Continue'), passwordOnly: true }))) {
+      lockSel.value = String(was);
+      return;
+    }
     await app.setPrefs({ autoLockMin: Number(lockSel.value) });
     toast(t('Locks after {n} min without use', { n: lockSel.value }));
   });

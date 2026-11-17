@@ -19,6 +19,7 @@
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, secondary, notice } from '../lib/ui.js';
+import { confirmIdentity } from '../lib/auth_ui.js';
 import { ethKeyFromMnemonic, wipe } from '../lib/eth/crypto.js';
 import { saveEthKey, VaultError } from '../lib/eth/vault.js';
 import { ethPrefs, evmPrefs } from '../lib/eth/wallet.js';
@@ -62,6 +63,12 @@ export default function ethPrivacy(app, params = {}) {
 
   async function connect() {
     cta.disabled = true;
+    // The password first (security audit of 0.1.21): someone holding the unlocked phone could import
+    // a key they know, or note a new wallet's words, and everything later paid to it would be theirs.
+    if (!(await confirmIdentity(app, { title: t('Connect'), detail: t('Your password first.'), cta: t('Continue'), passwordOnly: true }))) {
+      cta.disabled = false;
+      return;
+    }
     cta.textContent = t('Setting up…');
     put(msg);
     const s = app.ethSetup;

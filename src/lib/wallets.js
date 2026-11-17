@@ -13,6 +13,7 @@
 // A new wallet takes the first slot when it is free, otherwise a place of its own.
 
 import { rawStore, getPrefs, setPrefs, DEFAULT_PREFS } from './store.js';
+import { EVM_SERVER_PREFS, EVM_OWN } from './evm_server_address.js';
 import { deleteWalletStore } from './wallet_store.js';
 import { SPARK_CACHE_DB } from './chain.js';
 import { setTheme } from './theme.js';
@@ -123,14 +124,54 @@ export function initialWallet(list, prefs) {
  */
 export async function loadPrefs(record, kv = rawStore) {
   const p = await getPrefs(kv);
-  if (!record || inSlot0(record)) return p;
+  if (!record) return p;
+  if (inSlot0(record)) return withTrust(p);
   const own = (await kv.get(walletPrefsKey(record))) || {};
   for (const k of WALLET_PREF_KEYS) {
     if (Object.prototype.hasOwnProperty.call(own, k)) p[k] = own[k];
     else if (Object.prototype.hasOwnProperty.call(DEFAULT_PREFS, k)) p[k] = DEFAULT_PREFS[k];
     else delete p[k];
   }
+  return withTrust(p);
+}
+
+/**
+ * The own Firo node and Ethereum / BNB Chain servers are the device's (the service worker's policy
+ * names them), but each wallet uses one only once its own password approved it (`trusted`, kept per
+ * wallet: security audit of 0.1.21). One set from another wallet is not used here: Firo's public
+ * nodes, the listed server instead, and untrustedServer / untrustedEvm say what was set.
+ */
+function withTrust(p) {
+  const tr = p.trusted && typeof p.trusted === 'object' ? p.trusted : {};
+  if (typeof p.server === 'string' && p.server !== DEFAULT_PREFS.server && p.server !== tr.firo) {
+    p.untrustedServer = p.server;
+    p.server = DEFAULT_PREFS.server;
+  }
+  for (const [chain, keys] of Object.entries(EVM_SERVER_PREFS)) {
+    if (p[keys.pick] === EVM_OWN && p[keys.url] !== tr[chain]) {
+      p.untrustedEvm = { ...(p.untrustedEvm || {}), [chain]: p[keys.url] };
+      delete p[keys.pick];
+    }
+  }
   return p;
+}
+
+/**
+ * Once, on the first start of a version with per-wallet trust: every wallet already on this device
+ * keeps the own node and servers it was using (they were set before anyone could add a wallet to
+ * set them), and its auto-lock.
+ */
+export async function migrateTrust(kv = rawStore) {
+  const raw = await getPrefs(kv);
+  if (raw.trustMigrated) return false;
+  const trusted = {};
+  if (typeof raw.server === 'string' && raw.server !== DEFAULT_PREFS.server) trusted.firo = raw.server;
+  for (const [chain, keys] of Object.entries(EVM_SERVER_PREFS)) if (raw[keys.pick] === EVM_OWN && typeof raw[keys.url] === 'string') trusted[chain] = raw[keys.url];
+  for (const record of await listWallets(kv).catch(() => [])) {
+    await savePrefs(record, { trusted, ...(inSlot0(record) ? {} : { autoLockMin: raw.autoLockMin }) }, kv).catch(() => {});
+  }
+  await setPrefs({ trustMigrated: true }, kv);
+  return true;
 }
 
 /** Saves a change: the wallet's own preferences to the wallet, the rest to the app. Returns loadPrefs(record). */
@@ -304,7 +345,14 @@ export async function removeWallet(app, target, { kv = rawStore, deleteDb = dele
   await oneTab().whileBusy(async () => {
     await deleteDb(target.id);
     if (others.length) await kv.batch(await removalOps(target, kv));
-    else await kv.clear();
+    else {
+      await kv.clear();
+      // Nothing left to migrate: said so at once (round-2 audit: with the flag gone until the next
+      // start, a wallet restored now, then another added and its node set, had migrateTrust trust
+      // that node for every wallet on the reload it caused).
+      // Only that note: nothing about the wallet that was here (audit A-9).
+      await kv.set('prefs', { trustMigrated: true });
+    }
   });
   await runRemovedHooks(target.id);
   if (passkey && typeof passkey.credId === 'string') await quietly(() => signal(passkey.credId));

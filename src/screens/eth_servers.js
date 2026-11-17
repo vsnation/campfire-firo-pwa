@@ -24,6 +24,7 @@
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, secondary, notice, toast } from '../lib/ui.js';
+import { confirmIdentity } from '../lib/auth_ui.js';
 import { CHAINS } from '../lib/eth/chains.js';
 import { rpcHostsFor, DEFAULT_RPC, RPC_URL_PREF } from '../lib/eth/hosts.js';
 import { evmPrefs } from '../lib/eth/wallet.js';
@@ -212,7 +213,13 @@ export default function ethServers(app, params = {}) {
     const n = normalizeEvmServer(input.value);
     if (!n.ok) return put(msg, notice('warn', n.error));
     if (!canUseOwnServer()) return put(msg, notice('info', t('Your own server works in the installed app (after the first install finished). Reload and try again.')));
+    // The password first (security audit of 0.1.21): someone holding the unlocked phone must not be
+    // able to put this wallet's Ethereum or BNB Chain side on a server of theirs.
     busy = true;
+    if (!(await confirmIdentity(app, { title: t('Use my server'), detail: t('Your password first.'), cta: t('Continue'), passwordOnly: true }))) {
+      busy = false;
+      return;
+    }
     renderHint();
     const name = n.port ? `${n.host}:${n.port}` : n.host;
     put(msg, h('div', { 'data-testid': 'evm-own-checking' }, notice('info', h('strong', { text: t('Checking {name}… ', { name }) }), t('It is asked for its network, its newest block, a recent payment and one contract call; it sees your IP address, not your wallet\'s address.'))));
@@ -278,6 +285,9 @@ export default function ethServers(app, params = {}) {
     { title: t('{name} server', { name: c.name }), back: () => app.back('ethSettings'), actions: own ? [backBtn, useBtn] : [useBtn] },
     chainTabs(chain, (k) => app.go('ethServers', { chain: k }, { replace: true }), { testid: 'servers-chain', label: t('Network') }),
     // The server in use first: the person's own when it is, else the list (with the one in use in it).
+    // An own server another wallet on this device set: not used here until this wallet's password
+    // approves it (lib/wallets.js withTrust, security audit of 0.1.21).
+    !own && app.prefs.untrustedEvm && app.prefs.untrustedEvm[chain] ? h('div', { 'data-testid': 'evm-own-elsewhere' }, notice('info', t('{address} was set as your own server in another wallet on this device. This wallet uses a listed server until this wallet\'s password approves it: tap Use my server.', { address: app.prefs.untrustedEvm[chain] }))) : null,
     ...(own ? [ownBox, msg, listBox] : [listBox, ownBox, msg]),
   );
   return {

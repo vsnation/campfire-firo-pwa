@@ -39,7 +39,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import jsQR from 'jsqr';
 import { startServer, launch, recordedPage, waitScreen, foreignHosts, sleep, SHOTS, PWA } from './harness.mjs';
-import { createWallet, waitHome } from './flows.mjs';
+import { createWallet, waitHome, givePassword } from './flows.mjs';
 import { ANVIL, anvilProblem } from '../fork/fork_support.mjs';
 import { ethKeyFromMnemonic, newMnemonic, wipe } from '../../src/lib/eth/crypto.js';
 import { ETH_RPC_HOSTS } from '../../src/lib/eth/hosts.js';
@@ -236,6 +236,7 @@ test('a Firo wallet and an Ethereum wallet; nothing asked of NEAR Intents and no
   await page.click(tid('eth-import-submit'));
   await waitScreen(page, 'ethPrivacy');
   await page.click(tid('eth-connect'));
+  await givePassword(page, PASSWORD);
   await waitScreen(page, 'ethHome');
   await page.waitForSelector(tid('eth-pay-other-coin'));
   assert.match(await text('eth-pay-other-coin'), /Buy rsFIRO with any coin.*BTC, ZEC, LTC, USDT and more, through NEAR Intents/);

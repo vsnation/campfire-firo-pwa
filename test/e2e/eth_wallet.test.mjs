@@ -32,7 +32,7 @@ import assert from 'node:assert/strict';
 import jsQR from 'jsqr';
 import { join } from 'node:path';
 import { startServer, launch, recordedPage, shot, waitScreen, foreignHosts, sleep, SHOTS } from './harness.mjs';
-import { createWallet, waitHome, unlockWithPassword } from './flows.mjs';
+import { createWallet, waitHome, unlockWithPassword, givePassword } from './flows.mjs';
 import { ANVIL, JUNK, ACCOUNT0, raw, anvilProblem, withFork, setBalance, sendAs, erc20Balance, freshAddress, mined } from '../fork/fork_support.mjs';
 import { ethKeyFromMnemonic, wipe, toChecksumAddress, privateKeyToAddress } from '../../src/lib/eth/crypto.js';
 import { signTransaction } from '../../src/lib/eth/tx.js';
@@ -287,6 +287,7 @@ test('create an Ethereum wallet: 12 new words, 3 checked, the privacy notice, th
   const requestsBefore = rpcMethods.length;
   assert.equal(requestsBefore, 0, 'nothing asked of any Ethereum server before Connect');
   await page.click(tid('eth-connect'));
+  await givePassword(page, PASSWORD);
   await ethHomeReady();
   const { sk, address } = await ethKeyFromMnemonic(words.join(' '));
   wipe(sk);
@@ -409,6 +410,7 @@ test('import "test test ... junk": 12 words checked as typed, privacy, Home with
   await page.waitForSelector(tid('eth-connect'));
   assert.match(await page.textContent('.step'), /Step 2 of 2/);
   await page.click(tid('eth-connect'));
+  await givePassword(page, PASSWORD);
   await ethHomeReady();
   assert.equal(await page.getAttribute(tid('eth-address'), 'data-address'), ACCOUNT0);
 });
@@ -661,6 +663,7 @@ test('your own server: a node on this device (anvil, http://127.0.0.1:8545) is c
     await page.fill(tid('evm-own-server'), 'http://127.0.0.1:8545');
     assert.match(await page.textContent(tid('evm-own-hint')), /checks 127\.0\.0\.1:8545 before using it/);
     await page.click(tid('evm-use-own'));
+    await givePassword(page, PASSWORD);
     await page.waitForSelector(`${tid('evm-own-refused')}[data-problem="wrong_chain"]`, { timeout: 60000 });
     assert.match(await page.textContent(tid('evm-own-refused')), /not a BNB Chain server: it answered for chain 1, and BNB Chain is chain 56.*keeps using BNB Chain \(official\)/);
     await shots4('27-own-server-wrong-chain');
@@ -675,6 +678,7 @@ test('your own server: a node on this device (anvil, http://127.0.0.1:8545) is c
     // Refused instead: say why at once, rather than wait for a reopen that will not come.
     const refusedText = page.waitForSelector(tid('evm-own-refused'), { timeout: 90000 }).then(async (el) => `${await el.getAttribute('data-problem')}: ${await el.textContent()}`).catch(() => null);
     await page.click(tid('evm-use-own'));
+    await givePassword(page, PASSWORD);
     await Promise.race([reopened, refusedText.then((t) => t && Promise.reject(new Error(`the check refused anvil: ${t}`)))]);
     const said = await okText;
     if (said !== null) assert.match(said, /127\.0\.0\.1:8545 checked\. Block [\d,]+ · .* · confirms payments\..*reopens once/);
@@ -857,6 +861,7 @@ test('import by private key: one box knows it is a key, shows the address first;
   await page.waitForSelector(tid('eth-connect'));
   assert.match(await page.textContent('.step'), /Step 2 of 2/);
   await page.click(tid('eth-connect'));
+  await givePassword(page, PASSWORD);
   await ethHomeReady();
   assert.equal(await page.getAttribute(tid('eth-address'), 'data-address'), address, 'Home opens the address of the key');
   const stored = await page.evaluate(async () => JSON.stringify(await (await import('./lib/store.js')).store.get('eth')));

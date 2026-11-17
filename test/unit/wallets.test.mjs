@@ -123,7 +123,7 @@ test('per-wallet keys: plain names for the first slot, w:<id>: for the others; o
   const other = { id: B, slot0: false };
   assert.deepEqual([...WALLET_KEYS].sort(), [ETH_RECORD_KEY, ETH_OUTBOX_KEY, BUY_RECORD_KEY].sort());
   assert.deepEqual([...WALLET_KEY_PREFIXES], []);
-  assert.deepEqual([...WALLET_PREF_KEYS], ['backupPromptSnoozedUntil']);
+  assert.deepEqual([...WALLET_PREF_KEYS], ['backupPromptSnoozedUntil', 'autoLockMin', 'trusted']);
   assert.equal(keyFor(first, 'eth'), 'eth');
   assert.equal(keyFor(other, 'eth'), `w:${B}:eth`);
   assert.equal(isWalletKey('prefs'), false);
@@ -166,13 +166,15 @@ test('preferences: the first slot keeps its own in "prefs"; another wallet has i
   const c = list.find((r) => r.id === C);
   const pb = await loadPrefs(b, kv);
   assert.equal(pb.backupPromptSnoozedUntil, 9);
-  assert.equal(pb.autoLockMin, 15, "auto-lock is the app's");
+  // Auto-lock is each wallet's own since the security audit of 0.1.21 (another wallet could lengthen
+  // it for all): a wallet with none has the default.
+  assert.equal(pb.autoLockMin, 5, 'auto-lock is this wallet\'s: the default');
   assert.equal(pb.server, 'firo', "Firo's servers by default");
   const pc = await loadPrefs(c, kv);
   assert.equal(pc.backupPromptSnoozedUntil, undefined, "the first wallet's own preference is not another's");
   await savePrefs(c, { backupPromptSnoozedUntil: 5, autoLockMin: 1 }, kv);
-  assert.deepEqual(await kv.get(`w:${C}:prefs`), { backupPromptSnoozedUntil: 5 });
-  assert.equal((await kv.get('prefs')).autoLockMin, 1);
+  assert.deepEqual(await kv.get(`w:${C}:prefs`), { backupPromptSnoozedUntil: 5, autoLockMin: 1 });
+  assert.equal((await kv.get('prefs')).autoLockMin, 15, 'the first slot keeps its own auto-lock');
   assert.equal((await kv.get('prefs')).backupPromptSnoozedUntil, 3, 'the first slot keeps its own');
 });
 
@@ -194,7 +196,8 @@ test('deleting a wallet: only its keys; deleting the first slot also its plain k
   for (const k of ['wallet', 'eth', 'eth-outbox', 'buy']) assert.ok(dels0.includes(k), k);
   const prefs = ops0.find(([op, k]) => op === 'set' && k === 'prefs')[2];
   assert.equal(prefs.backupPromptSnoozedUntil, undefined, "the first slot's own preference goes");
-  assert.equal(prefs.autoLockMin, 15, "the app's stay");
+  assert.equal(prefs.autoLockMin, undefined, "the first slot's own auto-lock goes with it");
+  assert.equal(prefs.fiatPrices, true, "the app's stay");
 });
 
 test('removeWallet: the open wallet stops, its engine database goes, another is selected (locked); the last one clears the store', async () => {
@@ -227,7 +230,9 @@ test('removeWallet: the open wallet stops, its engine database goes, another is 
   // The last one: everything.
   const one = fakeApp(kv, a);
   await removeWallet(one.app, a, { kv, deleteDb: async (id) => deleted.push(walletDbName(id)) });
-  assert.equal(kv.m.size, 0);
+  // Everything but the note that per-wallet trust needs no migration (round-2 audit of the 0.1.21 fixes).
+  assert.deepEqual([...kv.m.keys()], ['prefs']);
+  assert.equal((await kv.get('prefs')).trustMigrated, true);
   assert.equal(one.app.record, null);
   assert.deepEqual(deleted, [`campfire-firo-w-${B}`, `campfire-firo-w-${C}`, `campfire-firo-w-${A}`]);
   await assert.rejects(removeWallet(one.app, a, { kv, deleteDb: async () => {} }), (e) => e.code === 'missing');
@@ -260,7 +265,7 @@ test('deleting leaves less behind (audit A-9): the passkey is reported gone, sho
   await removeWallet(app, (await listWallets(kv)).find((r) => r.id === A), deps);
   assert.equal(seen.sharedCache, 1, 'the last wallet: the Spark cache goes too');
   assert.deepEqual([...storage.keys()], ['other-site-thing'], "the last wallet: Campfire's own localStorage goes (theme, update address)");
-  assert.equal(kv.m.size, 0);
+  assert.deepEqual([...kv.m.keys()], ['prefs'], 'only the trust-migration note');
 });
 
 test('rename: the open wallet in memory and in storage; another wallet in storage; names checked', async () => {
@@ -309,4 +314,30 @@ test('no balance is kept in storage (audit A-1): an old plaintext one is removed
   // Nothing in the module writes one any more.
   const src = readFileSync(join(SRC, 'lib', 'wallets.js'), 'utf8');
   assert.ok(!/kv\.set\(balanceKey/.test(src));
+});
+
+test('security audit of 0.1.21: an own node or server set from another wallet is not used by this one until its password approves it', async () => {
+  const kv = await threeWallets();
+  const list = await listWallets(kv);
+  const a = list.find((r) => r.id === A);
+  const c = list.find((r) => r.id === C);
+  // Wallet C (added later, its own password) sets an own node and Ethereum server.
+  await savePrefs(c, { server: 'node.attacker.test:50004', ethRpc: 'custom', ethRpcUrl: 'https://rpc.attacker.test', trusted: { firo: 'node.attacker.test:50004', ethereum: 'https://rpc.attacker.test' } }, kv);
+  const pc = await loadPrefs(c, kv);
+  assert.equal(pc.server, 'node.attacker.test:50004', 'the wallet that approved it uses it');
+  assert.equal(pc.ethRpc, 'custom');
+  const pa = await loadPrefs(a, kv);
+  assert.equal(pa.server, 'firo', "the first wallet stays on Firo's nodes");
+  assert.equal(pa.untrustedServer, 'node.attacker.test:50004', 'and is told what was set');
+  assert.equal(pa.ethRpc, undefined, 'the listed Ethereum server');
+  assert.deepEqual(pa.untrustedEvm, { ethereum: 'https://rpc.attacker.test' });
+});
+
+test('security audit of 0.1.21: the first start keeps the own node every existing wallet used, once', async () => {
+  const { migrateTrust } = await import('../../src/lib/wallets.js');
+  const kv = await threeWallets();
+  await kv.set('prefs', { ...(await kv.get('prefs')), server: 'mine.example:50004' });
+  assert.equal(await migrateTrust(kv), true);
+  assert.equal(await migrateTrust(kv), false, 'once');
+  for (const r of await listWallets(kv)) assert.equal((await loadPrefs(r, kv)).server, 'mine.example:50004', r.id);
 });

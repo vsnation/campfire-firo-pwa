@@ -132,6 +132,12 @@
    "created": "2026-11-17T14:36:30.513Z",
    "loader": "sw-889ae1aed8521703.js",
    "file_count": 298
+  },
+  "0.1.22": {
+   "manifest_sha256": "5ae358c156548e25547ef14d2a038b510a71de6b457d5b99b903b994068363ac",
+   "created": "2026-11-17T16:20:12.883Z",
+   "loader": "sw-889ae1aed8521703.js",
+   "file_count": 298
   }
  }
 }

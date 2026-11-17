@@ -12,7 +12,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startServer, launch, recordedPage, waitScreen, shot, sleep, foreignHosts, fake, PWA, SHOTS } from './harness.mjs';
-import { createWallet, waitHome, waitSynced } from './flows.mjs';
+import { createWallet, waitHome, waitSynced, givePassword } from './flows.mjs';
 import { ETH_RPC_HOSTS, BSC_RPC_HOSTS } from '../../src/lib/eth/hosts.js';
 
 const PORT = 8835;
@@ -70,6 +70,7 @@ test('a wallet with 3,000 public FIRO and an Ethereum / BNB side opens the Bridg
   await page.click(tid('eth-import-submit'));
   await waitScreen(page, 'ethPrivacy');
   await page.click(tid('eth-connect'));
+  await givePassword(page, PASSWORD);
   await waitScreen(page, 'ethHome', 30000);
   await page.evaluate(() => window.__campfire.go('bridge', { back: 'home' }));
   await waitScreen(page, 'bridge');

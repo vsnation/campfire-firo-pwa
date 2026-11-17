@@ -95,3 +95,11 @@ export async function lock(page) {
 }
 
 export { sleep };
+
+/** The password sheet (lib/auth_ui.js confirmIdentity), answered: turning on an own node or server, saving an Ethereum wallet, a contact's new address, a longer auto-lock (security audit of 0.1.21). */
+export async function givePassword(page, password, timeout = 15000) {
+  await page.waitForSelector('[data-testid="auth-pw"]', { timeout });
+  await page.fill('[data-testid="auth-pw"]', password);
+  await page.click('[data-testid="auth-submit"]');
+  await page.waitForSelector('[data-testid="auth-pw"]', { state: 'detached', timeout });
+}

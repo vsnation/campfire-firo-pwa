@@ -134,3 +134,16 @@ test('vaultFor: one vault per unlocked wallet; a lock forgets it; locked or no w
   await assert.rejects(C.vaultFor({ record: { id: 'd9d9d9d9d9d9d9d9' }, dbPass: null }, kv), (e) => e.code === 'locked');
   await assert.rejects(C.vaultFor({ record: null, dbPass: 'x' }, kv), (e) => e.code === 'missing');
 });
+
+test('release audit of the 0.1.21 fixes: one contact per name (a second "Alice" would be picked as Alice)', async () => {
+  const { checkContact } = await import('../../src/lib/contacts.js');
+  const list = [{ id: '0123456789abcdef', name: 'Alice', address: '@alice' }];
+  const r = checkContact({ name: 'alice', address: '@bob' }, list);
+  assert.equal(r.ok, false);
+  assert.equal(r.code, 'duplicate');
+  assert.equal(r.field, 'name');
+  assert.equal(checkContact({ name: 'Alice', address: '@alice2' }, list, { editingId: '0123456789abcdef' }).ok, true, 'renaming itself is fine');
+  for (const twin of ['Ali\u00ADce', 'Alice\u2060', 'Alice\uFE0F', '\uFF21lice', 'Alice\u3164', 'Alice\u2800']) assert.equal(checkContact({ name: twin, address: '@bob' }, list).code, 'duplicate', JSON.stringify(twin));
+  // Distinct names in scripts with vowel signs stay distinct.
+  assert.equal(checkContact({ name: 'สุน', address: '@bob' }, [{ id: '0123456789abcdef', name: 'สิน', address: '@alice' }]).ok, true);
+});
