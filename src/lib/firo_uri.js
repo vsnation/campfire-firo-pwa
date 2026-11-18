@@ -26,7 +26,9 @@ export const FIRO_SCHEME = 'firo';
 const MEMO_KEEP = 256;
 
 const SPARK = /^sm1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{60,}$/;
-const TRANSPARENT = /^[aZ][1-9A-HJ-NP-Za-km-z]{33}$/;
+// P2PKH ("a…", "Z…") and P2SH ("3…", "4…"): Send took a P2SH address that Scan, Contacts and firo: links
+// refused (outside audit 2026-11-18, #17). The engine checks the checksum and the network.
+const TRANSPARENT = /^[aZ34][1-9A-HJ-NP-Za-km-z]{33}$/;
 const EXCHANGE = /^EX[1-9A-HJ-NP-Za-km-z]{30,40}$/;
 const NAME = /^@([a-zA-Z0-9][a-zA-Z0-9.-]{0,19})$/;
 const AMOUNT = /^(\d+(\.\d+)?|\.\d+)$/;

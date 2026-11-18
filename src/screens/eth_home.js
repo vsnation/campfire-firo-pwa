@@ -139,7 +139,9 @@ export default function ethHome(app, params = {}) {
         ? h('p', { class: 'small', 'data-testid': 'eth-history-off' }, ethPref.historyHeld ? t("Ethereum: only what this device sent is shown: Stack Wallet's history index is not asked while your own Ethereum server is in use. ") : t('Ethereum: only what this device sent is shown, because History from Stack Wallet is off. '), h('button', { class: 'btn-link', onclick: () => app.go('ethSettings') }, t('Settings')))
         : hist.error
           ? h('p', { class: 'small', 'data-testid': 'eth-history-error', text: t('Older Ethereum payments could not be loaded: {error} What this device sent is shown.', { error: hist.error }) })
-          : null,
+          : hist.incomplete
+            ? h('p', { class: 'small', 'data-testid': 'eth-history-more', text: t('This address has more Ethereum payments than one look reads: the newest show after the next refresh.') })
+            : null,
       h('p', { class: 'small', 'data-testid': 'bsc-history-note', text: t('BNB Chain: only what this device sent is listed (there is no history index for it here). What arrives shows in the balance above.') }),
     );
   }

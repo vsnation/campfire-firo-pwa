@@ -139,6 +139,7 @@
   "That password didn't match. Try again.": {
     "where": [
       "lib/auth_ui.js",
+      "lib/session.js",
       "screens/backup.js"
     ]
   },
@@ -3558,17 +3559,17 @@
       "lib/firo/backend.js"
     ]
   },
-  "This wallet is already open.": {
-    "where": [
-      "lib/firo/backend.js"
-    ]
-  },
   "A view-only wallet needs a Spark view key or an xpub.": {
     "where": [
       "lib/firo/backend.js"
     ]
   },
   "The Spark view key is not hex.": {
+    "where": [
+      "lib/firo/backend.js"
+    ]
+  },
+  "This wallet is already open.": {
     "where": [
       "lib/firo/backend.js"
     ]
@@ -9010,6 +9011,46 @@
       "screens/backup.js"
     ]
   },
+  "Your Ethereum & BNB wallet needs its own backup. ": {
+    "where": [
+      "screens/backup.js"
+    ]
+  },
+  "Your Ethereum & BNB wallet is not in these words or the file. ": {
+    "where": [
+      "screens/backup.js"
+    ]
+  },
+  "It has its own words or private key: back it up in its settings too, or its coins cannot be brought back.": {
+    "where": [
+      "screens/backup.js"
+    ]
+  },
+  "Ethereum & BNB backup": {
+    "where": [
+      "screens/backup.js"
+    ]
+  },
+  "It has no recovery words and cannot spend. To watch it on another device, use the same keys there that it was made with.": {
+    "where": [
+      "screens/backup.js"
+    ]
+  },
+  "It has no recovery words and cannot spend. To watch it on another device, use the same Spark view key and public key (xpub) there.": {
+    "where": [
+      "screens/backup.js"
+    ]
+  },
+  "It has no recovery words and cannot spend. To watch it on another device, use the same public key (xpub) there.": {
+    "where": [
+      "screens/backup.js"
+    ]
+  },
+  "It has no recovery words and cannot spend, so there is nothing to back up. To watch it on another device, use the same Spark view key there.": {
+    "where": [
+      "screens/backup.js"
+    ]
+  },
   "Backup": {
     "where": [
       "screens/backup.js",
@@ -9018,11 +9059,6 @@
     ]
   },
   "This is a watch-only wallet. ": {
-    "where": [
-      "screens/backup.js"
-    ]
-  },
-  "It has no recovery words and cannot spend, so there is nothing to back up. To watch it on another device, use the same Spark view key there.": {
     "where": [
       "screens/backup.js"
     ]
@@ -9051,21 +9087,6 @@
     ]
   },
   "Save an encrypted backup file": {
-    "where": [
-      "screens/backup.js"
-    ]
-  },
-  "Your Ethereum & BNB wallet is not in these words or the file. ": {
-    "where": [
-      "screens/backup.js"
-    ]
-  },
-  "It has its own words or private key: back it up in its settings too, or its coins cannot be brought back.": {
-    "where": [
-      "screens/backup.js"
-    ]
-  },
-  "Ethereum & BNB backup": {
     "where": [
       "screens/backup.js"
     ]
@@ -11256,6 +11277,11 @@
       "word"
     ]
   },
+  "Its own words or private key bring it back: keep them before you delete.": {
+    "where": [
+      "screens/delete_wallet.js"
+    ]
+  },
   "Its private key brings it back; your Firo words do not. Save the key (Settings → Ethereum & BNB → Backup) and keep your Firo words before you delete.": {
     "where": [
       "screens/delete_wallet.js"
@@ -11338,6 +11364,21 @@
     ]
   },
   "Delete wallet": {
+    "where": [
+      "screens/delete_wallet.js"
+    ]
+  },
+  "Nobody can reset the password. This watch-only wallet holds no coins of its own: delete it from this device, then add it again with the keys it was made with.": {
+    "where": [
+      "screens/delete_wallet.js"
+    ]
+  },
+  "This is a watch-only wallet: deleting it removes no coins. ": {
+    "where": [
+      "screens/delete_wallet.js"
+    ]
+  },
+  "To watch it again, you need the keys it was made with (its Spark view key or xpub).": {
     "where": [
       "screens/delete_wallet.js"
     ]
@@ -11522,6 +11563,11 @@
     ],
     "placeholders": [
       "error"
+    ]
+  },
+  "This address has more Ethereum payments than one look reads: the newest show after the next refresh.": {
+    "where": [
+      "screens/eth_home.js"
     ]
   },
   "BNB Chain: only what this device sent is listed (there is no history index for it here). What arrives shows in the balance above.": {
@@ -17560,64 +17606,10 @@
       "screens/receive.js"
     ]
   },
-  "Block height, like 1100000": {
-    "where": [
-      "screens/rescan.js"
-    ]
-  },
-  "Start at block": {
-    "where": [
-      "screens/rescan.js",
-      "screens/watch.js"
-    ]
-  },
-  "Where to start": {
-    "where": [
-      "screens/rescan.js"
-    ]
-  },
   "Rescan": {
     "where": [
       "screens/rescan.js",
       "screens/settings.js"
-    ]
-  },
-  "From when this wallet was made": {
-    "where": [
-      "screens/rescan.js"
-    ]
-  },
-  "Block {birthday}. Quicker; payments before it are not looked for.": {
-    "where": [
-      "screens/rescan.js"
-    ],
-    "placeholders": [
-      "birthday"
-    ]
-  },
-  "From a block I choose": {
-    "where": [
-      "screens/rescan.js"
-    ]
-  },
-  "If you know when your first payment arrived.": {
-    "where": [
-      "screens/rescan.js"
-    ]
-  },
-  "Everything": {
-    "where": [
-      "screens/rescan.js"
-    ]
-  },
-  "Reads the whole Spark history. Slowest, and always complete.": {
-    "where": [
-      "screens/rescan.js"
-    ]
-  },
-  "Type the block height to start at, in digits.": {
-    "where": [
-      "screens/rescan.js"
     ]
   },
   "Rescanning. Home shows how far along it is.": {
@@ -17639,6 +17631,11 @@
     ]
   },
   "Firo PWA reads the Firo blockchain again for your payments. Nothing is sent and nothing is deleted.": {
+    "where": [
+      "screens/rescan.js"
+    ]
+  },
+  "It reads the whole Spark history, from the first block, so nothing is missed.": {
     "where": [
       "screens/rescan.js"
     ]
@@ -17876,22 +17873,6 @@
     ]
   },
   "Firo PWA couldn't tell whether the payment left. Look in Activity before you send it again.": {
-    "where": [
-      "screens/review.js"
-    ]
-  },
-  "Private: the amount, you and the receiver stay hidden on the blockchain.": {
-    "where": [
-      "screens/review.js",
-      "screens/send.js"
-    ]
-  },
-  "Your balance and history stay private; what arrives at the receiver's public address can be seen.": {
-    "where": [
-      "screens/review.js"
-    ]
-  },
-  "Public: the amount and both addresses can be seen on the blockchain.": {
     "where": [
       "screens/review.js"
     ]
@@ -19087,6 +19068,11 @@
       "screens/send.js"
     ]
   },
+  "Private: the amount, you and the receiver stay hidden on the blockchain.": {
+    "where": [
+      "screens/send.js"
+    ]
+  },
   "Public address": {
     "where": [
       "screens/send.js"
@@ -19103,6 +19089,21 @@
     ]
   },
   "An exchange address takes payments from your public balance only, so this one goes from Public.": {
+    "where": [
+      "screens/send.js"
+    ]
+  },
+  "Your balance and history stay private; what arrives at the receiver's public address can be seen.": {
+    "where": [
+      "screens/send.js"
+    ]
+  },
+  "From your public balance: your public address and the amount can be seen on the blockchain; the receiver's Spark address stays hidden.": {
+    "where": [
+      "screens/send.js"
+    ]
+  },
+  "Public: the amount and both addresses can be seen on the blockchain.": {
     "where": [
       "screens/send.js"
     ]
@@ -19731,6 +19732,11 @@
       "screens/settings.js"
     ]
   },
+  "Watch-only: the keys it was made with": {
+    "where": [
+      "screens/settings.js"
+    ]
+  },
   "Payments": {
     "where": [
       "screens/settings.js"
@@ -20276,6 +20282,11 @@
     ]
   },
   "xpub… (optional, for public payments)": {
+    "where": [
+      "screens/watch.js"
+    ]
+  },
+  "Start at block": {
     "where": [
       "screens/watch.js"
     ]

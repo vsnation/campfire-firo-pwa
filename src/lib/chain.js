@@ -129,6 +129,7 @@ export async function keys() {
   return {
     generateMnemonic: (words = 24) => b.generateMnemonic(words),
     validateMnemonic: (text) => b.validateMnemonic(text),
+    validateWatchKeys: (k) => b.validateWatchKeys(k),
   };
 }
 

@@ -555,6 +555,24 @@ export class FiroBackend {
     return v.ok ? { ok: true } : { ok: false, error: v.error };
   }
 
+  /**
+   * The keys a watch-only wallet is made from, checked as openViewOnly will read them: before the
+   * wallet is saved, so a mistyped one is corrected in the form instead of leaving a wallet that
+   * cannot open (outside audit 2026-11-18, #13).
+   */
+  validateWatchKeys({ viewKey = '', xpub = '' } = {}) {
+    if (!viewKey && !xpub) return { ok: false, error: t('A view-only wallet needs a Spark view key or an xpub.') };
+    if (viewKey && (!/^[0-9a-f]+$/i.test(viewKey) || viewKey.length % 2)) return { ok: false, field: 'viewKey', error: t('The Spark view key is not hex.') };
+    if (xpub) {
+      try {
+        FiroKeys.fromXpub(xpub, this.net);
+      } catch (e) {
+        return { ok: false, field: 'xpub', error: e.message };
+      }
+    }
+    return { ok: true };
+  }
+
   classifyAddress(text) {
     const c = classify(text, this.net);
     const out = { kind: c.kind };
@@ -888,7 +906,7 @@ export class FiroBackend {
 
   _txList() {
     const tipH = this.tip?.height ?? 0;
-    const item = this.transparent ? transparentEntries({ net: this.net, records: this.transparent.txs, isOwnScript: (s) => this.transparent.isOwnScript(s), isBigScript: (s) => this.transparent.isBigScript(s), tipHeight: tipH, pending: this.transparent.pending, oneNode: this._oneNodeReceipts }) : new Map();
+    const item = this.transparent ? transparentEntries({ net: this.net, records: this.transparent.txs, isOwnScript: (s) => this.transparent.isOwnScript(s), isChangeScript: (s) => this.transparent.ownEntryForScript(s)?.chain === CHAIN_CHANGE, isBigScript: (s) => this.transparent.isBigScript(s), tipHeight: tipH, pending: this.transparent.pending, oneNode: this._oneNodeReceipts }) : new Map();
     const coins = [...this.ownCoins.values()].map((c) => ({
       txid: c.txid,
       value: c.value,
@@ -3852,7 +3870,7 @@ export class FiroBackend {
    * cannot be mapped to a height without asking about own coins, so
    * `fromHeight` is accepted but everything is looked at again.
    */
-  async rescan({ fromHeight } = {}) {
+  async rescan({ fromHeight, madeHere = false } = {}) {
     void fromHeight;
     // Everything is read again: shown as a sync, not as a refresh of a few blocks.
     this._lastFull = null;
@@ -3898,6 +3916,15 @@ export class FiroBackend {
       this._mempoolLookAgain();
       this.progress.groups = {};
       this.progress.tagsUpTo = 0;
+      // A restored wallet: every set from the first one, as for one restored without a starting block.
+      // Restored with a recent block, it had started at the newest set, and a Rescan kept that, so a
+      // payment in an older set stayed missing (outside audit 2026-11-18, #02). A wallet whose words
+      // were made on this device has nothing older: it keeps its quick start (the spent list from the
+      // checkpoint, which a slow line can download).
+      if (!madeHere) {
+        this.progress.firstGroup = 1;
+        this.progress.isNew = false;
+      }
       // Every set looked at whole again, from its first coin (sixth audit N1: a look at a set
       // downloaded anew, carried on from where it stopped, skipped the coins before that place).
       this.progress.gens = {};

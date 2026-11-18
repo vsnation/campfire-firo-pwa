@@ -32,7 +32,7 @@ import {
 } from '../../src/lib/intents/oneclick.js';
 import { makeSwap, swapToJson, swapFromJson, withStatus, sameSwap, sealedIntentsStore, memoryIntentsStore, INTENTS_RECORD } from '../../src/lib/intents/store.js';
 import { durationText, feeText, problemWords, statusWords, swapSteps, stateLine, sendText, swapSpend, KEEP_FOR_GAS, isWaiting, isExpired, untilText, whoSees } from '../../src/lib/intents/words.js';
-import { isLive, UNPAID_GRACE_MS } from '../../src/lib/intents/wiring.js';
+import { isLive, UNPAID_GRACE_MS, EXPIRED_LISTED_MS } from '../../src/lib/intents/wiring.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = (n) => JSON.parse(readFileSync(join(here, 'fixtures', 'intents', n), 'utf8'));
@@ -330,8 +330,12 @@ test('swaps under way: open, and not an address nobody paid before it stopped wo
   const s = swapOf();
   assert.ok(isLive(s, s.quote.sendBefore - 1));
   assert.ok(isLive(s, s.quote.sendBefore + 1), 'just past the hour asked for: a deposit may be on its way');
-  assert.ok(!isLive(s, s.quote.sendBefore + UNPAID_GRACE_MS + 1), 'nobody paid it in time');
-  assert.ok(!isLive(s, s.quote.deadline + 1));
+  // Its time ran out unpaid: still listed for a week, as "No … arrived in time", so its screen (which
+  // looks again when opened) can be reached (outside audit 2026-11-18, #18); then gone.
+  const end = Math.min(s.quote.sendBefore + UNPAID_GRACE_MS, s.quote.deadline);
+  assert.ok(isLive(s, end + 1), 'just ran out: still reachable');
+  assert.ok(isLive(s, end + EXPIRED_LISTED_MS - 1));
+  assert.ok(!isLive(s, end + EXPIRED_LISTED_MS + 1), 'nobody paid it in time, a week ago');
   const seen = withStatus(s, readStatus({ status: 'KNOWN_DEPOSIT_TX' }), 1);
   assert.ok(isLive(seen, s.quote.deadline + 1), 'paid: followed until it ends');
   assert.ok(!isLive(withStatus(s, readStatus({ status: 'REFUNDED' }), 1)));

@@ -4,55 +4,27 @@
  *       Taps from app open: 2 (☰ -> Rescan), 3 to start.
  * Exit-intent reasons and answers:
  *   - "Will I lose coins or history?" -> no: it only reads again; nothing is sent.
- *   - "How long?" -> said up front: from the start of the wallet it is quicker, everything takes
- *     longest; Home shows how far along it is, and sending waits until it is done.
- *   - "Which block do I start at?" -> the block the wallet was made at is filled in when known;
- *     "Everything" is always safe.
+ *   - "How long?" -> said up front: it reads everything, so it takes a while; Home shows how far
+ *     along it is, and sending waits until it is done.
+ * A Rescan always reads the whole history. It once offered to start at a block, which the engine
+ * did not do, and its "Everything" kept a recent wallet's later start (outside audit 2026-11-18,
+ * #02): one way now, the one that is always complete.
  */
 import { h, put } from '../lib/dom.js';
 import { screen, primary, notice, toast } from '../lib/ui.js';
 import { wallet } from '../lib/wallet.js';
 import { isNotYet } from '../lib/chain.js';
-import { parseHeight } from './restore.js';
 import { t } from '../lib/i18n.js';
 
 export default function rescan(app) {
-  const birthday = Number.isSafeInteger(app.record.birthday) ? app.record.birthday : null;
-  let choice = birthday != null ? 'birthday' : 'all';
   const msg = h('div', { 'aria-live': 'polite' });
-  const height = h('input', { class: 'input', type: 'text', inputmode: 'numeric', autocomplete: 'off', placeholder: t('Block height, like 1100000'), 'aria-label': t('Start at block'), 'data-testid': 'rescan-height' });
-  const options = h('div', { class: 'card list', role: 'radiogroup', 'aria-label': t('Where to start') });
   const cta = primary(t('Rescan'), run, { 'data-testid': 'rescan-start' });
 
-  function option(id, title, sub) {
-    return h(
-      'button',
-      { class: `row choice-row${choice === id ? ' on' : ''}`, type: 'button', role: 'radio', 'aria-checked': String(choice === id), 'data-testid': `rescan-${id}`, onclick: () => ((choice = id), render()) },
-      h('span', { class: `radio${choice === id ? ' on' : ''}`, 'aria-hidden': 'true' }),
-      h('span', { class: 'main' }, h('div', { class: 't', text: title }), h('div', { class: 's wrap', text: sub })),
-    );
-  }
-
-  function render() {
-    put(
-      options,
-      birthday != null ? option('birthday', t('From when this wallet was made'), t('Block {birthday}. Quicker; payments before it are not looked for.', { birthday: birthday.toLocaleString('en-US') })) : null,
-      option('height', t('From a block I choose'), t('If you know when your first payment arrived.')),
-      option('all', t('Everything'), t('Reads the whole Spark history. Slowest, and always complete.')),
-    );
-    height.classList.toggle('hidden', choice !== 'height');
-  }
-
   async function run() {
-    let from = null;
-    if (choice === 'birthday') from = birthday;
-    if (choice === 'height') {
-      from = parseHeight(height.value);
-      if (from == null || from === false) return put(msg, notice('warn', t('Type the block height to start at, in digits.')));
-    }
     cta.disabled = true;
     try {
-      await wallet.rescan(from);
+      // Words made on this device: nothing before it existed to look for.
+      await wallet.rescan(null, { madeHere: Boolean(app.record && app.record.newWallet && !app.record.restored) });
       toast(t('Rescanning. Home shows how far along it is.'), 4000);
       app.go('home');
     } catch (e) {
@@ -61,12 +33,10 @@ export default function rescan(app) {
     }
   }
 
-  render();
   const el = screen(
     { title: t('Rescan'), back: () => app.back('settings'), actions: [cta] },
     h('p', { class: 'lead', text: t('Firo PWA reads the Firo blockchain again for your payments. Nothing is sent and nothing is deleted.') }),
-    options,
-    height,
+    h('div', { class: 'card', 'data-testid': 'rescan-all' }, h('p', { class: 'small', text: t('It reads the whole Spark history, from the first block, so nothing is missed.') })),
     notice('info', t('It may take a while. Sending waits until it is done; you can leave the app and come back.')),
     msg,
   );

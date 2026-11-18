@@ -31,7 +31,7 @@ import { wallet } from '../lib/wallet.js';
 import { openPaymentsTo } from '../lib/open_payments.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { contactNameFor } from '../lib/contacts.js';
-import { ADDRESS_WORDS } from './send.js';
+import { ADDRESS_WORDS, privacyLine } from './send.js';
 import { sendOutcome, UNSURE_TITLE } from '../lib/send_outcome.js';
 import { paymentInFlight, startPayment, onPaymentFlight, IN_FLIGHT_TEXT, IN_FLIGHT_NOTE } from '../lib/payment_flight.js';
 import { t } from '../lib/i18n.js';
@@ -53,12 +53,8 @@ export function sendFailure(e) {
   return { kind: 'unknown', text: (said ? t('Firo PWA couldn\'t tell whether the payment left: {said} Look in Activity before you send it again.', { said }) : t('Firo PWA couldn\'t tell whether the payment left. Look in Activity before you send it again.')) };
 }
 
-/** Who sees what, for a payment from `from` to an address of `kind`. */
-export function privacyLine(from, kind) {
-  if (from === 'private' && kind === 'spark') return t('Private: the amount, you and the receiver stay hidden on the blockchain.');
-  if (from === 'private') return t("Your balance and history stay private; what arrives at the receiver's public address can be seen.");
-  return t('Public: the amount and both addresses can be seen on the blockchain.');
-}
+/** Who sees what (one wording for Send and Review: screens/send.js). */
+export { privacyLine };
 
 /**
  * Reviews whose payment has started (by their params, and the id Send gives each one): Back (or any

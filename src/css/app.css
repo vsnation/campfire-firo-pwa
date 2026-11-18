@@ -206,7 +206,7 @@ p { margin: 0; }
 .btn-text { background: none; color: var(--on-secondary); min-height: 44px; }
 .btn-text:disabled { color: var(--muted); cursor: not-allowed; } /* "Connecting…", and the other nodes while one is being moved to: not offered as taps */
 .btn-danger { background: var(--error-bg); color: var(--error); }
-.btn-row { display: flex; gap: 10px; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 10px; } /* two labels wider than a 320 px phone wrap instead of leaving the screen (outside audit 2026-11-18, #16) */
 .btn-row .btn { flex: 1; }
 .btn-small { min-height: 36px; width: auto; padding: 6px 12px; font-size: 14px; border-radius: 8px; }
 
@@ -313,6 +313,7 @@ textarea.input { resize: none; min-height: 84px; }
 
 
 .overlay { position: fixed; inset: 0; background: rgba(17, 18, 21, 0.45); z-index: 50; display: flex; align-items: flex-end; justify-content: center; }
+.sheet:focus { outline: none; } /* focused as a whole only so Tab starts inside it (lib/ui.js openSheet) */
 .sheet {
   background: var(--bg); width: 100%; max-width: 520px; overflow: auto;
   /* Always a band above it to tap: Safari's vh counts its hidden toolbars, so 92vh filled the screen. */
@@ -739,6 +740,8 @@ details.more.card { padding: 12px 16px; }
 .segmented .seg-t svg { width: 16px; height: 16px; }
 .segmented .seg-s { font-size: 12px; font-weight: 500; color: var(--muted); }
 .segmented.small .seg { min-height: 36px; font-size: 14px; }
+.count-pick .small { margin: 0 0 6px; }
+.count-pick .segmented .seg { padding: 6px 4px; font-variant-numeric: tabular-nums; }
 div.field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500; color: var(--text-2); }
 
 /* Advanced (passphrase, starting block) folded away. */

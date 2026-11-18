@@ -27,7 +27,7 @@ const DEPOSIT = `0x${'dD'.repeat(20)}`;
 function rig(outbox, { readFails = false, order = {}, pollError = null, onPoll = null } = {}) {
   const o = { depositAddress: DEPOSIT, symbol: 'ETH', chain: 'eth', chainName: 'Ethereum', assetId: 'coin:eth', sendAmount: '0.5', contract: null, lastState: 'awaiting_deposit', isOpen: true, refundAddress: `0x${'ee'.repeat(20)}`, estimate: 100, deadline: null };
   Object.assign(o, order);
-  globalThis.__buyController = { order: (d) => (d === DEPOSIT ? o : null), pollError: () => (typeof pollError === 'function' ? pollError() : pollError), onChange: () => () => {}, resumeAll: async () => {}, poll: async () => (onPoll && onPoll(o), o), loadError: null };
+  globalThis.__buyController = { order: (d) => (d === DEPOSIT ? o : null), pollError: () => (typeof pollError === 'function' ? pollError() : pollError), onChange: () => () => {}, resumeAll: async () => {}, poll: async () => (onPoll && onPoll(o), o), pollFresh: async () => (onPoll && onPoll(o), o), loadError: null };
   globalThis.__ethWallet = plainEthWallet({
     reloadOutbox: async () => {
       if (readFails) throw new Error('The outbox could not be opened.');

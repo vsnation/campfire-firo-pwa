@@ -47,10 +47,12 @@ const MASTERNODE_LARGEST_FROM = { main: 486221, test: 84459 };
  * Entries for transparent transactions.
  * records: Map txid → {decoded, height, time, firstSeen, inputs, proof?, dropped?}
  * isOwnScript(script) → bool
+ * isChangeScript(script) → bool: one of this wallet's change addresses (a payment to itself counts only
+ *   what went to its receiving address, not the change; outside audit 2026-11-18, #07)
  * pending: Map txid → {unsure?, oneNode?, letGo?}: this wallet's own payments not in a block yet (transparent.js).
  * Returns Map txid → entry (BigInt amounts).
  */
-export function transparentEntries({ net = NETWORKS.main, records, isOwnScript, isBigScript = () => false, tipHeight, pending = new Map(), oneNode = false }) {
+export function transparentEntries({ net = NETWORKS.main, records, isOwnScript, isChangeScript = () => false, isBigScript = () => false, tipHeight, pending = new Map(), oneNode = false }) {
   const counted = oneNode ? COUNTED : PROVEN;
   const out = new Map();
   // Only an address the node will not list (second audit, N-6: any address let a lying node show a
@@ -84,6 +86,7 @@ export function transparentEntries({ net = NETWORKS.main, records, isOwnScript, 
       else if (!sender) sender = po?.address ?? fallback?.address ?? null;
     });
     let ownOut = 0n;
+    let changeOut = 0n; // of ownOut, what went to a change address
     let allOut = 0n;
     let otherOut = 0n;
     let minted = 0n;
@@ -96,7 +99,10 @@ export function transparentEntries({ net = NETWORKS.main, records, isOwnScript, 
       if (!largest || o.value > largest.value) largest = o;
       if (o.type === 'spark-mint') minted += o.value;
       if (o.type === 'nulldata') continue;
-      if (isOwnScript(o.script)) ownOut += o.value;
+      if (isOwnScript(o.script)) {
+        ownOut += o.value;
+        if (isChangeScript(o.script)) changeOut += o.value;
+      }
       else {
         otherOut += o.value;
         if (!firstOther && o.address) firstOther = o.address;
@@ -145,6 +151,9 @@ export function transparentEntries({ net = NETWORKS.main, records, isOwnScript, 
       // Spark → transparent. From someone else, unless the Spark side knows it as ours (merged later).
       e.kind = d.sparkName ? 'spark-name' : 'spark';
       e.amount = ownOut;
+      // Paid out of a Spark balance into this wallet's public one: on the blockchain anyone sees what
+      // arrived, so it is a public receipt, not a private one (outside audit 2026-11-18, #05).
+      if (ownOut > 0n) e.inPublic = true;
       if (d.spark?.fee !== undefined) e.sparkFee = d.spark.fee;
     } else if (d.kind === 'spark-mint') {
       // Public → Spark. Who the Spark outputs are for only the Spark side can tell (merged later);
@@ -174,7 +183,9 @@ export function transparentEntries({ net = NETWORKS.main, records, isOwnScript, 
       e.fee = paidFee;
       if (otherOut === 0n) {
         e.direction = 'self';
-        e.amount = ownOut;
+        // What was paid to this wallet's own address, without the change (1 FIRO to itself from a 10
+        // FIRO coin read 9.9999); all of it when everything went to change addresses.
+        e.amount = ownOut - changeOut > 0n ? ownOut - changeOut : ownOut;
       } else {
         e.direction = 'out';
         e.amount = otherOut;
@@ -370,6 +381,7 @@ function toApi(e) {
   if (e.memo) tx.memo = e.memo;
   if (e.counterparty) tx.counterparty = e.counterparty;
   if (e.toPublic) tx.toPublic = true;
+  if (e.inPublic) tx.inPublic = true;
   if (Array.isArray(e.counterparties) && e.counterparties.length > 1) tx.counterparties = e.counterparties;
   if (e.dropped) {
     tx.dropped = true;

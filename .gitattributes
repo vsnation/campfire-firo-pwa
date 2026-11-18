@@ -1,0 +1,10 @@
+# Release files are hashed and signed byte for byte, and tools/loader_source.mjs reads them line by
+# line: every checkout gets the same bytes (outside audit 2026-11-18, #20: a Windows checkout with
+# core.autocrlf=true could not build the signed app).
+* text=auto eol=lf
+*.png binary
+*.ttf binary
+*.wasm binary
+*.ico binary
+# Shipped with its own line ends (CRLF) since it was added; its hash is part of the release.
+src/fonts/LICENSE.txt -text

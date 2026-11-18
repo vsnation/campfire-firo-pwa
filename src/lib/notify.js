@@ -59,7 +59,7 @@ export function setBanner(fn) {
 /** screens/near_intents*.js: unpaid swaps and when their deposit addresses stop taking coins. */
 export function rememberNearSwaps(list) {
   near = (list || [])
-    .filter((s) => s && s.quote && s.quote.sendBefore && (s.lastState == null || s.lastState === 'PENDING_DEPOSIT'))
+    .filter((s) => s && s.quote && s.quote.sendBefore && s.quote.sendBefore > Date.now() && (s.lastState == null || s.lastState === 'PENDING_DEPOSIT'))
     .map((s) => ({ id: String(s.quote.depositAddress || s.createdAt), symbol: s.origin.symbol, sendBefore: s.quote.sendBefore }));
 }
 

@@ -26,6 +26,7 @@ export const isPendingTx = (tx) => !(Number(tx && tx.confirmations) >= MIN_CONFI
 /** The balance a payment touched, for its row: private (Spark), public (transparent), or the move between. */
 export function txSide(tx) {
   if (tx && tx.toPublic) return 'publicize';
+  if (tx && tx.inPublic && tx.direction === 'in') return 'public';
   switch (tx && tx.kind) {
     case 'privatize':
       return 'privatize';
@@ -114,6 +115,8 @@ export function mapTx(tx, tip = null) {
     oneNodeProof: tx.oneNodeProof === true,
     // Ours, from the private balance, all of it to this wallet's own public addresses (0.1.21).
     toPublic: tx.toPublic === true,
+    // Received into the public balance from someone's Spark balance: a public receipt.
+    inPublic: tx.inPublic === true,
   };
 }
 
@@ -394,8 +397,8 @@ export class Wallet {
     return this.need().whoseAddress(String(text ?? ''));
   }
 
-  rescan(fromHeight = null) {
-    return this.need().rescan(Number.isSafeInteger(fromHeight) ? { fromHeight } : {});
+  rescan(fromHeight = null, { madeHere = false } = {}) {
+    return this.need().rescan({ ...(Number.isSafeInteger(fromHeight) ? { fromHeight } : {}), ...(madeHere ? { madeHere: true } : {}) });
   }
 
   clearSparkCache() {

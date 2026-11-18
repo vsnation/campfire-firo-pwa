@@ -14,6 +14,10 @@ import { fakeIndexedDB, IDBKeyRangeStub } from './helpers/fake_idb.mjs';
 const idb = fakeIndexedDB();
 globalThis.indexedDB = idb;
 globalThis.IDBKeyRange = IDBKeyRangeStub;
+// The fixture marks this page as the tab holding the wallet without claiming a lock, so it runs
+// one_tab.js's fallback (no Web Locks): Node 24 has navigator.locks, under which these failed
+// (outside audit 2026-11-18, verification notes).
+if (globalThis.navigator && 'locks' in globalThis.navigator) Object.defineProperty(globalThis.navigator, 'locks', { value: undefined, configurable: true });
 
 const { oneTab } = await import('../../src/lib/one_tab.js');
 const { createWallet } = await import('../../src/lib/session.js');

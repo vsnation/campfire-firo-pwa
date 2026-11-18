@@ -60,11 +60,19 @@ export async function openSwaps(store, now = Date.now()) {
 /** How long an unpaid swap stays listed after its time ran out: a deposit sent just in time may not be seen yet. */
 export const UNPAID_GRACE_MS = 2 * 60 * 60 * 1000;
 
-/** Open, and not an address nobody paid in time (listed a while longer, in case a deposit is on its way). */
+/**
+ * An unpaid swap whose time ran out stays listed this long more, as "No … arrived in time", so its
+ * screen (which looks at it again when opened, and no longer shows where to pay) can still be reached:
+ * one paid from another wallet with Firo PWA closed once vanished before the wallet learned whether it
+ * arrived (outside audit 2026-11-18, #18).
+ */
+export const EXPIRED_LISTED_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Open, and not an address nobody paid in time a week ago or more. */
 export function isLive(s, now = Date.now()) {
   if (!s.isOpen) return false;
   const unpaid = s.lastState == null || s.lastState === 'PENDING_DEPOSIT';
   if (!unpaid) return true;
   const ends = [s.quote.sendBefore != null ? s.quote.sendBefore + UNPAID_GRACE_MS : null, s.quote.deadline].filter((t) => t != null);
-  return !ends.length || now <= Math.min(...ends);
+  return !ends.length || now <= Math.min(...ends) + EXPIRED_LISTED_MS;
 }

@@ -4,13 +4,14 @@ import { t, onLanguageChange } from './lib/i18n.js';
 import { applyTheme, readTheme } from './lib/theme.js';
 import { h, clear } from './lib/dom.js';
 import { getPrefs } from './lib/store.js';
-import { listWallets, initialWallet, loadPrefs, savePrefs, scopeTo, forgetStoredBalances, nameOf, migrateTrust } from './lib/wallets.js';
+import { listWallets, initialWallet, loadPrefs, savePrefs, scopeTo, forgetStoredBalances, nameOf, migrateTrust, forgetDrafts } from './lib/wallets.js';
 import { setScopeOpen } from './lib/wallet_scope.js';
 import { wallet } from './lib/wallet.js';
 import { backendKind, closeSparkCache } from './lib/chain.js';
 import { startOpenWallet, markSetupDone, noteFirstSync } from './lib/session.js';
 import { updates, takeJustUpdated } from './lib/update.js';
 import { installBack } from './lib/back.js';
+import { installRadioKeys } from './lib/radiogroup.js';
 import { navHistory } from './lib/nav.js';
 import { swSupported, isControlled, clearReloadFlag, installedButBypassed, watchLoader, loaderBehind } from './lib/loader.js';
 import { refreshPersistence } from './lib/storage.js';
@@ -168,6 +169,7 @@ export const app = {
       o.dispatchEvent(new Event('campfire:dismiss'));
       o.remove();
     });
+    root.inert = false; // no sheet is left over a new screen (lib/ui.js openSheet makes the screen inert under one)
     clear(root);
     this.currentName = name;
     this.params = params;
@@ -252,9 +254,7 @@ export const app = {
     // A fresh start after the lock: no payment place held, no prefilled payment or swap that could be
     // sent again, no result toast from before it (audit 0.1.8).
     releasePayments();
-    this.sendDraft = null;
-    this.uniDraft = null;
-    this.bscSwapDraft = null;
+    forgetDrafts(this);
     document.querySelectorAll('.toast').forEach((item) => item.remove());
     if (beforeUnlock) await beforeUnlock();
     if (wasOpen || this.currentName !== 'unlock') this.go('unlock', { ...params, reason });
@@ -417,7 +417,12 @@ async function boot() {
       // After an Update that brought a new loader, the page reloads under it as soon
       // as it has taken over, when nothing is unlocked; otherwise Home offers it.
       watchLoader({ onIntrusion: (why) => app.intruded(why), onMoved: () => (app.dbPass ? app.updates.emit() : location.reload()) }).catch((e) => console.warn('[campfire] loader watch', e.message));
-    } else if (!(await installedButBypassed())) {
+    } else if (await installedButBypassed()) {
+      // Installed, and this load skipped it (a hard reload, or the developer tools' bypass): the page
+      // came from the web address, unchecked. It never opens a wallet or asks for a password (outside
+      // security audit 2026-11-18, #9): it says to open it again, which goes through the checked copy.
+      return app.go('problem', { kind: 'bypassed' });
+    } else {
       // First open on this device (or the browser cleared it): set up the verified copy, with progress.
       return app.go('install');
     }
@@ -473,6 +478,7 @@ app.bscNote = function bscNote() {
 };
 
 installBack(app);
+installRadioKeys();
 
 // Another language (Welcome's language control, or Settings -> App -> Language): the screen on show is
 // drawn again in it, at the same place, with the same control focused (its catalog is read by then:

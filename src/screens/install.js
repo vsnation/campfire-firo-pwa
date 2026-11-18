@@ -209,7 +209,12 @@ export default function install(app) {
         h('p', { class: 'small', text: t('Still here? If your browser\'s developer tools are open, turn off "Update on reload" and "Bypass for network" (Application, Service workers), then open it again.') }),
       );
     }, OPEN_TIMEOUT_MS);
-    if (!reloadOnceIntoVerifiedCopy()) app.continueBoot();
+    // Opened from the checked copy only: if this page is still not under it after the one reload, it
+    // says to open it again rather than open a wallet from the web address (outside security audit
+    // 2026-11-18, #9).
+    // This page's own scripts came from the web address, not the checked copy, even if the copy takes
+    // it over now: it is opened again, which goes through the copy (pre-release audit of 0.1.23).
+    if (!reloadOnceIntoVerifiedCopy()) app.go('problem', { kind: 'bypassed' });
   }
 
   show(null);

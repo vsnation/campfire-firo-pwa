@@ -22,7 +22,7 @@ import { entryChain } from './outbox.js';
 import { t } from '../i18n.js';
 
 export const PAGE = 250;
-export const MAX_PAGES = 8;
+export const MAX_PAGES = 20; // 5,000 payments a look; a busier address carries on at the next look
 export const TRANSFER_TOPIC = '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
 const HASH = /^0x[0-9a-fA-F]{64}$/;
@@ -256,12 +256,28 @@ async function getJson(url, { fetch: fetchImpl = (...a) => globalThis.fetch(...a
  * HistoryError when the index cannot be asked; the caller still shows the
  * outbox.
  */
-export async function fetchHistory(address, { fetch, timeoutMs, tokens = TOKENS } = {}) {
+export async function fetchHistory(address, { fetch, timeoutMs, tokens = TOKENS, before = null } = {}) {
   const opts = { fetch, timeoutMs };
   const txs = [];
   const seen = new Set();
   let firstBlock = 0;
-  for (let page = 0; page < MAX_PAGES; page++) {
+  // What an earlier look of this session found carries on from its newest block: the index pages
+  // oldest first, so a busy address's newest payments were past the last page and missing from
+  // every look (outside audit 2026-11-18, #09: 2,500 payments showed the oldest 1,993).
+  if (before && Array.isArray(before.txs) && before.address === address) {
+    for (const tx of before.txs) {
+      if (seen.has(tx.hash)) continue;
+      seen.add(tx.hash);
+      txs.push(tx);
+      if (tx.blockNumber !== null && tx.blockNumber > firstBlock) firstBlock = tx.blockNumber;
+    }
+  }
+  let incomplete = false;
+  for (let page = 0; ; page++) {
+    if (page >= MAX_PAGES) {
+      incomplete = true; // more to come: the next look carries on from here
+      break;
+    }
     const json = await getJson(historyUrl(address, { firstBlock }), opts);
     const raw = Array.isArray(json && json.data) ? json.data.length : 0;
     let last = firstBlock;
@@ -271,9 +287,14 @@ export async function fetchHistory(address, { fetch, timeoutMs, tokens = TOKENS 
       seen.add(tx.hash);
       txs.push(tx);
     }
-    if (raw < PAGE || last === firstBlock) break;
+    if (raw < PAGE) break;
+    if (last === firstBlock) {
+      // A whole page from one block: the index cannot be asked past it; the rest of that block may be missing.
+      incomplete = true;
+      break;
+    }
     firstBlock = last;
   }
   const transfers = (await Promise.all(tokens.map(async (token) => parseTokenTransfers(await getJson(historyUrl(address, { emitter: token.address }), opts), address, token)))).flat();
-  return { txs, transfers };
+  return { txs, transfers, incomplete, address };
 }

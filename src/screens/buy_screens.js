@@ -3,7 +3,7 @@
 // way in from Home: there is one thing to buy, FIRO into this wallet, so Buy
 // opens its form straight away (no chooser).
 import { h } from '../lib/dom.js';
-import { notice, screen, openSheet, assetBadge } from '../lib/ui.js';
+import { notice, screen, openSheet, assetBadge, mountLoaded } from '../lib/ui.js';
 import { icon } from '../lib/icons.js';
 import { t } from '../lib/i18n.js';
 
@@ -17,12 +17,12 @@ function lazyScreen(load) {
       .then((m) => {
         if (dead) return;
         inner = m.default(app, params) || {};
-        holder.replaceWith(inner.el || inner);
+        mountLoaded(holder, inner.el || inner);
       })
       .catch((e) => {
         if (dead) return;
         console.error(e);
-        holder.replaceWith(screen({ title: t('Buy FIRO'), back: () => app.back('home') }, notice('error', t('This screen could not be opened: {message}. Go back and try again.', { message: e.message }))));
+        mountLoaded(holder, screen({ title: t('Buy FIRO'), back: () => app.back('home') }, notice('error', t('This screen could not be opened: {message}. Go back and try again.', { message: e.message }))));
       });
     return {
       el: holder,

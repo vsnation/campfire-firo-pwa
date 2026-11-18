@@ -183,7 +183,7 @@ function actionsSheet(app, r, done) {
     }, { 'data-testid': 'wallet-rename' }),
     h('button', { class: 'btn btn-text danger', type: 'button', 'data-testid': 'wallet-delete', onclick: () => {
       close();
-      app.go('deleteWallet', { id: r.id, name: nameOf(r), words: r.words, passphrase: Boolean(r.passphrase) });
+      app.go('deleteWallet', { id: r.id, name: nameOf(r), words: r.words, passphrase: Boolean(r.passphrase), watchOnly: Boolean(r.watchOnly) });
     } }, t('Delete from this device')),
     textButton(t('Cancel'), () => close()),
   ], { label: nameOf(r) });

@@ -57,6 +57,7 @@ export class BuyController {
     this._failures = new Map();
     this._pollErrors = new Map();
     this._busy = new Set();
+    this._inflight = new Map(); // depositAddress -> the look on its way
     /** Buys whose last write failed: written again with the next look. */
     this._unsaved = new Set();
     /** FIRO addresses made for an order request that got no answer, by the request: asking again with them returns the same order. */
@@ -354,10 +355,30 @@ export class BuyController {
     this._arm();
   }
 
-  /** Looks at the buy paid at depositAddress once, now. */
-  async poll(depositAddress) {
+  /**
+   * Looks at the buy paid at depositAddress once, now. A look already on its way is waited for, not
+   * answered with what was known before it (outside audit 2026-11-18, #04: "Pay from this wallet"
+   * got "still waiting" while the periodic look was about to say the deposit had arrived).
+   */
+  poll(depositAddress) {
     const o = this._orders.get(depositAddress);
-    if (!o || !o.isOpen || this._disposed || this._busy.has(depositAddress)) return o || null;
+    if (!o || !o.isOpen || this._disposed) return Promise.resolve(o || null);
+    if (this._busy.has(depositAddress)) return this._inflight.get(depositAddress) || Promise.resolve(o);
+    const p = this._look(depositAddress, o).finally(() => {
+      if (this._inflight.get(depositAddress) === p) this._inflight.delete(depositAddress);
+    });
+    this._inflight.set(depositAddress, p);
+    return p;
+  }
+
+  /** A look that started after this call: the one on its way (it may have been asked before) is let finish first. */
+  async pollFresh(depositAddress) {
+    const before = this._inflight.get(depositAddress);
+    if (before) await before.catch(() => null);
+    return this.poll(depositAddress);
+  }
+
+  async _look(depositAddress, o) {
     this._busy.add(depositAddress);
     try {
       const s = await this.client.status(depositAddress);
