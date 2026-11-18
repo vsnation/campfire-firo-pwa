@@ -33,6 +33,8 @@ export default function deleteWallet(app, params = {}) {
   const name = other ? params.name : nameOf(app.record);
   const passphrase = other ? Boolean(params.passphrase) : Boolean(app.record.passphrase);
   const words = (other ? params.words : app.record.words) || 24;
+  // A watch-only wallet has no recovery words and holds nothing it could lose (outside audit 2026-11-18, #10).
+  const watch = other ? Boolean(params.watchOnly) : Boolean(app.record.watchOnly);
   const othersBox = h('div');
   const input = h('input', { class: 'input', type: 'text', autocomplete: 'off', autocapitalize: 'characters', autocorrect: 'off', spellcheck: 'false', 'aria-label': t('Type {word}', { word: 'DELETE' }), 'data-testid': 'delete-confirm', placeholder: 'DELETE' }); // i18n-ignore: the word typed to confirm, the same in every language
   const msg = h('div');
@@ -45,8 +47,9 @@ export default function deleteWallet(app, params = {}) {
   }) : Promise.resolve(undefined);
   kvP.then((kv) => Promise.all([hasEthWallet(kv), ethWalletKind(kv)])).then(([has, known]) => {
     const kind = has ? known || 'words' : null;
-    const text =
-      kind === 'key'
+    const text = watch
+      ? t('Its own words or private key bring it back: keep them before you delete.')
+      : kind === 'key'
         ? t('Its private key brings it back; your Firo words do not. Save the key (Settings → Ethereum & BNB → Backup) and keep your Firo words before you delete.')
         : t('Its own words bring it back; your Firo words do not. Keep both sets of words before you delete.');
     if (kind) put(ethBox, h('div', { 'data-testid': 'delete-eth-words', 'data-kind': kind }, notice('warn', h('strong', { text: t('Your Ethereum wallet is removed too. ') }), text)));
@@ -90,8 +93,10 @@ export default function deleteWallet(app, params = {}) {
 
   const el = screen(
     { title: forgot ? t('Forgot your password?') : t('Delete wallet'), back: () => app.back(forgot ? 'unlock' : other ? 'wallets' : 'settings'), actions: [cta] },
-    forgot ? h('p', { class: 'lead', text: passphrase ? tn({ one: 'Nobody can reset the password. With your {n} recovery word and your passphrase you can delete the wallet from this device and restore it; your coins come back.', other: 'Nobody can reset the password. With your {n} recovery words and your passphrase you can delete the wallet from this device and restore it; your coins come back.' }, words) : tn({ one: 'Nobody can reset the password. With your {n} recovery word you can delete the wallet from this device and restore it; your coins come back.', other: 'Nobody can reset the password. With your {n} recovery words you can delete the wallet from this device and restore it; your coins come back.' }, words) }) : null,
-    notice('warn', h('strong', { text: passphrase ? tn({ one: 'Only your {n} recovery word and your passphrase (or an encrypted backup file and its password) can bring this wallet back. ', other: 'Only your {n} recovery words and your passphrase (or an encrypted backup file and its password) can bring this wallet back. ' }, words) : tn({ one: 'Only your {n} recovery word (or an encrypted backup file and its password) can bring this wallet back. ', other: 'Only your {n} recovery words (or an encrypted backup file and its password) can bring this wallet back. ' }, words) }), t('If you do not have them, stop here: deleting without them loses the money for good.')),
+    forgot && watch ? h('p', { class: 'lead', 'data-testid': 'delete-watch-forgot', text: t('Nobody can reset the password. This watch-only wallet holds no coins of its own: delete it from this device, then add it again with the keys it was made with.') }) : null,
+    forgot && !watch ? h('p', { class: 'lead', text: passphrase ? tn({ one: 'Nobody can reset the password. With your {n} recovery word and your passphrase you can delete the wallet from this device and restore it; your coins come back.', other: 'Nobody can reset the password. With your {n} recovery words and your passphrase you can delete the wallet from this device and restore it; your coins come back.' }, words) : tn({ one: 'Nobody can reset the password. With your {n} recovery word you can delete the wallet from this device and restore it; your coins come back.', other: 'Nobody can reset the password. With your {n} recovery words you can delete the wallet from this device and restore it; your coins come back.' }, words) }) : null,
+    watch ? h('div', { 'data-testid': 'delete-watch' }, notice('info', h('strong', { text: t('This is a watch-only wallet: deleting it removes no coins. ') }), t('To watch it again, you need the keys it was made with (its Spark view key or xpub).'))) : null,
+    watch ? null : notice('warn', h('strong', { text: passphrase ? tn({ one: 'Only your {n} recovery word and your passphrase (or an encrypted backup file and its password) can bring this wallet back. ', other: 'Only your {n} recovery words and your passphrase (or an encrypted backup file and its password) can bring this wallet back. ' }, words) : tn({ one: 'Only your {n} recovery word (or an encrypted backup file and its password) can bring this wallet back. ', other: 'Only your {n} recovery words (or an encrypted backup file and its password) can bring this wallet back. ' }, words) }), t('If you do not have them, stop here: deleting without them loses the money for good.')),
     ethBox,
     h('p', { class: 'lead', 'data-testid': 'delete-what', text: t('This removes {name}, its history and its settings from this device. Nothing is changed on the blockchain.', { name }) }),
     othersBox,

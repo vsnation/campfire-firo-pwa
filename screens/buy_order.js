@@ -160,7 +160,8 @@ export default function buyOrderScreen(app, params = {}) {
       if (btn.disabled) return;
       btn.disabled = true;
       // A fresh look first: buyfiro.app still waits for this payment, and its deadline is not near.
-      await c.poll(o.depositAddress).catch(() => null);
+      // One asked after this tap: not the periodic look already on its way, nor what it knew before.
+      await c.pollFresh(o.depositAddress).catch(() => null);
       if (!alive) return;
       const fresh = c.order(o.depositAddress);
       const unreachable = Boolean(c.pollError(o.depositAddress));

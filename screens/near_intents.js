@@ -157,7 +157,7 @@ export default function nearIntents(app, params = {}) {
   }
 
   function pickCoin() {
-    if (!tokens) return;
+    if (!tokens || busy) return; // not while an address is being asked for the coin chosen (outside audit 2026-11-18, #01)
     openSheet((close) => {
       const search = h('input', { class: 'input', type: 'search', placeholder: t('Coin or chain (BTC, Tron, Solana…)'), 'aria-label': t('Search'), autocomplete: 'off', 'data-testid': 'ni-coin-search' });
       const list = h('div', { class: 'card list picker-list' });
@@ -248,9 +248,13 @@ export default function nearIntents(app, params = {}) {
     problem = null;
     saveProblem = null;
     render();
+    // What was asked for, kept: the signed answer is checked against these (lib/intents/oneclick.js
+    // quote) and the swap is kept with them. A coin picked while waiting once went into the swap
+    // instead, showing another coin and network beside this address (outside audit 2026-11-18, #01).
+    const asked = { coin, amount: a.value, refund: refund.value.trim() };
     try {
-      const q = await intentsClient().quote({ origin: coin, amountIn: a.value, recipient: ctx.address, refundTo: refund.value.trim(), dry: false });
-      const swap = makeSwap({ quote: q.raw, origin: coin, createdAt: Date.now() });
+      const q = await intentsClient().quote({ origin: asked.coin, amountIn: asked.amount, recipient: ctx.address, refundTo: asked.refund, dry: false });
+      const swap = makeSwap({ quote: q.raw, origin: asked.coin, createdAt: Date.now() });
       try {
         // Kept on this device before it is shown: a deposit address nobody can look up again is lost money.
         await ctx.store.save(swap);
@@ -334,6 +338,10 @@ export default function nearIntents(app, params = {}) {
   // ------------------------------------------------------------ render
   function render() {
     if (!alive) return;
+    // Nothing on the form changes while its deposit address is being asked for.
+    amountInput.readOnly = busy;
+    refund.readOnly = busy;
+    coinBtn.disabled = busy;
     put(
       topBox,
       ...open.map((s) =>

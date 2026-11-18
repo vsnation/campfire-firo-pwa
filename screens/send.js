@@ -41,6 +41,19 @@ export const ADDRESS_WORDS = Object.freeze({
   exchange: lazyWords({ label: tk('Exchange address'), hint: tk('An exchange address takes payments from your public balance only, so this one goes from Public.') }),
 });
 
+/**
+ * Who sees what, for a payment from `from` (private or public balance) to an address of `kind`. Send
+ * and Review say the same (outside audit 2026-11-18, #06: for public -> Spark, Send said all of it
+ * stays hidden and Review said both addresses can be seen; the funding address and the amount can,
+ * the receiver's Spark address cannot).
+ */
+export function privacyLine(from, kind) {
+  if (from === 'private' && kind === 'spark') return t('Private: the amount, you and the receiver stay hidden on the blockchain.');
+  if (from === 'private') return t("Your balance and history stay private; what arrives at the receiver's public address can be seen.");
+  if (kind === 'spark') return t("From your public balance: your public address and the amount can be seen on the blockchain; the receiver's Spark address stays hidden.");
+  return t('Public: the amount and both addresses can be seen on the blockchain.');
+}
+
 export default function send(app) {
   const draft = (app.sendDraft = app.sendDraft || { address: '', amount: '', memo: '', from: 'private', subtractFee: false });
   if (draft.from !== 'public') draft.from = 'private';
@@ -116,11 +129,16 @@ export default function send(app) {
 
   function setFrom(id) {
     if (draft.from === id) return;
+    // The address's privacy words follow the balance it is paid from.
+    if (check.state === 'ok' && check.kind === 'spark') addrHint.textContent = addrHint.textContent.replace(privacyLine(draft.from, 'spark'), privacyLine(id, 'spark'));
     draft.from = id;
     draft.subtractFee = false;
     renderFrom();
     evaluate();
   }
+
+  /** What an address of `kind` means for privacy, paid from the balance chosen now. */
+  const kindHint = (kind) => (kind === 'spark' ? privacyLine(draft.from, 'spark') : ADDRESS_WORDS[kind].hint);
 
   function setHint(text, cls = '') {
     addrHint.textContent = text;
@@ -157,7 +175,7 @@ export default function send(app) {
         if (seq !== checkSeq) return;
         if (r) {
           check = { state: 'ok', kind: 'spark', address: r.address, name: c.name, checked: r.checked };
-          setHint((r.checked === 'one-server' ? t('@{name} is a Spark name for {address} (only one Firo node could confirm it). {hint}', { name: c.name, address: shorten(r.address, 10, 8), hint: t(ADDRESS_WORDS.spark.hint) }) : t('@{name} is a Spark name for {address}. {hint}', { name: c.name, address: shorten(r.address, 10, 8), hint: t(ADDRESS_WORDS.spark.hint) })), r.checked === 'one-server' ? '' : 'good');
+          setHint((r.checked === 'one-server' ? t('@{name} is a Spark name for {address} (only one Firo node could confirm it). {hint}', { name: c.name, address: shorten(r.address, 10, 8), hint: kindHint('spark') }) : t('@{name} is a Spark name for {address}. {hint}', { name: c.name, address: shorten(r.address, 10, 8), hint: kindHint('spark') })), r.checked === 'one-server' ? '' : 'good');
           void sayIfOwn(seq, r.address, addrHint.textContent); // never holds up the button
         } else {
           check = { state: 'bad' };
@@ -199,7 +217,7 @@ export default function send(app) {
       draft.from = 'public';
       draft.subtractFee = false;
     }
-    const hint = `${ADDRESS_WORDS[c.kind].label}. ${ADDRESS_WORDS[c.kind].hint}`;
+    const hint = `${ADDRESS_WORDS[c.kind].label}. ${kindHint(c.kind)}`;
     setHint(hint, 'good');
     evaluate();
     void sayIfOwn(seq, c.address || a, hint);
@@ -284,6 +302,16 @@ export default function send(app) {
   let timer = null;
   addr.addEventListener('input', () => {
     clearTimeout(timer);
+    // The address checked before is no longer the one in the box: until the new one is checked there
+    // is nothing to review, its fee included (outside audit 2026-11-18, #03: Review within the 350 ms
+    // wait opened with the address just replaced, and could pay it).
+    if (addr.value.trim() !== draft.address) {
+      checkSeq += 1; // an answer still coming for the old one is dropped
+      check = addr.value.trim() ? { state: 'checking' } : { state: 'empty' };
+      setHint('');
+      put(nameBox);
+      evaluate();
+    }
     timer = setTimeout(validate, 350);
   });
   pasteBtn.addEventListener('click', async () => {
@@ -311,6 +339,12 @@ export default function send(app) {
   memo.el.addEventListener('input', () => requestQuote());
 
   function review() {
+    // Only the address that was checked, the one now in the box, is ever reviewed.
+    if (addr.value.trim() !== draft.address || check.state !== 'ok') {
+      clearTimeout(timer);
+      validate();
+      return;
+    }
     const ok = render();
     if (!ok || !quote) return;
     // Each Review its own id: one whose payment started is never offered again (review.js).

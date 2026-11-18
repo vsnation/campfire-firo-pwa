@@ -177,7 +177,7 @@ export default function settings(app) {
       inline('clock', t('Auto-lock'), t('Also in the background'), lockSel),
       faceRowBox,
       row('key', t('Change password'), null, () => app.go('changePassword'), { 'data-testid': 'change-password' }),
-      row('file', t('Backup'), tn({ one: 'Your {n} recovery word, or an encrypted file', other: 'Your {n} recovery words, or an encrypted file' }, app.record.words || 24), () => app.go('backup'), { 'data-testid': 'backup-row' }),
+      row('file', t('Backup'), app.record.watchOnly ? t('Watch-only: the keys it was made with') : tn({ one: 'Your {n} recovery word, or an encrypted file', other: 'Your {n} recovery words, or an encrypted file' }, app.record.words || 24), () => app.go('backup'), { 'data-testid': 'backup-row' }),
     ),
     h('p', { class: 'section-title', text: t('Payments') }),
     h(

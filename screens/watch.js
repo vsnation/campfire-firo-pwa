@@ -14,6 +14,7 @@ import { screen, primary, notice } from '../lib/ui.js';
 import { isAdding } from '../lib/session.js';
 import { heightForDate } from '../lib/heights.js';
 import { parseHeight } from './restore.js';
+import { keys } from '../lib/chain.js';
 import { t } from '../lib/i18n.js';
 
 // A Spark full view key is long hex (Campfire shows it as hex); an xpub is base58 starting xpub.
@@ -53,10 +54,24 @@ export default function watch(app) {
     validate();
   });
 
-  function submit() {
+  async function submit() {
     validate();
     if (cta.disabled) return;
     const hgt = parseHeight(height.value);
+    // Checked as the engine will read them (an xpub's checksum and depth too), before anything is saved.
+    cta.disabled = true;
+    let v;
+    try {
+      v = (await keys()).validateWatchKeys({ viewKey: keyText(), xpub: xpubText() });
+    } catch (e) {
+      v = { ok: false, error: e.message };
+    }
+    cta.disabled = false;
+    if (!v.ok) {
+      put(msg, h('div', { 'data-testid': 'watch-key-bad' }, notice('warn', v.error)));
+      (v.field === 'xpub' ? xpub : key).focus();
+      return;
+    }
     app.setup = { ...setup, mode: 'watch', viewKey: keyText(), xpub: xpubText(), birthday: hgt };
     key.value = '';
     app.go('setPassword');

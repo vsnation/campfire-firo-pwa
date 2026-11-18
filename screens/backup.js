@@ -225,24 +225,9 @@ function existingBackup(app) {
     return { el: h('div') };
   }
   const r = app.record;
-  if (r.watchOnly) {
-    // No words and nothing secret to back up: the view key it was made from watches it anywhere.
-    const el = screen(
-      { title: t('Backup'), back: () => app.back('settings') },
-      h('div', { 'data-testid': 'watch-backup' }, notice('info', h('strong', { text: t('This is a watch-only wallet. ') }), t('It has no recovery words and cannot spend, so there is nothing to back up. To watch it on another device, use the same Spark view key there.'))),
-    );
-    return { el };
-  }
-  const fileCard = h(
-    'div',
-    { class: 'card', 'data-testid': 'file-card' },
-    h('h3', { text: t('Encrypted backup file') }),
-    h('p', { text: t('Your recovery words, passphrase and wallet name in one small file that opens only with a password. Welcome → "Restore from a backup file" brings the wallet back on any device.') }),
-    h('p', { class: 'small', 'data-testid': 'export-last', text: r.exportedAt ? t('Last saved {when}.', { when: new Date(r.exportedAt).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) }) : t('Not saved yet.') }),
-    h('button', { class: 'btn btn-secondary card-btn', onclick: () => fileSheet(app, { cloud: false }), 'data-testid': 'export-start' }, icon('download'), t('Save an encrypted backup file')),
-  );
   // The Ethereum & BNB wallet has its own words or key: none of this brings it back (P11). Said
-  // once it is known to be there (read without loading any Ethereum code).
+  // once it is known to be there (read without loading any Ethereum code), for a watch-only wallet
+  // too (outside audit 2026-11-18, #10: it said "nothing to back up" beside an Ethereum wallet).
   const ethNote = h('div');
   hasEthWallet()
     .then((has) => {
@@ -254,7 +239,7 @@ function existingBackup(app) {
           { 'data-testid': 'eth-not-included' },
           notice(
             'warn',
-            h('strong', { text: t('Your Ethereum & BNB wallet is not in these words or the file. ') }),
+            h('strong', { text: r.watchOnly ? t('Your Ethereum & BNB wallet needs its own backup. ') : t('Your Ethereum & BNB wallet is not in these words or the file. ') }),
             t('It has its own words or private key: back it up in its settings too, or its coins cannot be brought back.'),
           ),
           h('button', { class: 'btn btn-secondary btn-small', type: 'button', 'data-testid': 'eth-backup-go', onclick: () => app.go('ethSettings') }, t('Ethereum & BNB backup')),
@@ -262,6 +247,37 @@ function existingBackup(app) {
       );
     })
     .catch(() => {});
+  if (r.watchOnly) {
+    // No words and nothing secret to back up: the key(s) it was made from watch it anywhere. Which
+    // ones, from what it was made with (a public-only wallet has no Spark view key).
+    const watchText = h('span', { text: t('It has no recovery words and cannot spend. To watch it on another device, use the same keys there that it was made with.') });
+    openSeedFor(app)
+      .then((seed) => {
+        const view = Boolean(seed && seed.viewKey);
+        const xpub = Boolean(seed && seed.xpub);
+        watchText.textContent =
+          view && xpub
+            ? t('It has no recovery words and cannot spend. To watch it on another device, use the same Spark view key and public key (xpub) there.')
+            : xpub
+              ? t('It has no recovery words and cannot spend. To watch it on another device, use the same public key (xpub) there.')
+              : t('It has no recovery words and cannot spend, so there is nothing to back up. To watch it on another device, use the same Spark view key there.');
+      })
+      .catch(() => {});
+    const el = screen(
+      { title: t('Backup'), back: () => app.back('settings') },
+      ethNote,
+      h('div', { 'data-testid': 'watch-backup' }, notice('info', h('strong', { text: t('This is a watch-only wallet. ') }), watchText)),
+    );
+    return { el };
+  }
+  const fileCard = h(
+    'div',
+    { class: 'card', 'data-testid': 'file-card' },
+    h('h3', { text: t('Encrypted backup file') }),
+    h('p', { text: t('Your recovery words, passphrase and wallet name in one small file that opens only with a password. Welcome → "Restore from a backup file" brings the wallet back on any device.') }),
+    h('p', { class: 'small', 'data-testid': 'export-last', text: r.exportedAt ? t('Last saved {when}.', { when: new Date(r.exportedAt).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) }) : t('Not saved yet.') }),
+    h('button', { class: 'btn btn-secondary card-btn', onclick: () => fileSheet(app, { cloud: false }), 'data-testid': 'export-start' }, icon('download'), t('Save an encrypted backup file')),
+  );
   const el = screen(
     { title: t('Backup'), back: () => app.back('settings'), actions: [primary(t('Show my recovery words'), () => showWords(app), { 'data-testid': 'show-words' })] },
     ethNote,

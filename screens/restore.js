@@ -1,10 +1,10 @@
 /* Restore (step 1 of 2)
- * Spec: ONE job: enter the recovery words (12 or 24; a pasted 15, 18 or 21 too).
+ * Spec: ONE job: enter the recovery words (12, 15, 18, 21 or 24).
  *       Primary CTA: "Restore my wallet".
  *       Taps from app open: 1 (Welcome -> Restore), then typing or one paste.
  * Exit-intent reasons and answers:
  *   - "Typing 24 words on a phone is painful" -> paste all of them into any box; they spread out,
- *     and 12 or 24 is picked by itself from what was pasted.
+ *     and the number of words is picked by itself from what was pasted.
  *   - "Which word is wrong?" -> each unknown word is marked as you go, with its number.
  *   - "Will my coins come back?" -> said up front: yes, once the wallet has read the blockchain
  *     (it can take a while; "Restore from block" makes it faster).
@@ -14,7 +14,7 @@
 import { h, put } from '../lib/dom.js';
 import { screen, primary, notice } from '../lib/ui.js';
 import { keys } from '../lib/chain.js';
-import { isAdding, WORD_COUNTS, RESTORE_WORD_COUNTS, walletWithWords } from '../lib/session.js';
+import { isAdding, RESTORE_WORD_COUNTS, walletWithWords } from '../lib/session.js';
 import { wordlist } from '../vendor/noble/scure-bip39/wordlists/english.js';
 import { passphraseField } from './backup.js';
 import { heightForDate } from '../lib/heights.js';
@@ -22,14 +22,19 @@ import { t, tn } from '../lib/i18n.js';
 
 const WORDS = new Set(wordlist);
 
-/** "12 words" / "24 words" segmented choice; a pasted 15, 18 or 21 shows as a third, chosen. */
+/** The number of recovery words: every length Restore accepts (12, 15, 18, 21, 24), so a paper
+ * backup of 15, 18 or 21 words can be typed in word by word too (outside audit 2026-11-18, #12). */
 function countPicker(count, onPick) {
-  const shown = WORD_COUNTS.includes(count) ? WORD_COUNTS : [...WORD_COUNTS, count];
   return h(
     'div',
-    { class: 'segmented', role: 'radiogroup', 'aria-label': t('Number of words') },
-    ...shown.map((n) =>
-      h('button', { type: 'button', class: `seg${n === count ? ' on' : ''}`, role: 'radio', 'aria-checked': String(n === count), 'data-testid': `count-${n}`, onclick: () => onPick(n) }, tn({ one: '{n} word', other: '{n} words' }, n)),
+    { class: 'count-pick' },
+    h('p', { class: 'small', id: 'count-pick-label', text: t('Number of words') }),
+    h(
+      'div',
+      { class: 'segmented', role: 'radiogroup', 'aria-labelledby': 'count-pick-label' },
+      ...RESTORE_WORD_COUNTS.map((n) =>
+        h('button', { type: 'button', class: `seg${n === count ? ' on' : ''}`, role: 'radio', 'aria-checked': String(n === count), 'aria-label': tn({ one: '{n} word', other: '{n} words' }, n), 'data-testid': `count-${n}`, onclick: () => onPick(n) }, String(n)),
+      ),
     ),
   );
 }

@@ -5,7 +5,7 @@
 // when this release has the bridge screen.
 import { h } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
-import { notice, screen, canAutofocus } from '../lib/ui.js';
+import { notice, screen, canAutofocus, mountLoaded } from '../lib/ui.js';
 import { t } from '../lib/i18n.js';
 
 let lockHookInstalled = false;
@@ -35,14 +35,14 @@ function lazyScreen(load) {
         await ensureEthLockHook(app);
         if (dead) return;
         inner = m.default(app, params) || {};
-        holder.replaceWith(inner.el || inner);
+        mountLoaded(holder, inner.el || inner);
         const focus = document.querySelector('#app [data-autofocus]');
         if (focus && canAutofocus()) focus.focus();
       })
       .catch((e) => {
         if (dead) return;
         console.error(e);
-        holder.replaceWith(screen({ title: 'Ethereum', back: () => app.back('home') }, notice('error', t('This screen could not be opened: {message}. Go back and try again.', { message: e.message })))); // i18n-ignore: a name, the same in every language
+        mountLoaded(holder, screen({ title: 'Ethereum', back: () => app.back('home') }, notice('error', t('This screen could not be opened: {message}. Go back and try again.', { message: e.message })))); // i18n-ignore: a name, the same in every language
       });
     return {
       el: holder,

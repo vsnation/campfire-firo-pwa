@@ -1,16 +1,16 @@
 {
  "app": "campfire-firo-pwa",
- "version": "0.1.22",
+ "version": "0.1.23",
  "files": [
   {
    "path": "app.js",
-   "sha256": "f0d89d97b90c885ab8a5dd99092df3f70a2b6c0e04dee506d990ed89ad9a26c0",
-   "size": 23639
+   "sha256": "cc1bccbe8928ec59a04d13f1ff19f1fdc59a5fd65bb0d55b2e2f27270c504b61",
+   "size": 24161
   },
   {
    "path": "css/app.css",
-   "sha256": "639242f788c9291515af0a9246fdcc0bd405665e0e17130996f7fa4f474a8e23",
-   "size": 54255
+   "sha256": "7f4b4fe21dfd198dd4ad447b36462d72244ef1b4284021acd1deec3d3a369350",
+   "size": 54616
   },
   {
    "path": "css/payments.css",
@@ -44,53 +44,53 @@
   },
   {
    "path": "i18n/de.json",
-   "sha256": "52fd17c88deece36d14400ceef7ea18b309fbb8143d25669f8ea663c5c120e80",
-   "size": 392695
+   "sha256": "b89ad979b49a476222fc7bf640475281cab4885b9d61cc12125a33450227bab1",
+   "size": 394713
   },
   {
    "path": "i18n/es.json",
-   "sha256": "826db691784f963cd4d47fe42abf098604395e3b8f49027a935b9cfc173ccd6e",
-   "size": 383123
+   "sha256": "ead55378c71929d64e7656f3f11d5de5012fc6fe655da62ddb62b4405c8e936d",
+   "size": 384976
   },
   {
    "path": "i18n/fr.json",
-   "sha256": "d8a1e3fcc7cab20bbfba636b3823a385d09ac3074fe1601616dce3dd8e3f043d",
-   "size": 397104
+   "sha256": "ab64812008c10cab9c40d24c4832bed64f2b835d1bfd78912beff422bb3ed841",
+   "size": 399071
   },
   {
    "path": "i18n/ja.json",
-   "sha256": "d512d0050372d7777ad839d06837aa64b585a691aabb8741998f6eb29267f971",
-   "size": 443358
+   "sha256": "133b4556df991c6b28f1f3412478fae33352fe8872a41843c301a2952141991c",
+   "size": 445293
   },
   {
    "path": "i18n/ko.json",
-   "sha256": "85c7403f9986426a9b481d18d02190c6504c2a9e284bb0c8fdf4b62641975f2b",
-   "size": 397079
+   "sha256": "68958815d12696923a45775164f3a8e8298e27a2c1b9650b5342b86302cbd9cc",
+   "size": 398898
   },
   {
    "path": "i18n/pt-BR.json",
-   "sha256": "2a4c0d0092f960d9c974176af8c36ae931784965892f75ff33f28839be5f9902",
-   "size": 379933
+   "sha256": "136c84a60991c9ea769257ebbd6225fcb76f0a256ee5c028a9c4b973ec9f0df2",
+   "size": 381770
   },
   {
    "path": "i18n/ru.json",
-   "sha256": "0172406d6a64b395b1698ab38d288970cce7d2428b6dbef7af1bf77517fa09d3",
-   "size": 523487
+   "sha256": "19f0ddf4e6d4cd06c708383110cfe36101a5c7c801b20e8a781e4b47bcb1469d",
+   "size": 526090
   },
   {
    "path": "i18n/tr.json",
-   "sha256": "72e25777265b0c931b086e7dc8dd6ccabd97b2f079da35de53c8581c24b69241",
-   "size": 381626
+   "sha256": "f8f7d9050a3921e0678b431d3d4ade27e5b976e96f29e739f39b24c08b1ce896",
+   "size": 383363
   },
   {
    "path": "i18n/vi.json",
-   "sha256": "9aa7d9b4ea090011ed473787a3c08dcecf939a7f4ed81f135eead42e67f0bc75",
-   "size": 413507
+   "sha256": "f27e7bf26aac557488a941df5e5fd4c1c28492fcf75e03ca71b395c21c15163f",
+   "size": 415517
   },
   {
    "path": "i18n/zh-Hans.json",
-   "sha256": "f84cb95ee71ffd88291f0e8bdb8c3449c51dc143f100f2302096dc283dace9f6",
-   "size": 359849
+   "sha256": "cd18ad129d77d57690c2c57d4ee441fb18353e8cbeb0047590c6da1c90784824",
+   "size": 361564
   },
   {
    "path": "icons/apple-touch-icon.png",
@@ -164,8 +164,8 @@
   },
   {
    "path": "lib/backend_fake.js",
-   "sha256": "15b5257f7d60b84a2360f3165d9c29c4cc1808fe6915e62b5dbc0d517f78f3e2",
-   "size": 49695
+   "sha256": "3772f0e9d026cb34059153a7f8a0c4280dffc2ab9fea190acd4603852c6f91a1",
+   "size": 50501
   },
   {
    "path": "lib/backup_file.js",
@@ -184,8 +184,8 @@
   },
   {
    "path": "lib/buy/controller.js",
-   "sha256": "dbc143529ef514a82e43bf6f59b90cf3eedd47ce329d70fe89706f9bc8e024c1",
-   "size": 15548
+   "sha256": "56d86705c9eb3ccdb0ff7e5ec98dcb6dfbcc959c71c965e74e3d55343525e79b",
+   "size": 16503
   },
   {
    "path": "lib/buy/deposit_address.js",
@@ -214,8 +214,8 @@
   },
   {
    "path": "lib/chain.js",
-   "sha256": "982d190dd5c41a628055af8724bef769e038225a0d6745bcbcb2ab8de6a49d05",
-   "size": 6599
+   "sha256": "e3b741712bddd84c3aa35278476d08a248b8862cd44791ae2257733dd7f4b4bb",
+   "size": 6653
   },
   {
    "path": "lib/compact.js",
@@ -259,8 +259,8 @@
   },
   {
    "path": "lib/eth/history.js",
-   "sha256": "76b0ccb6334f4e4b96b11fa16ccb5796d44c7a816ba682896cc1f4e569323b87",
-   "size": 12813
+   "sha256": "15eaf9f66c45a7691c853edfd5bcc8ebcb4009816cadd5971d76eb9dead074b8",
+   "size": 13802
   },
   {
    "path": "lib/eth/hosts.js",
@@ -409,8 +409,8 @@
   },
   {
    "path": "lib/eth/wallet.js",
-   "sha256": "0bd5c6c1e044e323e933708c2ad8d55c5ea48136b0efc7a338fa6c2fd7e9a970",
-   "size": 23026
+   "sha256": "b255d9c1a31f829b1bb325becc4c2b5599f9ea7f281c6a731e1bbebe07f4d4bf",
+   "size": 23335
   },
   {
    "path": "lib/evm_server_address.js",
@@ -439,8 +439,8 @@
   },
   {
    "path": "lib/firo/backend.js",
-   "sha256": "16ffc9b96bc057162f17654d6162705457802efa69e61c5d180132d546addfa6",
-   "size": 216065
+   "sha256": "13a5b352ba3f797151dded97294d7d1485407f506ff2e30c0219ecb5c0d11fb8",
+   "size": 217527
   },
   {
    "path": "lib/firo/bytes.js",
@@ -454,8 +454,8 @@
   },
   {
    "path": "lib/firo/history.js",
-   "sha256": "3530d017416fbdc0543326a6e3b855673b47db629e77f5e7afd6d35ab74ec464",
-   "size": 17982
+   "sha256": "ebf46005099ee0abb6cf46036ca40606cdf40070ba8a1e408cee459ea2fe872e",
+   "size": 18868
   },
   {
    "path": "lib/firo/keys.js",
@@ -534,8 +534,8 @@
   },
   {
    "path": "lib/firo_uri.js",
-   "sha256": "02fabc61faa070a9d1be271275efff9fe8538c4a65a1b9d5b39da3bf5d24ebd2",
-   "size": 6118
+   "sha256": "5be069a9dcefd28d1e1181f87ef476c242bc835658232ac443ef6017b6887c5d",
+   "size": 6326
   },
   {
    "path": "lib/heights.js",
@@ -574,8 +574,8 @@
   },
   {
    "path": "lib/intents/wiring.js",
-   "sha256": "54322768f29f31babf2472d27d310a6a6d1248af238d69d4c783a6a1aac7d4fc",
-   "size": 2650
+   "sha256": "ad18ff6411f14d4482e11daabcb51162b5827a465e358bbb4d3abb88ccd13d92",
+   "size": 3053
   },
   {
    "path": "lib/intents/words.js",
@@ -624,8 +624,8 @@
   },
   {
    "path": "lib/notify.js",
-   "sha256": "a9491c1f32be9e6d94e738accf0fd208d6e44b9010380ecb4eda753715a7ddc4",
-   "size": 20555
+   "sha256": "6aa1bb63e6e45e114c7c0806664af8a664f7c4babff70347cc1553321d5fe458",
+   "size": 20590
   },
   {
    "path": "lib/notify_rules.js",
@@ -674,8 +674,8 @@
   },
   {
    "path": "lib/payments.js",
-   "sha256": "667679f8ccb47628f147355950715baa6d831c049b2d528c03568fc4d0e83920",
-   "size": 4083
+   "sha256": "0cf60e59cf4e29daf55e19a0e7dbf331223134ad4d817d69108bf652a93c1c17",
+   "size": 4085
   },
   {
    "path": "lib/price_host.js",
@@ -696,6 +696,11 @@
    "path": "lib/qr_worker.js",
    "sha256": "0880f6be7f19c5fc7504bcd7739182422e439a106ce86191c494d594a50f6302",
    "size": 795
+  },
+  {
+   "path": "lib/radiogroup.js",
+   "sha256": "011021206d187132e1743cb5f6ff0a76f8e100c36322ae7caae6b1fb54d36a98",
+   "size": 2799
   },
   {
    "path": "lib/release.js",
@@ -784,8 +789,8 @@
   },
   {
    "path": "lib/session.js",
-   "sha256": "cb88adfdc903e949f0ea62196addfbc264fc34ec9dda168cce8e2519b7e7a508",
-   "size": 16059
+   "sha256": "27ef60e9436caebfebcc92db4cabbed40b725bc770e31010875f724e64845aad",
+   "size": 17320
   },
   {
    "path": "lib/shared_host.js",
@@ -814,13 +819,13 @@
   },
   {
    "path": "lib/tx_csv.js",
-   "sha256": "e57054dabc4d65cc66c83a5b1d05d331aeb4a5bd4b15c40200256ddbe6a8b179",
-   "size": 9231
+   "sha256": "22d130c9b7dfdfebc8e67f3bebc090a65a97d93d3535c27a031a7a8d2e73014f",
+   "size": 10314
   },
   {
    "path": "lib/ui.js",
-   "sha256": "b4a864d8ff96e2db8cf6b0f3591d63eb187f987a679dea46121ac6b802633ff2",
-   "size": 18431
+   "sha256": "38ea7bc7f2217388fd8bcee86fc4839f0d5aa097829b7ac77f0ec6740f703100",
+   "size": 21154
   },
   {
    "path": "lib/update.js",
@@ -839,13 +844,13 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "40e34c2404be42fecae3cec08cbf0c29cf465748feecaf3d8e6f4387ea48adb0",
+   "sha256": "16a0c0d3c91eee27b8f253f6799f38b38578f7f529b6958a14bbfec84f4bf7a0",
    "size": 1086
   },
   {
    "path": "lib/wallet.js",
-   "sha256": "c81b3b45da4acef9c2778d5434d44ec4529ecd044f32690fd2072a018bcdb0d4",
-   "size": 21978
+   "sha256": "172c1e15792c4979abaf2d7e4fb63710a88d1151ebdf2ce5ffb3bda2cf40d820",
+   "size": 22246
   },
   {
    "path": "lib/wallet_scope.js",
@@ -859,8 +864,8 @@
   },
   {
    "path": "lib/wallets.js",
-   "sha256": "a406d25eec5bba4e1d32314d2bb2522993b56061511dd214d9cc5973c6f3ffd2",
-   "size": 17597
+   "sha256": "94a70bc311268dcaa6cdff894ff34f9ce5ddc112e52f06e2bb104dc8a98d859c",
+   "size": 19674
   },
   {
    "path": "loader-watch.js",
@@ -894,8 +899,8 @@
   },
   {
    "path": "screens/backup.js",
-   "sha256": "fb7d8cff4f4a258705a532ad8fef3fd83d1b02a86ce3d5d61c69b1149fe98e15",
-   "size": 28969
+   "sha256": "99c900211413f167379b95d8784b0c2ee3a37fdce54a4e1959d39d769a3c488b",
+   "size": 29998
   },
   {
    "path": "screens/bridge.js",
@@ -909,8 +914,8 @@
   },
   {
    "path": "screens/buy_order.js",
-   "sha256": "664943f74d48ead4b3abe970bacc1157b8b473398db8b571c9b6aeefeef78a71",
-   "size": 21006
+   "sha256": "97e1efc1e4fff84cb3ae477369b19b9ac8d552af69aab31966dd14715ff721ef",
+   "size": 21113
   },
   {
    "path": "screens/buy_orders.js",
@@ -919,8 +924,8 @@
   },
   {
    "path": "screens/buy_screens.js",
-   "sha256": "1b89a3b9c20b8aedbb86dcaa4c46a1f01d06cb6e590468e18e3c286cd1e395ac",
-   "size": 6179
+   "sha256": "39454a9cc5a4495d5451573d38e8df894191c4e6f56c9682ab6266a07b790752",
+   "size": 6194
   },
   {
    "path": "screens/change_password.js",
@@ -944,8 +949,8 @@
   },
   {
    "path": "screens/delete_wallet.js",
-   "sha256": "2d290d6e4db369a2602cdd8d24b06f6acf878bd811e1b80c57dd37855e668cb7",
-   "size": 7935
+   "sha256": "5a66ddcc6f51c4958822757fd9d154386798c209f75e2c3b20531b02ceb08b68",
+   "size": 8773
   },
   {
    "path": "screens/eth_confirm.js",
@@ -954,8 +959,8 @@
   },
   {
    "path": "screens/eth_home.js",
-   "sha256": "130e3347f563218fc5a962b0459b28301cf4c3a41213133e7ef7b18e146e5375",
-   "size": 12221
+   "sha256": "692c7867fc574b2bfe876e4f2cc1065cffe0aeb2e27d6a9478f6a283e5c1e288",
+   "size": 12440
   },
   {
    "path": "screens/eth_import.js",
@@ -984,8 +989,8 @@
   },
   {
    "path": "screens/eth_screens.js",
-   "sha256": "e2d61d70e11418696ed41c7ed6c5e775837d90223521e157e588ddcd192c4865",
-   "size": 4538
+   "sha256": "0955110f97ab777bb34aefb85ab01ac15973fdf43333b867d39821604632437a",
+   "size": 4553
   },
   {
    "path": "screens/eth_send.js",
@@ -1064,8 +1069,8 @@
   },
   {
    "path": "screens/install.js",
-   "sha256": "33376b275d01b2fd5ca39de6b0ed825e5405ff09d2ebf40174e6f43973d514dc",
-   "size": 10343
+   "sha256": "b1a8104cbeddbd6760df817412b817d82d7cdd9628e06ada256e503b0b6ce8a1",
+   "size": 10792
   },
   {
    "path": "screens/ip_notice.js",
@@ -1094,8 +1099,8 @@
   },
   {
    "path": "screens/near_intents.js",
-   "sha256": "6b524f81d4af6353a85a0df215e2e116a14b59f7602b901596125c0f13976084",
-   "size": 24349
+   "sha256": "31ad37ac1d08dc1daba266b8e74e4bf50a502c61f66f95024d7a146e5d00b2bd",
+   "size": 25004
   },
   {
    "path": "screens/near_intents_deposit.js",
@@ -1149,13 +1154,13 @@
   },
   {
    "path": "screens/rescan.js",
-   "sha256": "06393628c410cd7309f0ef6a154f4722f1135090b04ada7a0c03c5b3b9ecbc68",
-   "size": 3692
+   "sha256": "ed0829bb38d7d630ece4fc0cd9487b68d576a6ee8ab50bbe07a8596bc54c7ece",
+   "size": 2269
   },
   {
    "path": "screens/restore.js",
-   "sha256": "2db06f04467e2513905da1c547f2fb05e8449b8913b70739c91d8ce2497ea434",
-   "size": 11471
+   "sha256": "4a2868786a430d99738dde47a89459ce68370cc927f734a124715f77bf495bc4",
+   "size": 11659
   },
   {
    "path": "screens/restore_file.js",
@@ -1164,8 +1169,8 @@
   },
   {
    "path": "screens/review.js",
-   "sha256": "fb8265a5ad516c8ca1453dea43df453279bab2a5036926cc34c6cae48cc5f274",
-   "size": 21470
+   "sha256": "f64708783d766cdacc3744252b410e375aeb1b34a280fc5518f02dedb45d58f6",
+   "size": 21110
   },
   {
    "path": "screens/scan_go.js",
@@ -1194,13 +1199,13 @@
   },
   {
    "path": "screens/sell_screens.js",
-   "sha256": "65979c7e400f37c7f3ee09b5010346b506ce73825504892cb0d7c518d7cf1ac1",
-   "size": 4794
+   "sha256": "2275c98f4dfea02b9944d3ca6bac870bb96e38c3cd87fb0acc0b4314fbe57af0",
+   "size": 4809
   },
   {
    "path": "screens/send.js",
-   "sha256": "b119fed57b0591acd995f21a0f3ad63cb4c46eb71e1937b310e86adab8e120f6",
-   "size": 19189
+   "sha256": "bb9ca1d3ab061586029cc7afd50bba5146dcdca171be95100e61f8fba0bd3528",
+   "size": 21277
   },
   {
    "path": "screens/send_extras.js",
@@ -1219,8 +1224,8 @@
   },
   {
    "path": "screens/settings.js",
-   "sha256": "391e184b8b96bb332fdd619c36486a6805bb502622b95a9123d33a6989a6f809",
-   "size": 14561
+   "sha256": "1e83d2d3253f3462f1558929cbad7a582f52d766a4872240d43a66bc49be36d9",
+   "size": 14629
   },
   {
    "path": "screens/tx_status.js",
@@ -1239,13 +1244,13 @@
   },
   {
    "path": "screens/wallets.js",
-   "sha256": "9f543996104608dbb00458ae7dc6090d9eec65e549ed4c2c17c58617e6009ab3",
-   "size": 10834
+   "sha256": "7b15896d0127038bf182effdac9c0f74b90e4f648c0e9f4d6f1b90153af3d3d1",
+   "size": 10867
   },
   {
    "path": "screens/watch.js",
-   "sha256": "b869b5d8cb21764740ef87eb95d77c7120528d464d86b07a8225221f10a00bb5",
-   "size": 4643
+   "sha256": "3d688e7236015aef5f4cfdd4bc803f109450e78a60e6c95491f7a775bf57c4b4",
+   "size": 5193
   },
   {
    "path": "screens/welcome.js",

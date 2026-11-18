@@ -1,9 +1,9 @@
 {
  "app": "campfire-firo-pwa",
- "version": "0.1.22",
- "created": "2026-11-17T16:20:12.883Z",
- "manifest_sha256": "5ae358c156548e25547ef14d2a038b510a71de6b457d5b99b903b994068363ac",
- "file_count": 298,
+ "version": "0.1.23",
+ "created": "2026-11-18T04:49:17.520Z",
+ "manifest_sha256": "313db6e1c9be3844e3c56a82e8559a3e5770a9b975618ee1fc008d4acc3f4289",
+ "file_count": 299,
  "loader": "sw-889ae1aed8521703.js",
  "loader_compat": "b04895e1394ba5c481b59072b7cf0ea8e681ec2cb74ade365af0b3cea760c4ba",
  "update_sources": [
