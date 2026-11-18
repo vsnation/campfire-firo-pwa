@@ -46,32 +46,68 @@ const NONE_OF = Object.freeze({ all: tk('No payments yet.'), private: tk('No pri
 
 /** A payment's state in words, for its details. */
 /**
- * Where the coins of a payment of ours went, every part of it (owner 2026-11-18: a privatize of
- * 15,349.04 FIRO with 554.85 back as change read "-15,903.89", the change never mentioned): what left
- * which balance, what reached this wallet's own balances, what came back as change, what went to
- * others and the fee. They add up: taken = all the rest. null when the payment is not ours.
+ * Where the coins of a payment of ours went, drawn rather than told (owner 2026-11-18: a privatize of
+ * 15,349.04 FIRO with 554.85 back as change read "-15,903.89"; then "show it with arrows, what is out,
+ * what is in: people do not like to read"): the balance it left, then an arrow to each place a part
+ * went, own balances in green with "+", change marked with a return arrow, the fee last. They add up
+ * (lib/firo/history.js). null when the payment is not ours.
+ *
+ * Exit intent (USER_PSYCHOLOGY 1.7): a "-" total bigger than what was meant (answered: the change
+ * row shows it came back); a word like "change" not understood (the (i) says it in one line);
+ * figures that do not add up (never shown: history.js drops such parts).
  */
 export function wentWhere(tx) {
   const p = tx && tx.parts;
   if (!p || tx.dropped) return null;
-  const amt = (v) => `${formatAmount(v)} ${UNIT}`;
-  const row = (k, v, testid, cls = '') => (v > 0n ? h('div', { class: `kv${cls}`, 'data-testid': testid }, h('span', { class: 'k', text: k }), h('span', { class: 'v', text: amt(v) })) : null);
-  const others = tx.counterparties && tx.counterparties.length > 1 ? t('Sent to {n} recipients', { n: tx.counterparties.length }) : tx.counterparty ? t('Sent to {who}', { who: contactNameFor(tx.counterparty) || shorten(tx.counterparty, 6, 6) }) : t('Sent to others');
+  const amount = (v, sign, testid) => h('span', { class: `flow-amt${sign === '+' ? ' in' : ''}`, 'data-testid': testid }, `${sign}${formatAmount(v)}`, h('span', { class: 'unit', text: UNIT }));
+  const ico = (name, cls) => h('span', { class: `flow-ico ${cls}` }, icon(name));
+  const side = { public: [icon('eye'), 'public', t('Public')], private: [icon('shield'), 'private', t('Private')] };
+  const tipId = `flow-tip-${String(tx.txid).slice(0, 16)}`;
+  const tip = h('p', { class: 'small flow-tip', id: tipId, 'data-testid': 'part-change-note', hidden: true, text: t('A coin is spent whole: the rest comes back to you as change.') });
+  // Every tag opens the one line, and says so (re-audit of 0.1.27: two tags, one went stale).
+  const tags = [];
+  const tag = (text) => {
+    const b = h(
+      'button',
+      { class: 'flow-tag', type: 'button', 'aria-expanded': 'false', 'aria-controls': tipId, 'data-testid': 'part-change-tag', onclick: () => { tip.hidden = !tip.hidden; for (const x of tags) x.setAttribute('aria-expanded', String(!tip.hidden)); } },
+      icon('back'),
+      h('span', { text }),
+      icon('info'),
+    );
+    tags.push(b);
+    return b;
+  };
+  const to = (v, sideName, testid, extra) => {
+    if (!(v > 0n)) return null;
+    const [svg, cls, name] = side[sideName];
+    // The tag on a line of its own under the name and amount: a narrow phone never squeezes it into the amount.
+    return h('li', { class: 'flow-to', 'data-testid': testid }, h('span', { class: `flow-ico ${cls}` }, svg.cloneNode(true)), h('span', { class: 'flow-body' }, h('span', { class: 'flow-line' }, h('span', { class: 'flow-name', text: name }), amount(v, '+')), extra || null));
+  };
+  const others = tx.counterparties && tx.counterparties.length > 1 ? t('{n} recipients', { n: tx.counterparties.length }) : tx.counterparty ? contactNameFor(tx.counterparty) || shorten(tx.counterparty, 6, 6) : t('Someone else');
+  const from = (v, sideName, testid) => {
+    if (!(v > 0n)) return null;
+    const [svg, cls, name] = side[sideName];
+    return h('div', { class: 'flow-from', 'data-testid': testid }, h('span', { class: `flow-ico ${cls}` }, svg.cloneNode(true)), h('span', { class: 'flow-name', text: name }), amount(v, '\u2212'));
+  };
+  const hasChange = p.changePublic > 0n || p.changePrivate > 0n || p.backPrivate > 0n;
   return h(
     'div',
-    { class: 'card went-where', 'data-testid': 'tx-parts' },
-    h('h3', { text: t('Where it went') }),
-    row(t('Taken from your public balance'), p.fromPublic, 'part-from-public', ' part-from'),
-    row(t('Taken from your private balance'), p.fromPrivate, 'part-from-private', ' part-from'),
-    row(t('To your private balance'), p.toPrivateSelf, 'part-to-private'),
-    row(t('To your public balance'), p.toPublicSelf, 'part-to-public'),
-    row(others, p.toOthers, 'part-to-others'),
-    row(t('Change back to your public balance'), p.changePublic, 'part-change-public'),
-    row(t('Change back to your private balance'), p.changePrivate, 'part-change-private'),
-    // Sent from here; the change (or a coin to this wallet's own private address) not found yet.
-    row(t('Coming back to your private balance'), p.backPrivate, 'part-back-private'),
-    row(t('Network fee'), p.fee, 'part-fee'),
-    p.changePublic > 0n || p.changePrivate > 0n || p.backPrivate > 0n ? h('p', { class: 'small', 'data-testid': 'part-change-note', text: t('A coin is spent whole: what is more than the payment and its fee comes back to you as change, in a new coin of yours.') }) : null,
+    { class: 'card flow', 'data-testid': 'tx-parts', role: 'group', 'aria-label': t('Where it went') },
+    from(p.fromPublic, 'public', 'part-from-public'),
+    from(p.fromPrivate, 'private', 'part-from-private'),
+    h(
+      'ul',
+      { class: 'flow-branches' },
+      to(p.toPrivateSelf, 'private', 'part-to-private'),
+      to(p.toPublicSelf, 'public', 'part-to-public'),
+      p.toOthers > 0n ? h('li', { class: 'flow-to others', 'data-testid': 'part-to-others' }, ico('send', 'others'), h('span', { class: 'flow-name', text: others }), amount(p.toOthers, '')) : null,
+      to(p.changePublic, 'public', 'part-change-public', tag(t('Your change'))),
+      to(p.changePrivate, 'private', 'part-change-private', tag(t('Your change'))),
+      // Sent from here; the change (or a coin to this wallet's own private address) not found yet.
+      to(p.backPrivate, 'private', 'part-back-private', tag(t('On its way back'))),
+      p.fee > 0n ? h('li', { class: 'flow-to fee', 'data-testid': 'part-fee' }, ico('fuel', 'fee'), h('span', { class: 'flow-name', text: t('Network fee') }), amount(p.fee, '')) : null,
+    ),
+    hasChange ? tip : null,
   );
 }
 
@@ -135,6 +171,7 @@ export default function activity(app, params = {}) {
   function detail(txid) {
     openSheet((close) => {
       const tx2 = wallet.state.txs.find((x) => x.txid === txid);
+      const flow = tx2 ? wentWhere(tx2) : null;
       if (!tx2) return [h('h2', { text: t('Payment') }), h('p', { text: t('This payment is no longer in the list.') })];
       const kv = (k, v, opts = {}) => h('div', { class: 'kv', 'data-testid': opts.testid }, h('span', { class: 'k', text: k }), opts.copy ? h('button', { class: 'v mono btn-text', onclick: () => copyText(opts.copy, t('{k} copied', { k })), text: v }) : h('span', { class: `v${opts.mono ? ' mono' : ''}`, text: v }));
       const other = tx2.counterparty;
@@ -143,11 +180,13 @@ export default function activity(app, params = {}) {
         h('h2', { 'data-testid': 'tx-detail-title', text: txTitle(tx2) }),
         // The unit never splits across lines (owner 2026-11-18: "FIR / O").
         h('div', { class: 'big-amount', 'data-testid': 'tx-amount' }, h('span', { text: `${txSign(tx2)}${formatAmount(tx2.amount)}` }), ' ', h('span', { class: 'unit', text: UNIT })),
+        // Where the coins went, as a picture, before any words (owner 2026-11-18: "people do not like to read").
+        flow,
         h(
           'div',
           { class: 'card' },
           kv(t('Kind'), tx2.toPublic ? t(KIND_WORDS.publicize) : KIND_WORDS[tx2.kind] ? t(KIND_WORDS[tx2.kind]) : tx2.kind, { testid: 'tx-kind' }),
-          kv(t('Balance'), SIDE_WORDS[txSide(tx2)]),
+          flow ? null : kv(t('Balance'), SIDE_WORDS[txSide(tx2)]),
           kv(t('Status'), statusWords(tx2), { testid: 'tx-status' }),
           kv(t('Date'), txWhen(tx2, fmtDate) || t('Not known yet'), { testid: 'tx-date' }),
           !tx2.time && tx2.timeApprox ? h('p', { class: 'small', 'data-testid': 'tx-date-note', text: t('Found while restoring: its block is known only roughly. Settings → Exact dates for restored private payments finds it exactly.') }) : null,
@@ -157,7 +196,6 @@ export default function activity(app, params = {}) {
           tx2.height != null ? kv(t('Block'), tx2.height.toLocaleString('en-US')) : null,
           kv(t('Transaction ID'), shorten(tx2.txid, 10, 8), { copy: tx2.txid }),
         ),
-        wentWhere(tx2),
         // One node's word for an hour: the person may let it go (release re-audit 3 RE3-3).
         letGoOffer(tx2, { onDone: () => close() }),
         ...paymentExtras(app, tx2, { close }),

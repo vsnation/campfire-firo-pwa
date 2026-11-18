@@ -105,11 +105,17 @@ test('Privatize opens with everything in; 25% moves a quarter, the fee on top; c
   await page.click('[data-testid="activity-list"] > *:first-child');
   await page.waitForSelector(tid('tx-parts'));
   assert.equal(await page.textContent(tid('tx-amount')), '1,000 FIRO', 'the headline is what moved');
-  assert.match(await page.textContent(tid('part-to-private')), /To your private balance\s*1,000 FIRO/);
-  assert.match(await page.textContent(tid('part-change-public')), /Change back to your public balance\s*0\.\d+ FIRO/);
-  assert.match(await page.textContent(tid('part-from-public')), /Taken from your public balance\s*1,001 FIRO/);
-  assert.ok(await page.$(tid('part-fee')));
+  // Drawn: from Public, arrows to Private, back to Public as change, and the fee (owner: arrows, not words).
+  assert.match(await page.textContent(tid('part-from-public')), /^Public\u22121,001\s*FIRO$/);
+  assert.match(await page.textContent(tid('part-to-private')), /^Private\+1,000\s*FIRO$/);
+  assert.match(await page.textContent(tid('part-change-public')), /^Public\+0\.\d+\s*FIROYour change$/);
+  assert.match(await page.textContent(tid('part-fee')), /^Network fee0\.\d+\s*FIRO$/);
   assert.equal(await page.$(tid('part-to-others')), null, 'nothing went to anyone else');
+  assert.equal(await page.isVisible(tid('part-change-note')), false, 'the words only on a tap');
+  await page.click(tid('part-change-tag'));
+  assert.match(await page.textContent(tid('part-change-note')), /comes back to you as change/);
+  const fold = await page.evaluate(() => document.querySelector('[data-testid="tx-parts"]').getBoundingClientRect().bottom <= window.innerHeight);
+  assert.ok(fold, 'the picture is seen without scrolling');
   await page.keyboard.press('Escape');
 });
 

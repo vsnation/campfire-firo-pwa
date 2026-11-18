@@ -3488,7 +3488,19 @@ export class FiroBackend {
     const tip = this.tip?.height ?? null;
     if (built.spark) {
       const coins = await this._coinsSpentBy(built);
-      const to = built.recips.find((r) => r.kind !== 'spark' || !this._isOwnSparkAddress(r.address));
+      // Paid to this wallet's own public addresses (Make public): ours, never a recipient of the payment
+      // (re-audit of 0.1.27: "2 recipients" counted our own address).
+      const ownPublic = (r) => {
+        if (r.kind === 'spark') return false;
+        try {
+          return Boolean(this.transparent?.isOwnScript(addressToScript(r.address, this.net)));
+        } catch {
+          return false;
+        }
+      };
+      const paid = built.recips.filter((r) => r.kind !== 'spark' || !this._isOwnSparkAddress(r.address));
+      const others = paid.filter((r) => !ownPublic(r));
+      const to = others[0] ?? paid[0];
       const before = { send: this.sends.get(built.txid), marks: coins.map((c) => [c, c.pendingSpentTxid]) };
       this.sends.set(built.txid, {
         amount: String(built.recips.filter((r) => !this._isOwnSparkAddress(r.address)).reduce((s, r) => s + r.amount, 0n)),
@@ -3496,19 +3508,13 @@ export class FiroBackend {
         to: to ? to.name ?? to.address : undefined,
         // Every one paid, when more than one (N12).
         ...(() => {
-          const all = built.recips.filter((r) => r.kind !== 'spark' || !this._isOwnSparkAddress(r.address)).map((r) => r.name ?? r.address);
+          const all = others.map((r) => r.name ?? r.address);
           return all.length > 1 ? { toAll: all.slice(0, 20) } : {};
         })(),
         memo: built.recips.find((r) => r.memo)?.memo,
         // Paid to this wallet's own public addresses (Make public): ours, in Activity's details.
         ...(() => {
-          let own = 0n;
-          for (const r of built.recips) {
-            if (r.kind === 'spark') continue;
-            try {
-              if (this.transparent?.isOwnScript(addressToScript(r.address, this.net))) own += r.amount;
-            } catch {}
-          }
+          const own = built.recips.filter(ownPublic).reduce((sum, r) => sum + r.amount, 0n);
           return own > 0n ? { toPublicSelf: String(own) } : {};
         })(),
         time: now(),

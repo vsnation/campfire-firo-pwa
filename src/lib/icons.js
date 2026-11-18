@@ -55,6 +55,9 @@ const P = {
   spark: ['M12 3c.6 4.6 3.4 7.4 9 9-5.6 1.6-8.4 4.4-9 9-.6-4.6-3.4-7.4-9-9 5.6-1.6 8.4-4.4 9-9z'],
   // Privatize: public into private, a shield with an arrow in.
   privatize: ['M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z', 'M8.5 12h7', 'M12.5 9l3 3-3 3'],
+  // Activity's "where it went": change coming back, and the network fee.
+  back: ['M9 14L4 9l5-5', 'M4 9h11a5 5 0 0 1 0 10h-3'],
+  fuel: ['M4 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16', 'M3 21h12', 'M7 8h4', 'M14 10h2a2 2 0 0 1 2 2v4a1.5 1.5 0 0 0 3 0V8.5L18 6'],
   menu: ['M4 7h16', 'M4 12h16', 'M4 17h16'],
   server: ['M4 5h16v5H4z', 'M4 14h16v5H4z', 'M7.5 7.5v.01', 'M7.5 16.5v.01'],
 };
