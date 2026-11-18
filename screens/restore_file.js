@@ -41,7 +41,7 @@ export default function restoreFile(app) {
     if (!f) return;
     if (f.size > BACKUP_MAX_BYTES || f.size === 0) {
       text = null;
-      put(msg, notice('warn', t('{name} is not a Firo PWA backup file (those are small JSON files, "campfire-firo-backup-….json").', { name: f.name })));
+      put(msg, notice('warn', t('{name} is not a Firo PWA backup file (those are small JSON files, "…-backup-….json").', { name: f.name })));
       return show();
     }
     try {

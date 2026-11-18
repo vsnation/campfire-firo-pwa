@@ -148,7 +148,7 @@ async function verifyReleaseSignature(releaseBytes, sigText, publicJwk) {
     throw new ReleaseError('bad_signature', 'The release signature is not readable.');
   }
   const ok = sig.length === 64 && (await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, key, sig, releaseBytes));
-  if (!ok) throw new ReleaseError('bad_signature', 'This update is not signed with the Campfire release key.');
+  if (!ok) throw new ReleaseError('bad_signature', 'This update is not signed with the Firo PWA release key.');
   let rel;
   try {
     rel = JSON.parse(new TextDecoder().decode(releaseBytes));
@@ -241,7 +241,7 @@ const MAX_ADDED_SOURCES = 3;
  */
 function normalizeSource(input) {
   let s = String(input == null ? '' : input).trim();
-  if (!s) return { ok: false, reason: 'Paste the address of a copy of Campfire.' };
+  if (!s) return { ok: false, reason: 'Paste the address of a copy of Firo PWA.' };
   if (s.length > MAX_SOURCE_LENGTH) return { ok: false, reason: 'That address is too long.' };
   if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) s = `https://${s}`;
   let u;
@@ -345,7 +345,7 @@ async function readRelease(get, publicJwk) {
   } catch {
     claimed = null;
   }
-  if (!claimed || claimed.app !== RELEASE_APP_ID) throw new ReleaseError('unreachable', 'No Campfire release is published at this address.');
+  if (!claimed || claimed.app !== RELEASE_APP_ID) throw new ReleaseError('unreachable', 'No Firo PWA release is published at this address.');
   const sig = new TextDecoder().decode(await get('release.sig'));
   const release = await verifyReleaseSignature(relBytes, sig, publicJwk);
   const manifest = await verifyManifest(release, await get('manifest.json'));
@@ -624,7 +624,7 @@ function normalizeEvmServer(input) {
     if (scheme !== 'https' && scheme !== 'http') return evmFail('scheme', EVM_SCHEMES);
     s = s.slice(m[0].length);
   }
-  if (s.includes('@')) return evmFail('credentials', 'Leave out any user name and password (the part before @): Campfire sends none.');
+  if (s.includes('@')) return evmFail('credentials', 'Leave out any user name and password (the part before @): Firo PWA sends none.');
   if (s.includes('#')) return evmFail('fragment', 'Leave out the # and everything after it.');
   const cut = s.search(/[/?]/);
   const authority = cut < 0 ? s : s.slice(0, cut);
@@ -989,7 +989,7 @@ const LOADER_API = 3;
 // Hash of what this loader does to pages (security headers, MIME types, the
 // own-server policy, LOADER_API), filled in by the build; release.json carries the
 // same value for the release's own loader (see loaderCompatible()).
-const LOADER_COMPAT = "e624b71b0cc42bbeca53f7c5112c1c26011857ac4cb84953bc3eedc84b80290a";
+const LOADER_COMPAT = "e191dcfcc87a370c3c6cde57f121693781f7e5181017e9904ae6358a61750949";
 const LOADER_NAME = self.location.pathname.split('/').pop();
 // The oldest release this loader installs or serves: the first that kept its signed files beside
 // the copy. Raised only with the loader (it is part of its bytes; tests build with --loader-min).
@@ -1075,7 +1075,7 @@ async function readProof(manifestSha) {
 
 /** A stand-in-engine build is refused here unless this address is a test host (engineAllowed). */
 function engineHere(release) {
-  if (!engineAllowed(release, self.location.hostname)) throw new ReleaseError('test_build', 'This is a test build of Campfire (sample balances, no Firo network), not a release.');
+  if (!engineAllowed(release, self.location.hostname)) throw new ReleaseError('test_build', 'This is a test build of Firo PWA (sample balances, no Firo network), not a release.');
 }
 
 /**
@@ -1086,7 +1086,7 @@ function engineHere(release) {
  */
 function allowedHere(release) {
   engineHere(release);
-  if (compareVersions(release.version, MIN_RELEASE) < 0) throw new ReleaseError('downgrade', `Version ${release.version} is older than this copy of Campfire installs.`);
+  if (compareVersions(release.version, MIN_RELEASE) < 0) throw new ReleaseError('downgrade', `Version ${release.version} is older than this copy of Firo PWA installs.`);
 }
 
 /** What the state keeps of a verified release; only `from` and `verifiedAt` come from elsewhere. */
@@ -1293,7 +1293,7 @@ async function fetchBytes(base, path, { signal = null, timeoutMs = FILE_TIMEOUT_
     }
     if (!r.ok) throw new ReleaseError('unreachable', `${path}${where}: HTTP ${r.status}`);
     try {
-      return await readCapped(r, max, tooBig || (() => new ReleaseError('unreachable', `${path}${where} is far larger than a Campfire release file.`)));
+      return await readCapped(r, max, tooBig || (() => new ReleaseError('unreachable', `${path}${where} is far larger than a Firo PWA release file.`)));
     } catch (e) {
       if (e instanceof ReleaseError) throw e;
       throw new ReleaseError('unreachable', `The download of ${path}${where} was interrupted.`);
@@ -1472,7 +1472,7 @@ async function serve(request, path) {
     // A worker that took over always has a copy: none means this site's storage was cleared under it.
     // Nothing is fetched unchecked: it lets go, and the next open installs a checked copy again.
     self.registration.unregister().catch(() => {});
-    return new Response('Campfire is no longer set up on this device (its stored copy is gone). Open Campfire again to set it up.', {
+    return new Response('Firo PWA is no longer set up on this device (its stored copy is gone). Open Firo PWA again to set it up.', {
       status: 503,
       headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' },
     });
@@ -1499,15 +1499,15 @@ async function serve(request, path) {
   return notInRelease();
 }
 
-const notInRelease = () => new Response('Not part of this Campfire release.', { status: 404, headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' } });
+const notInRelease = () => new Response('Not part of this Firo PWA release.', { status: 404, headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' } });
 const changedHere = () =>
-  new Response('A file of this copy of Campfire was changed on this device after it was checked, so it was not opened. Reinstall Campfire from its address; your wallet comes back with its recovery words or backup file.', {
+  new Response('A file of this copy of Firo PWA was changed on this device after it was checked, so it was not opened. Reinstall Firo PWA from its address; your wallet comes back with its recovery words or backup file.', {
     status: 500,
     headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' },
   });
 
 const notCheckedYet = () =>
-  new Response('Campfire checks the signature of this copy once more after an update, and could not reach its address to do it. Connect to the internet and open Campfire again.', {
+  new Response('Firo PWA checks the signature of this copy once more after an update, and could not reach its address to do it. Connect to the internet and open Firo PWA again.', {
     status: 503,
     headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' },
   });

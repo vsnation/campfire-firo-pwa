@@ -220,7 +220,7 @@ export default function backup(app) {
       actions: [cta],
     },
     h('p', { class: 'step', text: t('Step 1 of 3') }),
-    h('p', { class: 'lead', text: t('These words are your wallet. With them you can open it on any device, in Campfire or another Firo wallet, even if this phone is lost.') }),
+    h('p', { class: 'lead', text: t('These words are your wallet. With them you can open it on any device, in Firo PWA or another Firo wallet, even if this phone is lost.') }),
     notice('warn', h('strong', { text: t('Write them on paper, in order. ') }), t('Anyone who sees them can take your money. No screenshots: photos sync to the cloud.')),
     reveal.el,
     status,

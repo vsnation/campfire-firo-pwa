@@ -50,7 +50,7 @@ function tripwire(app) {
       'div',
       { class: 'card' },
       h('h3', { text: t('Your funds are safe') }),
-      h('p', { text: t('Your coins are on the Firo blockchain, not in this app. Open them in the Campfire app or another Firo wallet:') }),
+      h('p', { text: t('Your coins are on the Firo blockchain, not in this app. Open them in another Firo wallet:') }),
       h('ul', { class: 'steps-list' }, h('li', { text: t('with your recovery words (Restore), or') }), h('li', { text: t('with your encrypted backup file and its password, in a copy of Firo PWA from its official address.') })),
     ),
     h('p', { class: 'small', text: t(TRIPWIRE_CLOSE) }),

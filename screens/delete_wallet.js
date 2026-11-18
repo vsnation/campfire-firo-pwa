@@ -66,7 +66,7 @@ export default function deleteWallet(app, params = {}) {
     const passkey = Boolean(r && r.envelopes && r.envelopes.passkey);
     put(
       tracesBox,
-      passkey ? h('p', { class: 'small', 'data-testid': 'delete-passkey', text: t('Its Face ID key (a passkey for {hostname}, “Campfire Firo wallet {id}”, or “BEAM Campfire wallet {id}” if it was made before this name existed) is kept by your password manager, not by Campfire. Campfire asks it to forget the key; if it is still listed in Passwords or Google Password Manager, delete it there.', { hostname: location.hostname, id: target.id.slice(0, 6) }) }) : null,
+      passkey ? h('p', { class: 'small', 'data-testid': 'delete-passkey', text: t('Its Face ID key (a passkey for {hostname}, “Firo PWA wallet {id}”; one made by an earlier version may still carry an older name) is kept by your password manager, not by Firo PWA. Firo PWA asks it to forget the key; if it is still listed in Passwords or Google Password Manager, delete it there.', { hostname: location.hostname, id: target.id.slice(0, 6) }) }) : null,
       l.length === 1 ? h('p', { class: 'small', 'data-testid': 'delete-traces', text: t("The browser may keep deleted data on its disk for a while. To leave nothing, also clear this site's data in the browser's settings.") }) : null,
     );
   }, () => {});

@@ -1,11 +1,11 @@
 {
  "app": "campfire-firo-pwa",
- "version": "0.1.24",
- "created": "2026-11-18T10:17:34.541Z",
- "manifest_sha256": "f2cd00aaf5790b48a4fd9d4a4a9a9c0013f2f55c04eaa9c7b082c857e28081ba",
+ "version": "0.1.25",
+ "created": "2026-11-18T11:25:44.653Z",
+ "manifest_sha256": "2b197811056a8bd1def8124a14acb645d0379563e498dc709a60582a77f335b9",
  "file_count": 301,
- "loader": "sw-2c3075812d9ad80d.js",
- "loader_compat": "e624b71b0cc42bbeca53f7c5112c1c26011857ac4cb84953bc3eedc84b80290a",
+ "loader": "sw-cbd64db3478a9b49.js",
+ "loader_compat": "e191dcfcc87a370c3c6cde57f121693781f7e5181017e9904ae6358a61750949",
  "update_sources": [
   "https://raw.githubusercontent.com/vsnation/campfire-firo-pwa/release/",
   "https://vsnation.github.io/campfire-firo-pwa/",
