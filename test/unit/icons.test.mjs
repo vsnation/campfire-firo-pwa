@@ -46,17 +46,18 @@ function decodePng(buf) {
 }
 
 const ICONS = [
-  ['icon-192.png', 192],
-  ['icon-512.png', 512],
-  ['icon-maskable-512.png', 512],
-  ['apple-touch-icon.png', 180],
+  ['firo-pwa-192.png', 192],
+  ['firo-pwa-512.png', 512],
+  ['firo-pwa-maskable-512.png', 512],
+  ['firo-pwa-apple-180.png', 180],
+  ['icon-192.png', 192], // the notifications' (lib/notify.js, the service worker)
 ];
 
 test('every app icon is the logo on navy at its named size: not a blank or broken-image square', () => {
   const manifest = readFileSync(join(SRC, 'manifest.webmanifest'), 'utf8');
   const index = readFileSync(join(SRC, 'index.html'), 'utf8');
   for (const [file, size] of ICONS) {
-    assert.ok(manifest.includes(`icons/${file}`) || index.includes(`icons/${file}`), `${file} is named`);
+    assert.ok(manifest.includes(`icons/${file}`) || index.includes(`icons/${file}`) || file === 'icon-192.png', `${file} is named`);
     const png = decodePng(readFileSync(join(SRC, 'icons', file)));
     assert.equal(png.width, size, file);
     assert.equal(png.height, size, file);

@@ -99,6 +99,18 @@ test('Privatize opens with everything in; 25% moves a quarter, the fee on top; c
   const b = await balance();
   assert.ok(BigInt(b.public) < 300000000000n && BigInt(b.public) > 299000000000n, `about 3,000 FIRO left public: ${b.public}`);
   assert.equal(b.private, '1100000000000', '11,000 FIRO private');
+  // Owner 2026-11-18: its details say where every coin went, the change named as change.
+  await page.evaluate(() => window.__campfire.go('activity'));
+  await waitScreen(page, 'activity');
+  await page.click('[data-testid="activity-list"] > *:first-child');
+  await page.waitForSelector(tid('tx-parts'));
+  assert.equal(await page.textContent(tid('tx-amount')), '1,000 FIRO', 'the headline is what moved');
+  assert.match(await page.textContent(tid('part-to-private')), /To your private balance\s*1,000 FIRO/);
+  assert.match(await page.textContent(tid('part-change-public')), /Change back to your public balance\s*0\.\d+ FIRO/);
+  assert.match(await page.textContent(tid('part-from-public')), /Taken from your public balance\s*1,001 FIRO/);
+  assert.ok(await page.$(tid('part-fee')));
+  assert.equal(await page.$(tid('part-to-others')), null, 'nothing went to anyone else');
+  await page.keyboard.press('Escape');
 });
 
 test('typing an amount turns the picks off; a too-large amount says so and moves nothing', { timeout: 2 * 60000 }, async () => {

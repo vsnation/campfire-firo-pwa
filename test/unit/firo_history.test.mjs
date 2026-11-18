@@ -146,6 +146,54 @@ test('privatize: counted as sent until the Spark side recognises the mint as our
   assert.equal(list.length, 2);
 });
 
+test('owner 2026-11-18: a privatize with change says where every coin went; it adds up, and the change is never "sent"', () => {
+  const mintScript = new Uint8Array(250).fill(0xd1);
+  const hex = spendOwn([{ script: mintScript, value: 60000000n }, { script: S(3), value: 39980000n }]);
+  const txid = decodeTx(hex).txid;
+  const records = new Map([rec(parentHex, 100), rec(hex, 101)]);
+  const t = transparentEntries({ net: MAIN, records, isOwnScript: own, isChangeScript: (sc) => scriptHash(sc) === scriptHash(S(3)), tipHeight: 101 });
+  const before = t.get(txid);
+  assert.deepEqual(before.parts, { fromPublic: 99990000n, fromPrivate: 0n, toPrivateSelf: 0n, toPublicSelf: 0n, toOthers: 60000000n, changePublic: 39980000n, changePrivate: 0n, backPrivate: 0n, fee: 10000n }, 'the change is change, not a payment');
+  const s = sparkEntries({ coins: [{ txid, value: 60000000n, memo: '', isChange: false, height: 101 }], tipHeight: 101 });
+  const e = mergeEntries(t, s).find((x) => x.txid === txid);
+  assert.deepEqual([e.direction, e.amount], ['self', '60000000']);
+  assert.deepEqual(e.parts, { fromPublic: '99990000', fromPrivate: '0', toPrivateSelf: '60000000', toPublicSelf: '0', toOthers: '0', changePublic: '39980000', changePrivate: '0', backPrivate: '0', fee: '10000' });
+  const p = Object.fromEntries(Object.entries(e.parts).map(([k, v]) => [k, BigInt(v)]));
+  assert.equal(p.fromPublic, p.toPrivateSelf + p.toPublicSelf + p.toOthers + p.changePublic + p.fee, 'taken = everything else');
+  // This wallet's own record of the privatize: moved to the private balance at once, before the Spark side reads the block.
+  const now = mergeEntries(transparentEntries({ net: MAIN, records, isOwnScript: own, isChangeScript: (sc) => scriptHash(sc) === scriptHash(S(3)), tipHeight: 101, selfMints: new Map([[txid, 60000000n]]) }), new Map()).find((x) => x.txid === txid);
+  assert.deepEqual([now.direction, now.amount, now.parts.toPrivateSelf, now.parts.toOthers], ['self', '60000000', '60000000', '0']);
+  // A public payment to someone, with change: what went to them, what came back.
+  const payHex = spendOwn([{ script: S(2), value: 50000000n }, { script: S(3), value: 49980000n }]);
+  const pay = mergeEntries(transparentEntries({ net: MAIN, records: new Map([rec(parentHex, 100), rec(payHex, 0)]), isOwnScript: own, isChangeScript: (sc) => scriptHash(sc) === scriptHash(S(3)), tipHeight: 200 }), new Map()).find((x) => x.txid === decodeTx(payHex).txid);
+  assert.deepEqual([pay.parts.fromPublic, pay.parts.toOthers, pay.parts.changePublic, pay.parts.fee], ['99990000', '50000000', '49980000', '10000']);
+});
+
+test('audit of 0.1.26: a private payment just sent, its change not found yet: on its way back, and the parts add up; parts that cannot add up are not shown', () => {
+  const coins = [{ txid: '11'.repeat(32), value: 1000000000n, memo: '', isChange: false, height: 10, spentTxid: '22'.repeat(32) }];
+  const sends = new Map([['22'.repeat(32), { amount: '300000000', fee: '10000', to: 'sm1someone', time: 50 }]]);
+  const e = mergeEntries(new Map(), sparkEntries({ coins, sends, tipHeight: 30 })).find((x) => x.txid === '22'.repeat(32));
+  assert.deepEqual([e.parts.fromPrivate, e.parts.toOthers, e.parts.fee, e.parts.backPrivate, e.parts.changePrivate], ['1000000000', '300000000', '10000', '699990000', '0']);
+  // Make public, before the public side has the payment: to our own public address, not "sent".
+  const mp = new Map([['22'.repeat(32), { amount: '300000000', fee: '10000', to: 'aOwn', toPublicSelf: '300000000', time: 50 }]]);
+  const m = mergeEntries(new Map(), sparkEntries({ coins, sends: mp, tipHeight: 30 })).find((x) => x.txid === '22'.repeat(32));
+  assert.deepEqual([m.parts.toPublicSelf, m.parts.toOthers, m.parts.backPrivate], ['300000000', '0', '699990000']);
+  // Logged as more than the coins found spent (a restore that has not found them all): no parts.
+  const short = new Map([['22'.repeat(32), { amount: '1500000000', fee: '10000', to: 'sm1someone', time: 50 }]]);
+  assert.equal(mergeEntries(new Map(), sparkEntries({ coins, sends: short, tipHeight: 30 })).find((x) => x.txid === '22'.repeat(32)).parts, undefined);
+  // Not sent from here (no log): never "coming back", the rest is what left.
+  const un = mergeEntries(new Map(), sparkEntries({ coins, tipHeight: 30 })).find((x) => x.txid === '22'.repeat(32));
+  assert.equal(un.parts?.backPrivate ?? '0', '0');
+});
+
+test('owner 2026-11-18: an output of a payment of ours to an address of this wallet further along a chain is found (and then followed)', async () => {
+  const { TransparentWallet } = await import('../../src/lib/firo/transparent.js');
+  const fake = { addr: { chains: { 0: { derived: 20 }, 1: { derived: 10 } } }, keys: { address: (chain, i) => ({ address: `a${chain}-${i}`, chain, index: i }) } };
+  const found = TransparentWallet.prototype.findBeyondMany.call(fake, ['a1-60', 'someone-else', 'a0-25', 'a1-200']);
+  assert.deepEqual(found.map((e) => e.address).sort(), ['a0-25', 'a1-60'], 'within BEYOND of each chain; not someone else, not too far');
+  assert.deepEqual(TransparentWallet.prototype.findBeyondMany.call(fake, []), []);
+});
+
 test('Spark: received, change not counted as income, a logged payment with its fee, newest first', () => {
   const coins = [
     { txid: '11'.repeat(32), value: 500n, memo: 'a', isChange: false, height: 10, heightApprox: true, spentTxid: '22'.repeat(32), spentHeight: 20 },

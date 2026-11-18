@@ -906,7 +906,7 @@ export class FiroBackend {
 
   _txList() {
     const tipH = this.tip?.height ?? 0;
-    const item = this.transparent ? transparentEntries({ net: this.net, records: this.transparent.txs, isOwnScript: (s) => this.transparent.isOwnScript(s), isChangeScript: (s) => this.transparent.ownEntryForScript(s)?.chain === CHAIN_CHANGE, isBigScript: (s) => this.transparent.isBigScript(s), tipHeight: tipH, pending: this.transparent.pending, oneNode: this._oneNodeReceipts }) : new Map();
+    const item = this.transparent ? transparentEntries({ net: this.net, records: this.transparent.txs, isOwnScript: (s) => this.transparent.isOwnScript(s), isChangeScript: (s) => this.transparent.ownEntryForScript(s)?.chain === CHAIN_CHANGE, isBigScript: (s) => this.transparent.isBigScript(s), tipHeight: tipH, pending: this.transparent.pending, oneNode: this._oneNodeReceipts, selfMints: this.transparent.selfMints ?? new Map() }) : new Map();
     const coins = [...this.ownCoins.values()].map((c) => ({
       txid: c.txid,
       value: c.value,
@@ -926,6 +926,50 @@ export class FiroBackend {
   }
 
   // ------------------------------------------------------------ sync
+
+  /**
+   * Outputs of payments of ours (they spend our coins) to an address this wallet does not know: one
+   * of its own further along a chain is followed from now on, so the coins there count in the balance
+   * and Activity says change, not a payment to someone (owner 2026-11-18: a privatize's change sent
+   * where this copy had not looked yet read as paid away). Each transaction is looked at once; no
+   * network, BEYOND derivations of each chain for all of them.
+   */
+  async _followOwnOutputs() {
+    const tw = this.transparent;
+    if (!tw) return;
+    this._outputsLooked ??= new Set();
+    const unknown = [];
+    for (const [txid, r] of tw.txs) {
+      if (this._outputsLooked.has(txid)) continue;
+      const d = r.decoded;
+      // An input whose own transaction is not held yet (its fetch failed, to be tried again) is
+      // looked at again next sync (audit of 0.1.26: marked at once, a change there was never found);
+      // one held only by the node's word for its address (r.inputs) counts as known.
+      let known = true;
+      const spendsOurs = d.vin.some((i, n) => {
+        if (!i.txid) return false;
+        const po = tw.txs.get(i.txid)?.decoded.vout[i.vout];
+        if (po) return tw.isOwnScript(po.script);
+        const fb = r.inputs?.[n];
+        if (fb?.address) {
+          try {
+            return tw.isOwnScript(addressToScript(fb.address, this.net));
+          } catch {
+            return false; // not an address of ours (re-audit of 0.1.26: it stopped the whole pass)
+          }
+        }
+        known = false;
+        return false;
+      });
+      if (known || spendsOurs) this._outputsLooked.add(txid);
+      if (!spendsOurs) continue;
+      for (const o of d.vout) if (o.address && o.type !== 'spark-mint' && o.type !== 'nulldata' && !tw.isOwnScript(o.script)) unknown.push(o.address);
+    }
+    const found = tw.findBeyondMany(unknown);
+    if (!found.length) return;
+    for (const e of found) await tw.follow(e);
+    this._requestSync();
+  }
 
   _requestSync() {
     if (!this.opened || this._closed) return;
@@ -1006,6 +1050,7 @@ export class FiroBackend {
         await this._checkCollateral().catch(() => {});
         await this._followPending().catch(() => {});
         await this._confirmSpentConflicts().catch(() => {});
+        await this._followOwnOutputs().catch(() => {});
       }
       // Lists unchecked (0.1.11 audit L1): sets an earlier version found not to add up are let go of
       // once, so their coins are found again in a set fetched anew, or not at all.
@@ -3057,7 +3102,9 @@ export class FiroBackend {
         // The fee must still pay for the real size.
         const minFee = (BigInt(signed.size) * (feePerKb > this.net.minRelayFeePerKb ? feePerKb : this.net.minRelayFeePerKb) + 999n) / 1000n;
         if (signed.fee < minFee) throw err('server', t('The mint came out larger than planned; try again.'));
-        return { hex: signed.hex, txid: signed.txid, fee: signed.fee, recips };
+        // What it mints to this wallet's own Spark address, as signed (Privatize All's amount is known only now).
+        const ownMinted = finalOuts.filter((o) => this._isOwnSparkAddress(o.address)).reduce((sum, o) => sum + o.value, 0n);
+        return { hex: signed.hex, txid: signed.txid, fee: signed.fee, recips, ownMinted };
       },
     };
   }
@@ -3453,6 +3500,17 @@ export class FiroBackend {
           return all.length > 1 ? { toAll: all.slice(0, 20) } : {};
         })(),
         memo: built.recips.find((r) => r.memo)?.memo,
+        // Paid to this wallet's own public addresses (Make public): ours, in Activity's details.
+        ...(() => {
+          let own = 0n;
+          for (const r of built.recips) {
+            if (r.kind === 'spark') continue;
+            try {
+              if (this.transparent?.isOwnScript(addressToScript(r.address, this.net))) own += r.amount;
+            } catch {}
+          }
+          return own > 0n ? { toPublicSelf: String(own) } : {};
+        })(),
         time: now(),
         // Until the payment is seen used on chain: where it was sent, its bytes to send again, the coins it spends.
         height: tip,
@@ -3501,6 +3559,8 @@ export class FiroBackend {
         throw this._notRecorded(e);
       }
       if (!kept) throw this._notRecorded(null);
+      // A privatize: its coins are this wallet's own, said at once in Activity (only shown: never fails the payment).
+      if (built.ownMinted > 0n) await this.transparent.noteSelfMint(built.txid, built.ownMinted).catch(() => {});
     }
     this._emit();
   }
@@ -3879,13 +3939,15 @@ export class FiroBackend {
       // The person's own choices stay (public audit of 0.1.13: a Rescan made frozen coins spendable,
       // locked a 1,000 FIRO coin unlocked to spend, and forgot the coins a payment let go of must be
       // spent first by the next one, so it and a resend could both be paid).
-      const KEEP = ['w/t/frozen', 'w/t/mnSpendable', 'w/t/conflicts', 'w/t/followed'];
+      // The privatizes' own record too (audit of 0.1.26: lost, each read "sent" until the Spark side found it again).
+      const KEEP = ['w/t/frozen', 'w/t/mnSpendable', 'w/t/conflicts', 'w/t/followed', 'w/t/selfMints'];
       // Not while a payment is being sent, and no payment, freeze or let-go until the new records'
       // wallet has taken over (audit of 0.1.15, R1: a payment written down meanwhile was lost to the
       // new wallet, so a resend could pay twice).
       if (this._rescanning) throw err('in-flight', t('A Rescan is already under way.'));
       if (this._inFlight > 0) throw err('in-flight', t('A payment is still being sent. Try again once it has left.'));
       this._rescanning = true;
+      this._outputsLooked = null; // every record looked at again once the new ones are in
       const old = this.transparent;
       try {
         // The old records' wallet writes none of the records deleted here (audit of 0.1.15, N1), and a

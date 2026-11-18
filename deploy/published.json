@@ -156,6 +156,12 @@
    "created": "2026-11-18T11:25:44.653Z",
    "loader": "sw-cbd64db3478a9b49.js",
    "file_count": 301
+  },
+  "0.1.26": {
+   "manifest_sha256": "010ee91886df27d55583ec03ef3e9328cc0a74e2e1e5c874819a20591b9702fa",
+   "created": "2026-11-18T12:46:52.774Z",
+   "loader": "sw-cbd64db3478a9b49.js",
+   "file_count": 302
   }
  }
 }

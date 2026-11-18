@@ -8480,6 +8480,90 @@
       "screens/activity.js"
     ]
   },
+  "Sent to {n} recipients": {
+    "where": [
+      "screens/activity.js"
+    ],
+    "placeholders": [
+      "n"
+    ]
+  },
+  "Sent to {who}": {
+    "where": [
+      "screens/activity.js"
+    ],
+    "placeholders": [
+      "who"
+    ]
+  },
+  "Sent to others": {
+    "where": [
+      "screens/activity.js"
+    ]
+  },
+  "Where it went": {
+    "where": [
+      "screens/activity.js"
+    ]
+  },
+  "Taken from your public balance": {
+    "where": [
+      "screens/activity.js"
+    ]
+  },
+  "Taken from your private balance": {
+    "where": [
+      "screens/activity.js"
+    ]
+  },
+  "To your private balance": {
+    "where": [
+      "screens/activity.js"
+    ]
+  },
+  "To your public balance": {
+    "where": [
+      "screens/activity.js"
+    ]
+  },
+  "Change back to your public balance": {
+    "where": [
+      "screens/activity.js"
+    ]
+  },
+  "Change back to your private balance": {
+    "where": [
+      "screens/activity.js"
+    ]
+  },
+  "Coming back to your private balance": {
+    "where": [
+      "screens/activity.js"
+    ]
+  },
+  "Network fee": {
+    "where": [
+      "screens/activity.js",
+      "screens/eth_raw_review.js",
+      "screens/eth_review.js",
+      "screens/eth_send.js",
+      "screens/eth_swap.js",
+      "screens/eth_swap_bsc.js",
+      "screens/eth_swap_parts.js",
+      "screens/eth_swap_tx.js",
+      "screens/eth_tx.js",
+      "screens/name_register.js",
+      "screens/privatize.js",
+      "screens/review.js",
+      "screens/send.js",
+      "screens/tx_status.js"
+    ]
+  },
+  "A coin is spent whole: what is more than the payment and its fee comes back to you as change, in a new coin of yours.": {
+    "where": [
+      "screens/activity.js"
+    ]
+  },
   "Let go on the word of the Firo node in use": {
     "where": [
       "screens/activity.js"
@@ -8580,24 +8664,6 @@
   "Found while restoring: its block is known only roughly. Settings → Exact dates for restored private payments finds it exactly.": {
     "where": [
       "screens/activity.js"
-    ]
-  },
-  "Network fee": {
-    "where": [
-      "screens/activity.js",
-      "screens/eth_raw_review.js",
-      "screens/eth_review.js",
-      "screens/eth_send.js",
-      "screens/eth_swap.js",
-      "screens/eth_swap_bsc.js",
-      "screens/eth_swap_parts.js",
-      "screens/eth_swap_tx.js",
-      "screens/eth_tx.js",
-      "screens/name_register.js",
-      "screens/privatize.js",
-      "screens/review.js",
-      "screens/send.js",
-      "screens/tx_status.js"
     ]
   },
   "From": {

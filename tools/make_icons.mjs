@@ -16,11 +16,16 @@ const BG = '#262d4a';
 const chrome = process.env.CHROME_PATH || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 
 // [file, size, logo width (= height) as a fraction of the icon]
+// The manifest's and the page's icons are named for the logo: a browser updates an installed app's
+// icon only when its address changes (Chrome compares the addresses, not the images, since Chrome
+// 144), so a new logo gets new names. icon-192.png stays for the notifications the service worker
+// shows (its bytes are fixed in the loader).
 const ICONS = [
-  ['icon-512.png', 512, 0.66],
+  ['firo-pwa-512.png', 512, 0.66],
+  ['firo-pwa-192.png', 192, 0.66],
+  ['firo-pwa-apple-180.png', 180, 0.64],
+  ['firo-pwa-maskable-512.png', 512, 0.56], // the small spark's tip inside the 80% safe circle (at most 0.77)
   ['icon-192.png', 192, 0.66],
-  ['apple-touch-icon.png', 180, 0.64],
-  ['icon-maskable-512.png', 512, 0.56], // the small spark's tip inside the 80% safe circle (at most 0.77)
 ];
 
 const browser = await chromium.launch({ executablePath: chrome, headless: true });

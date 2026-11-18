@@ -93,7 +93,15 @@ function show(s) {
     }
     console.log(`  private check: ${JSON.stringify(s.privateCheck ?? null)}`);
   }
-  for (const t of s.txs.slice(0, 12)) console.log(`  ${t.txid.slice(0, 16)}… ${t.kind.padEnd(11)} ${t.direction.padEnd(4)} ${fmt(t.amount)} fee ${fmt(t.fee ?? 0)} ${t.height ? `block ${t.height}` : t.heightApprox ? `about block ${t.heightApprox}` : 'unconfirmed'}${t.memo ? ` memo "${t.memo}"` : ''}${t.counterparty ? ` to ${t.counterparty.slice(0, 18)}` : ''}${t.toPublic ? ' MADE PUBLIC' : ''}`);
+  for (const t of s.txs.slice(0, Number(process.env.FIRO_TXS ?? 12))) {
+    console.log(`  ${t.txid.slice(0, 16)}… ${t.kind.padEnd(11)} ${t.direction.padEnd(4)} ${fmt(t.amount)} fee ${fmt(t.fee ?? 0)} ${t.height ? `block ${t.height}` : t.heightApprox ? `about block ${t.heightApprox}` : 'unconfirmed'}${t.memo ? ` memo "${t.memo}"` : ''}${t.counterparty ? ` to ${t.counterparty.slice(0, 18)}` : ''}${t.toPublic ? ' MADE PUBLIC' : ''}`);
+    // Where it went (0.1.26): every part, and whether they add up.
+    if (t.parts) {
+      const p = Object.fromEntries(Object.entries(t.parts).map(([k, v]) => [k, BigInt(v)]));
+      const out = Object.entries(p).filter(([k]) => k !== 'fromPublic' && k !== 'fromPrivate').reduce((a, [, v]) => a + v, 0n);
+      console.log(`      parts ${Object.entries(p).filter(([, v]) => v > 0n).map(([k, v]) => `${k} ${fmt(v)}`).join(' | ')} | ${p.fromPublic + p.fromPrivate === out ? 'adds up' : 'DOES NOT ADD UP'}`);
+    }
+  }
 }
 
 const [cmd, ...args] = process.argv.slice(2);
