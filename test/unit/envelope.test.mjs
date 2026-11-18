@@ -76,7 +76,7 @@ test('passkey KEK is HKDF-SHA256 with info "campfire-firo-kek-v1", bound as addi
   assert.equal(new TextDecoder().decode(pt), secret);
 });
 
-test("passkey envelopes carry Campfire for Firo's own label; one made before it (no label) still opens; another label does not", async () => {
+test("passkey envelopes carry Firo PWA's own label; one made before it (no label) still opens; another label does not", async () => {
   const { sealWithPrf, openWithPrf, KEK_INFO } = await import('../../src/lib/envelope.js');
   assert.equal(KEK_INFO, 'campfire-firo-kek-v1');
   const prf = new Uint8Array(32).fill(7);
@@ -94,13 +94,13 @@ test("passkey envelopes carry Campfire for Firo's own label; one made before it 
   old.iv = b64(iv);
   old.ct = b64(new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv, additionalData: aad }, kek, new TextEncoder().encode('cd'.repeat(32)))));
   assert.equal(await openWithPrf(old, prf), 'cd'.repeat(32), 'a passkey set up before the change still unlocks');
-  await assert.rejects(openWithPrf({ ...env, info: 'beam-campfire-kek-v1' }, prf), /Not a Campfire envelope/);
+  await assert.rejects(openWithPrf({ ...env, info: 'beam-campfire-kek-v1' }, prf), /Not a Firo PWA key envelope/);
 });
 
-test("a new passkey is named for Campfire for Firo in the device's passkey list", async () => {
+test("a new passkey is named for Firo PWA in the device's passkey list (never Campfire: owner 2026-11-18)", async () => {
   const { passkeyNames } = await import('../../src/lib/passkey.js');
-  assert.deepEqual(passkeyNames('abcdef123', 'Savings'), { name: 'Campfire Firo wallet abcdef', displayName: 'Campfire (Firo): Savings' });
-  assert.deepEqual(passkeyNames('abcdef123'), { name: 'Campfire Firo wallet abcdef', displayName: 'Campfire Firo wallet' });
+  assert.deepEqual(passkeyNames('abcdef123', 'Savings'), { name: 'Firo PWA wallet abcdef', displayName: 'Firo PWA: Savings' });
+  assert.deepEqual(passkeyNames('abcdef123'), { name: 'Firo PWA wallet abcdef', displayName: 'Firo PWA wallet' });
 });
 
 test('PN-keys: a record asking for an implausible number of rounds is refused before any work (it would hang the unlock)', async () => {

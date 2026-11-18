@@ -114,7 +114,7 @@ export default function settings(app) {
             if (!(await confirmIdentity(app, { title: t('Turn off Face ID?'), cta: t('Turn off') }))) return;
             await removePasskey(app);
             // The passkey itself stays in the password manager, opening nothing now (PN-keys): said.
-            toast(t('Face ID is off. Use your password to unlock. The Campfire passkey in your password manager opens nothing now; you can delete it there.'), 8000);
+            toast(t('Face ID is off. Use your password to unlock. The Firo PWA passkey in your password manager opens nothing now; you can delete it there.'), 8000);
             app.go('settings', {}, { replace: true });
           }, { 'data-testid': 'passkey-row' })
         : avail

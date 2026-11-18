@@ -13,6 +13,7 @@
 import { askLoader, loaderServed, moveToLoader } from './loader.js';
 import { normalizeSource } from './update_sources.js';
 import { t, tn } from './i18n.js';
+import { loaderText } from './loader_words.js';
 
 const LAST_CHECK_KEY = 'campfire-last-update-check';
 const ADDED_KEY = 'campfire-update-source';
@@ -64,7 +65,8 @@ export const copyAt = (from) => (from && !from.own && from.host ? t('a copy at {
 
 /** The refusal in plain words, naming the copy it came from when that was not this app's address. */
 export function refusalText(r) {
-  const why = r.reason || t('The update did not pass the signature check.');
+  // The loader's sentence in the active language (and an older loader's Campfire one as Firo PWA's).
+  const why = r.reason ? loaderText(r.reason) : t('The update did not pass the signature check.');
   return r.from && !r.from.own ? t('From the copy at {host}: {why}', { host: r.from.host, why }) : why;
 }
 

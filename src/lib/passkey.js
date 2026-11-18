@@ -10,13 +10,13 @@
 import { randomBytes, b64, unb64 } from './envelope.js';
 import { t } from './i18n.js';
 
-const RP_NAME = 'Campfire (Firo)';
+const RP_NAME = 'Firo PWA';
 
 /** The names a wallet's passkey has in the device's passkey list (Passwords, Google Password Manager). */
 export function passkeyNames(walletId, walletName = '') {
   return {
-    name: `Campfire Firo wallet ${String(walletId).slice(0, 6)}`,
-    displayName: walletName ? `Campfire (Firo): ${String(walletName).slice(0, 32)}` : t('Campfire Firo wallet'),
+    name: `Firo PWA wallet ${String(walletId).slice(0, 6)}`,
+    displayName: walletName ? `Firo PWA: ${String(walletName).slice(0, 32)}` : t('Firo PWA wallet'),
   };
 }
 
@@ -53,7 +53,7 @@ function mapError(e) {
   if (e instanceof PasskeyError) return e;
   if (e && (e.name === 'NotAllowedError' || e.name === 'AbortError'))
     return new PasskeyError('cancelled', t('Face ID was cancelled or timed out.'));
-  if (e && e.name === 'InvalidStateError') return new PasskeyError('failed', t('This device already has a Campfire passkey for this wallet.'));
+  if (e && e.name === 'InvalidStateError') return new PasskeyError('failed', t('This device already has a Firo PWA passkey for this wallet.'));
   return new PasskeyError('failed', t('The passkey did not work on this device.'));
 }
 

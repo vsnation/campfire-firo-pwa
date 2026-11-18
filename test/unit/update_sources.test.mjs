@@ -374,7 +374,9 @@ test('progress and result wording', async () => {
   assert.equal(lastCheckText({ at: now, result: 'applied', version: '0.1.9', host: 'cdn.jsdelivr.net' }, now), "Last checked just now: updated to 0.1.9 from a copy at cdn.jsdelivr.net, checked against Firo PWA's signature.");
   assert.equal(lastCheckText({ at: now, result: 'applied', version: '0.1.9', host: null }, now), "Last checked just now: updated to 0.1.9, checked against Firo PWA's signature.");
   assert.equal(lastCheckText({ at: now, result: 'needs_own_address', version: '0.2.0' }, now), "Last checked just now: version 0.2.0 needs this app's address to install; your app keeps working.");
-  assert.equal(refusalText({ reason: 'This update is not signed with the Campfire release key.', from: { host: 'wallet.example.org', own: true } }), 'This update is not signed with the Campfire release key.');
+  assert.equal(refusalText({ reason: 'This update is not signed with the Firo PWA release key.', from: { host: 'wallet.example.org', own: true } }), 'This update is not signed with the Firo PWA release key.');
+  // An older loader's sentence: Firo PWA's, inside the copy's line too.
+  assert.equal(refusalText({ reason: 'This update is not signed with the Campfire release key.', from: { host: 'cdn.example', own: false } }), 'From the copy at cdn.example: This update is not signed with the Firo PWA release key.');
 });
 
 // ---------------------------------------------------------------- the build writes it down

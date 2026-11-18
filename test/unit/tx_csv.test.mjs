@@ -76,8 +76,8 @@ test('the file: newest first, memos quoted, a BOM and CRLF; a value column only 
 
 test('file name: the date, and the wallet when there are several', () => {
   const d = new Date(2026, 9, 11);
-  assert.equal(csvFileName(d), 'campfire-firo-payments-2026-10-11.csv');
-  assert.equal(csvFileName(d, 'My Savings / 2'), 'campfire-firo-payments-My-Savings-2-2026-10-11.csv');
+  assert.equal(csvFileName(d), 'firo-pwa-payments-2026-10-11.csv');
+  assert.equal(csvFileName(d, 'My Savings / 2'), 'firo-pwa-payments-My-Savings-2-2026-10-11.csv');
 });
 
 test('saveCsv: nothing to save says so, without touching anything', async () => {

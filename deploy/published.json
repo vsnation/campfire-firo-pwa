@@ -150,6 +150,12 @@
    "created": "2026-11-18T10:17:34.541Z",
    "loader": "sw-2c3075812d9ad80d.js",
    "file_count": 301
+  },
+  "0.1.25": {
+   "manifest_sha256": "2b197811056a8bd1def8124a14acb645d0379563e498dc709a60582a77f335b9",
+   "created": "2026-11-18T11:25:44.653Z",
+   "loader": "sw-cbd64db3478a9b49.js",
+   "file_count": 301
   }
  }
 }

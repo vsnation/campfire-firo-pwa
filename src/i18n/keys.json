@@ -203,11 +203,6 @@
       "lib/backup_file.js"
     ]
   },
-  "This is not a Campfire backup file.": {
-    "where": [
-      "lib/backup_file.js"
-    ]
-  },
   "This is not a Firo PWA backup file.": {
     "where": [
       "lib/backup_file.js"
@@ -1272,7 +1267,7 @@
       "lib/envelope.js"
     ]
   },
-  "Not a Campfire envelope.": {
+  "Not a Firo PWA key envelope.": {
     "where": [
       "lib/envelope.js"
     ]
@@ -4830,7 +4825,7 @@
       "lib/i18n.js"
     ]
   },
-  "Your coins are on the Firo blockchain, not in this app. Open them in the Campfire app or another Firo wallet with your recovery words, or with your encrypted backup file and its password.": {
+  "Your coins are on the Firo blockchain, not in this app. Open them in another Firo wallet with your recovery words, or in Firo PWA with your encrypted backup file and its password.": {
     "where": [
       "lib/i18n.js"
     ]
@@ -5462,7 +5457,7 @@
       "lib/loader.js"
     ]
   },
-  "this app's address serves other code under the new loader's name than Campfire signed": {
+  "this app's address serves other code under the new loader's name than Firo PWA signed": {
     "where": [
       "lib/loader.js"
     ]
@@ -5477,7 +5472,7 @@
       "lib/loader_words.js"
     ]
   },
-  "This update is not signed with the Campfire release key.": {
+  "This update is not signed with the Firo PWA release key.": {
     "where": [
       "lib/loader_words.js"
     ]
@@ -5539,7 +5534,7 @@
       "path"
     ]
   },
-  "No Campfire release is published at this address.": {
+  "No Firo PWA release is published at this address.": {
     "where": [
       "lib/loader_words.js"
     ]
@@ -5557,7 +5552,7 @@
       "version"
     ]
   },
-  "Paste the address of a copy of Campfire.": {
+  "Paste the address of a copy of Firo PWA.": {
     "where": [
       "lib/loader_words.js"
     ]
@@ -5618,7 +5613,7 @@
       "status"
     ]
   },
-  "{path} is far larger than a Campfire release file.": {
+  "{path} is far larger than a Firo PWA release file.": {
     "where": [
       "lib/loader_words.js"
     ],
@@ -5626,7 +5621,7 @@
       "path"
     ]
   },
-  "{path} from {host} is far larger than a Campfire release file.": {
+  "{path} from {host} is far larger than a Firo PWA release file.": {
     "where": [
       "lib/loader_words.js"
     ],
@@ -5652,12 +5647,12 @@
       "path"
     ]
   },
-  "This is a test build of Campfire (sample balances, no Firo network), not a release.": {
+  "This is a test build of Firo PWA (sample balances, no Firo network), not a release.": {
     "where": [
       "lib/loader_words.js"
     ]
   },
-  "Version {version} is older than this copy of Campfire installs.": {
+  "Version {version} is older than this copy of Firo PWA installs.": {
     "where": [
       "lib/loader_words.js"
     ],
@@ -5767,7 +5762,7 @@
       "lib/loader_words.js"
     ]
   },
-  "Leave out any user name and password (the part before @): Campfire sends none.": {
+  "Leave out any user name and password (the part before @): Firo PWA sends none.": {
     "where": [
       "lib/loader_words.js"
     ]
@@ -6121,7 +6116,7 @@
       "name"
     ]
   },
-  "Campfire Firo wallet": {
+  "Firo PWA wallet": {
     "where": [
       "lib/passkey.js"
     ]
@@ -6131,7 +6126,7 @@
       "lib/passkey.js"
     ]
   },
-  "This device already has a Campfire passkey for this wallet.": {
+  "This device already has a Firo PWA passkey for this wallet.": {
     "where": [
       "lib/passkey.js"
     ]
@@ -8428,7 +8423,7 @@
       "screens/about.js"
     ]
   },
-  "Firo PWA: MIT licence, by vsnation, from the Campfire wallet (Cypher Stack). Bundled: noble cryptography and scure (MIT), jsQR (Apache-2.0), Inter font (SIL Open Font License 1.1), and Spark (Firo's sparkmobile, libsecp256k1, Bitcoin Core, ctaes, musl and Emscripten, MIT; LLVM libc++, Apache-2.0 with LLVM Exceptions), each licence in vendor/spark/licenses. Logos: Firo PWA's (GPL-3.0, from the Firo PWA app), Ethereum's (CC BY 3.0, the Ethereum Foundation), Firo's (Firo's mark): img/LICENSE.txt.": {
+  "Firo PWA: MIT licence, by vsnation. Bundled: noble cryptography and scure (MIT), jsQR (Apache-2.0), Inter font (SIL Open Font License 1.1), and Spark (Firo's sparkmobile, libsecp256k1, Bitcoin Core, ctaes, musl and Emscripten, MIT; LLVM libc++, Apache-2.0 with LLVM Exceptions), each licence in vendor/spark/licenses. Logos: Firo PWA's own (MIT), Ethereum's (CC BY 3.0, the Ethereum Foundation), Firo's (Firo's mark): img/LICENSE.txt.": {
     "where": [
       "screens/about.js"
     ]
@@ -9019,7 +9014,7 @@
       "screens/eth_words.js"
     ]
   },
-  "These words are your wallet. With them you can open it on any device, in Campfire or another Firo wallet, even if this phone is lost.": {
+  "These words are your wallet. With them you can open it on any device, in Firo PWA or another Firo wallet, even if this phone is lost.": {
     "where": [
       "screens/backup.js"
     ]
@@ -11343,7 +11338,7 @@
       "screens/delete_wallet.js"
     ]
   },
-  "Its Face ID key (a passkey for {hostname}, “Campfire Firo wallet {id}”, or “BEAM Campfire wallet {id}” if it was made before this name existed) is kept by your password manager, not by Campfire. Campfire asks it to forget the key; if it is still listed in Passwords or Google Password Manager, delete it there.": {
+  "Its Face ID key (a passkey for {hostname}, “Firo PWA wallet {id}”; one made by an earlier version may still carry an older name) is kept by your password manager, not by Firo PWA. Firo PWA asks it to forget the key; if it is still listed in Passwords or Google Password Manager, delete it there.": {
     "where": [
       "screens/delete_wallet.js"
     ],
@@ -17602,7 +17597,7 @@
       "screens/problem.js"
     ]
   },
-  "Your coins are on the Firo blockchain, not in this app. Open them in the Campfire app or another Firo wallet:": {
+  "Your coins are on the Firo blockchain, not in this app. Open them in another Firo wallet:": {
     "where": [
       "screens/problem.js"
     ]
@@ -17980,7 +17975,7 @@
       "screens/restore_file.js"
     ]
   },
-  "{name} is not a Firo PWA backup file (those are small JSON files, \"campfire-firo-backup-….json\").": {
+  "{name} is not a Firo PWA backup file (those are small JSON files, \"…-backup-….json\").": {
     "where": [
       "screens/restore_file.js"
     ],
@@ -19807,7 +19802,7 @@
       "screens/settings.js"
     ]
   },
-  "Face ID is off. Use your password to unlock. The Campfire passkey in your password manager opens nothing now; you can delete it there.": {
+  "Face ID is off. Use your password to unlock. The Firo PWA passkey in your password manager opens nothing now; you can delete it there.": {
     "where": [
       "screens/settings.js"
     ]

@@ -299,7 +299,7 @@ export async function watchLoader({ onIntrusion, onMoved = () => {} }) {
   const check = (url) => {
     if (url && !expected(url)) fire(`a new service worker (${url.split('/').pop()}) is being installed` /* i18n-ignore: a reason logged and read by the e2e harness, never shown */);
   };
-  const movedOther = t("this app's address serves other code under the new loader's name than Campfire signed");
+  const movedOther = t("this app's address serves other code under the new loader's name than Firo PWA signed");
   const changed = (now) => {
     const ok = endsWithLoader(now) && !endsWithLoader(controllerUrl);
     controllerUrl = now;

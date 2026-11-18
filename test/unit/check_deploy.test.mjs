@@ -23,7 +23,7 @@ async function site(priv, { engine = 'real' } = {}) {
   const loaderBody = 'self.addEventListener("fetch", () => {});\n';
   const loader = `sw-${sha(Buffer.from(loaderBody)).slice(0, 16)}.js`;
   const files = {
-    'index.html': Buffer.from('<!doctype html><title>Campfire</title>'),
+    'index.html': Buffer.from('<!doctype html><title>Firo PWA</title>'),
     'app.js': Buffer.from('console.log(1);'),
     'css/app.css': Buffer.from('body{}'),
     'lib/version.js': Buffer.from(`export const LOADER = ${JSON.stringify(loader)};\n`),
@@ -102,7 +102,7 @@ test('flagged: an altered file, a missing policy, the loader without its own pol
   const other = await signer();
   r = await checkDeploy({ base: BASE, publicJwk: other.pub, fetchImpl: host(files).fetchImpl });
   assert.equal(r.ok, false);
-  assert.match(r.problems[0], /^release: This update is not signed with the Campfire release key/);
+  assert.match(r.problems[0], /^release: This update is not signed with the Firo PWA release key/);
   // Nothing published there.
   r = await checkDeploy({ base: BASE, publicJwk: k.pub, fetchImpl: host({}).fetchImpl });
   assert.match(r.problems[0], /^release: release\.json: HTTP 404/);

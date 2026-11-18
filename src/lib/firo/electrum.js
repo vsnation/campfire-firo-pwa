@@ -61,7 +61,7 @@ export class ElectrumClient {
   constructor({
     servers,
     WebSocket: WS = globalThis.WebSocket,
-    clientName = 'Campfire',
+    clientName = 'Firo PWA',
     protocolVersion = '1.4',
     timeoutMs = 30000,
     connectTimeoutMs = 12000,

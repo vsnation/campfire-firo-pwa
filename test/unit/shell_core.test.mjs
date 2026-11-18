@@ -160,7 +160,7 @@ test('backup file (v1, PBKDF2, as 0.1.7 wrote it): still restores; an edited hea
   assert.throws(() => readBackupHeader('not json'), (e) => e.code === 'not_backup');
   assert.throws(() => readBackupHeader('x'.repeat(BACKUP_MAX_BYTES + 1)), (e) => e.code === 'too_big');
   await assert.rejects(openBackup(JSON.stringify({ ...f, iterations: f.iterations + 1 }), 'a long password 12'), (e) => e.code === 'wrong_password', 'rounds are bound to the ciphertext');
-  assert.equal(backupFileName(new Date(2026, 9, 12)), 'campfire-firo-backup-2026-10-12.json');
+  assert.equal(backupFileName(new Date(2026, 9, 12)), 'firo-pwa-backup-2026-10-12.json');
 });
 
 test('backup file (v2, from 0.1.8): scrypt N 2^16 r 8 p 1; the cost is bound and capped; a newer version is named as such (P9)', async () => {

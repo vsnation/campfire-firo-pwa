@@ -154,7 +154,7 @@ export function buildCsv(txs, { price = null } = {}) {
 export function csvFileName(now = new Date(), walletName = null) {
   const d = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
   const w = walletName ? `-${String(walletName).replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32)}` : '';
-  return `campfire-firo-payments${w}-${d}.csv`;
+  return `firo-pwa-payments${w}-${d}.csv`;
 }
 
 /**

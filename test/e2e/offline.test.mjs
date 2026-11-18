@@ -296,7 +296,7 @@ async function exportBackup(name, { screenshot = false } = {}) {
     writeFileSync(dest, Buffer.from(got.b64, 'base64'));
     fileName = got.name;
   }
-  assert.match(fileName, /^campfire-firo-backup-\d{4}-\d\d-\d\d\.json$/);
+  assert.match(fileName, /^firo-pwa-backup-\d{4}-\d\d-\d\d\.json$/);
   const file = JSON.parse(readFileSync(dest, 'utf8'));
   assert.equal(file.app, 'campfire-firo');
   assert.ok(!JSON.stringify(file).includes(PASSWORD), 'the password is not in the file');

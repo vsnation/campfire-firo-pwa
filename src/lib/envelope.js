@@ -149,7 +149,7 @@ async function open(env, kek) {
 function checkShape(env, kind) {
   const versionOk = env && (env.v === ENVELOPE_VERSION || (kind === 'password' && env.v === SCRYPT_VERSION && env.kdf === 'scrypt'));
   if (!versionOk || env.kind !== kind || typeof env.walletId !== 'string')
-    throw new EnvelopeError('malformed', t('Not a Campfire envelope.'));
+    throw new EnvelopeError('malformed', t('Not a Firo PWA key envelope.'));
   if (typeof env.iv !== 'string' || typeof env.ct !== 'string' || typeof env.salt !== 'string')
     throw new EnvelopeError('malformed', t('Envelope fields missing.'));
 }
@@ -202,6 +202,6 @@ export async function sealWithPrf(secret, prfOutput, walletId, credId, prfSalt) 
 export async function openWithPrf(env, prfOutput) {
   checkShape(env, 'passkey');
   // No label: an envelope from before 0.1.4 (see the top). Any other label is not one we made.
-  if (env.info !== undefined && env.info !== KEK_INFO) throw new EnvelopeError('malformed', t('Not a Campfire envelope.'));
+  if (env.info !== undefined && env.info !== KEK_INFO) throw new EnvelopeError('malformed', t('Not a Firo PWA key envelope.'));
   return open(env, await prfKek(prfOutput, unb64(env.salt), env.info === undefined ? LEGACY_KEK_INFO : KEK_INFO));
 }

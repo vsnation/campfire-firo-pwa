@@ -28,7 +28,7 @@ const MAP = {
   // lib/release.js
   'Release key must be a public P-256 JWK.': same('Release key must be a public P-256 JWK.'),
   'The release signature is not readable.': same('The release signature is not readable.'),
-  'This update is not signed with the Campfire release key.': same('This update is not signed with the Campfire release key.'),
+  'This update is not signed with the Firo PWA release key.': same('This update is not signed with the Firo PWA release key.'),
   'release.json is not JSON.': same('release.json is not JSON.'),
   'release.json is missing fields.': same('release.json is missing fields.'),
   "This update's file list is not the one that was signed.": same("This update's file list is not the one that was signed."),
@@ -39,12 +39,12 @@ const MAP = {
   'Bad entry for {…}': ['Bad entry for {path}'],
   'A file in this update ({…}) is not the one that was signed.': ['A file in this update ({path}) is not the one that was signed.'],
   // lib/update_sources.js
-  'Paste the address of a copy of Campfire.': same('Paste the address of a copy of Campfire.'),
+  'Paste the address of a copy of Firo PWA.': same('Paste the address of a copy of Firo PWA.'),
   'That address is too long.': same('That address is too long.'),
   "That isn't a web address.": same("That isn't a web address."),
   'Use an address that starts with https://.': same('Use an address that starts with https://.'),
   'Leave out the user name and password: the address must work without them.': same('Leave out the user name and password: the address must work without them.'),
-  'No Campfire release is published at this address.': same('No Campfire release is published at this address.'),
+  'No Firo PWA release is published at this address.': same('No Firo PWA release is published at this address.'),
   'unknown error': same('unknown error'),
   'A different release claims version {…}.': ['A different release claims version {version}.'],
   // lib/server_address.js ({example}: SERVER_EXAMPLE) and lib/evm_server_address.js (EVM_SERVER_EXAMPLE)
@@ -61,7 +61,7 @@ const MAP = {
   'Use an address that starts with https:// (or http:// for a node on this device: localhost or 127.0.0.1).': same('Use an address that starts with https:// (or http:// for a node on this device: localhost or 127.0.0.1).'),
   'That address is too long for a server address.': same('That address is too long for a server address.'),
   'An address has no spaces or backslashes. Paste it as your provider gives it.': same('An address has no spaces or backslashes. Paste it as your provider gives it.'),
-  'Leave out any user name and password (the part before @): Campfire sends none.': same('Leave out any user name and password (the part before @): Campfire sends none.'),
+  'Leave out any user name and password (the part before @): Firo PWA sends none.': same('Leave out any user name and password (the part before @): Firo PWA sends none.'),
   'Leave out the # and everything after it.': same('Leave out the # and everything after it.'),
   'That is not a server address. It looks like {…}.': ['That is not a server address. It looks like {example}.'],
   "IPv6 addresses can't be used here (the browser's rules cannot name them). Use the server's host name.": same("IPv6 addresses can't be used here (the browser's rules cannot name them). Use the server's host name."),
@@ -87,10 +87,10 @@ const MAP = {
   ' from {…}': 'a part of the sentences below (where = own ? "" : " from host"): their templates cover both forms',
   'Could not download {…}{…}.': ['Could not download {path}.', 'Could not download {path} from {host}.'],
   '{…}{…}: HTTP {…}': ['{path}: HTTP {status}', '{path} from {host}: HTTP {status}'],
-  '{…}{…} is far larger than a Campfire release file.': ['{path} is far larger than a Campfire release file.', '{path} from {host} is far larger than a Campfire release file.'],
+  '{…}{…} is far larger than a Firo PWA release file.': ['{path} is far larger than a Firo PWA release file.', '{path} from {host} is far larger than a Firo PWA release file.'],
   'The download of {…}{…} was interrupted.': ['The download of {path} was interrupted.', 'The download of {path} from {host} was interrupted.'],
-  'This is a test build of Campfire (sample balances, no Firo network), not a release.': same('This is a test build of Campfire (sample balances, no Firo network), not a release.'),
-  'Version {…} is older than this copy of Campfire installs.': ['Version {version} is older than this copy of Campfire installs.'],
+  'This is a test build of Firo PWA (sample balances, no Firo network), not a release.': same('This is a test build of Firo PWA (sample balances, no Firo network), not a release.'),
+  'Version {…} is older than this copy of Firo PWA installs.': ['Version {version} is older than this copy of Firo PWA installs.'],
   'The signed files of this release were not kept.': same('The signed files of this release were not kept.'),
   'This update was not downloaded completely. Check for updates again.': same('This update was not downloaded completely. Check for updates again.'),
   'An update check is still under way. Tap Update again when it has finished.': same('An update check is still under way. Tap Update again when it has finished.'),
@@ -170,4 +170,10 @@ test('in another language the template is translated and the values put back as 
   } finally {
     await activateLanguage('en', { storage, doc, notify: false });
   }
+});
+
+test('a loader installed before 0.1.25 still writes Campfire: the screen says Firo PWA (owner 2026-11-18)', () => {
+  assert.equal(loaderText('This update is not signed with the Campfire release key.'), 'This update is not signed with the Firo PWA release key.');
+  assert.equal(loaderText('lib/x.js from cdn.example is far larger than a Campfire release file.'), 'lib/x.js from cdn.example is far larger than a Firo PWA release file.');
+  assert.equal(loaderText('Version 0.1.9 is older than this copy of Campfire installs.'), 'Version 0.1.9 is older than this copy of Firo PWA installs.');
 });

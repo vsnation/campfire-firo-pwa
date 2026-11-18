@@ -90,7 +90,7 @@ export default function about(app) {
     h('p', { class: 'section-title', text: t('Release') }),
     h('div', { class: 'card' }, sw),
     h('p', { class: 'small', 'data-testid': 'about-tripwire', text: t(ABOUT_TRIPWIRE) }),
-    h('p', { class: 'small', text: t('Firo PWA: MIT licence, by vsnation, from the Campfire wallet (Cypher Stack). Bundled: noble cryptography and scure (MIT), jsQR (Apache-2.0), Inter font (SIL Open Font License 1.1), and Spark (Firo\'s sparkmobile, libsecp256k1, Bitcoin Core, ctaes, musl and Emscripten, MIT; LLVM libc++, Apache-2.0 with LLVM Exceptions), each licence in vendor/spark/licenses. Logos: Firo PWA\'s (GPL-3.0, from the Firo PWA app), Ethereum\'s (CC BY 3.0, the Ethereum Foundation), Firo\'s (Firo\'s mark): img/LICENSE.txt.') }),
+    h('p', { class: 'small', text: t('Firo PWA: MIT licence, by vsnation. Bundled: noble cryptography and scure (MIT), jsQR (Apache-2.0), Inter font (SIL Open Font License 1.1), and Spark (Firo\'s sparkmobile, libsecp256k1, Bitcoin Core, ctaes, musl and Emscripten, MIT; LLVM libc++, Apache-2.0 with LLVM Exceptions), each licence in vendor/spark/licenses. Logos: Firo PWA\'s own (MIT), Ethereum\'s (CC BY 3.0, the Ethereum Foundation), Firo\'s (Firo\'s mark): img/LICENSE.txt.') }),
   );
   return { el };
 }

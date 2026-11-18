@@ -29,7 +29,7 @@ test('server.version goes first, and requests made before the connection wait fo
   await c.connect();
   assert.equal(await p, 1000n);
   assert.deepEqual(s.methods().slice(0, 2), ['server.version', 'blockchain.relayfee']);
-  assert.deepEqual(s.calls[0].params, ['Campfire', '1.4']);
+  assert.deepEqual(s.calls[0].params, ['Firo PWA', '1.4']);
   assert.equal(c.server, A);
   assert.deepEqual(c.serverVersion, ['ElectrumX 1.19.0', '1.4']);
   c.close();

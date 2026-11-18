@@ -315,9 +315,9 @@ test('5. deleting B (not open) leaves A and C exactly as they were; its engine d
 test('6. deleting the open wallet brings the other up locked, and it opens', { timeout: 5 * 60000 }, async () => {
   await page.evaluate(() => window.__campfire.go('deleteWallet'));
   await waitScreen(page, 'deleteWallet');
-  // It has Face ID: where its passkey is, and that Campfire asks the password manager to forget it (audit A-9).
+  // It has Face ID: where its passkey is, and that Firo PWA asks the password manager to forget it (audit A-9).
   await page.waitForSelector(tid('delete-passkey'));
-  assert.match(await page.textContent(tid('delete-passkey')), new RegExp(`BEAM Campfire wallet ${W.A.id.slice(0, 6)}.*Campfire asks it to forget the key`));
+  assert.match(await page.textContent(tid('delete-passkey')), new RegExp(`Firo PWA wallet ${W.A.id.slice(0, 6)}.*Firo PWA asks it to forget the key`));
   assert.equal(await page.locator(tid('delete-traces')).count(), 0, 'not the last wallet: clearing site data would take the others');
   const before = (await auth.cdp.send('WebAuthn.getCredentials', { authenticatorId: auth.authenticatorId })).credentials.length;
   await page.fill(tid('delete-confirm'), 'DELETE');
@@ -405,7 +405,7 @@ test('7. secrets leave the screen when the app does: the words, the Spark view k
   assert.deepEqual(rec.errors, []);
 });
 
-test('8. deleting the last wallet also takes Campfire\'s settings in this browser (audit A-9)', { timeout: 5 * 60000 }, async () => {
+test('8. deleting the last wallet also takes Firo PWA\'s settings in this browser (audit A-9)', { timeout: 5 * 60000 }, async () => {
   await page.evaluate(() => {
     localStorage.setItem('campfire-theme', 'dark');
     localStorage.setItem('campfire-update-source', JSON.stringify('https://mirror.example/campfire/'));

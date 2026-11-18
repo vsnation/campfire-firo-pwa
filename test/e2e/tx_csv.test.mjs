@@ -87,7 +87,7 @@ test('a history: every payment, newest first, memos quoted, the file read back',
   await page.evaluate(() => window.__campfire.go('activity'));
   await waitScreen(page, 'activity');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.click(tid('activity-csv'))]);
-  assert.match(dl.suggestedFilename(), /^campfire-firo-payments-\d{4}-\d\d-\d\d\.csv$/);
+  assert.match(dl.suggestedFilename(), /^firo-pwa-payments-\d{4}-\d\d-\d\d\.csv$/);
   const file = join(tmp, dl.suggestedFilename());
   await dl.saveAs(file);
   const text = readFileSync(file, 'utf8');

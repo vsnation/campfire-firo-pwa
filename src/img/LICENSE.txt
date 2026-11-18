@@ -1,7 +1,5 @@
-The images here are not under this project's MIT licence:
+logo.svg is Firo PWA's own mark (Spark Seal), under this project's MIT licence. The others here are not:
 
-  logo.svg  The Campfire logo, from the Campfire wallet app (Cypher Stack and contributors),
-            under that app's licence, GPL-3.0 (https://github.com/firoorg/campfire).
   eth.svg   The Ethereum logo, by the Ethereum Foundation (https://ethereum.org/assets),
             CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/). Colours as published.
   firo.svg  The Firo logo, from Firo's brand assets (https://firo.org); Firo's mark,

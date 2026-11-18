@@ -48,7 +48,7 @@ export const MAX_ADDED_SOURCES = 3;
  */
 export function normalizeSource(input) {
   let s = String(input == null ? '' : input).trim();
-  if (!s) return { ok: false, reason: 'Paste the address of a copy of Campfire.' };
+  if (!s) return { ok: false, reason: 'Paste the address of a copy of Firo PWA.' };
   if (s.length > MAX_SOURCE_LENGTH) return { ok: false, reason: 'That address is too long.' };
   if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) s = `https://${s}`;
   let u;
@@ -152,7 +152,7 @@ export async function readRelease(get, publicJwk) {
   } catch {
     claimed = null;
   }
-  if (!claimed || claimed.app !== RELEASE_APP_ID) throw new ReleaseError('unreachable', 'No Campfire release is published at this address.');
+  if (!claimed || claimed.app !== RELEASE_APP_ID) throw new ReleaseError('unreachable', 'No Firo PWA release is published at this address.');
   const sig = new TextDecoder().decode(await get('release.sig'));
   const release = await verifyReleaseSignature(relBytes, sig, publicJwk);
   const manifest = await verifyManifest(release, await get('manifest.json'));

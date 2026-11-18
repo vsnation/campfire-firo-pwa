@@ -138,8 +138,8 @@ Plain JavaScript, no framework, no bundler. Firo's Spark cryptography is compile
 
 ## Licence
 
-MIT (see `LICENSE`), except the logos in `src/img` (see `src/img/LICENSE.txt`) and the third-party code
-under `src/vendor`, which keep their own licences. Built on the BEAM Campfire web wallet by the same
-author; the Firo parts are written from Firo Core and sparkmobile (both MIT). Some comments name files
-of the Campfire app (Dart): they point to behaviour this app matches (address shapes, link parameters,
+MIT (see `LICENSE`), the app's own logo too, except the Ethereum and Firo logos in `src/img` (see `src/img/LICENSE.txt`) and the third-party code
+under `src/vendor`, which keep their own licences. Built on the author's earlier BEAM web wallet; the
+Firo parts are written from Firo Core and sparkmobile (both MIT). Some comments name files of Firo's
+phone wallet (Dart): they point to behaviour this app matches (address shapes, link parameters,
 defaults), not to code taken from it.
