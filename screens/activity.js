@@ -45,6 +45,36 @@ const FILTERS = Object.freeze([
 const NONE_OF = Object.freeze({ all: tk('No payments yet.'), private: tk('No private payments yet.'), public: tk('No public payments yet.') });
 
 /** A payment's state in words, for its details. */
+/**
+ * Where the coins of a payment of ours went, every part of it (owner 2026-11-18: a privatize of
+ * 15,349.04 FIRO with 554.85 back as change read "-15,903.89", the change never mentioned): what left
+ * which balance, what reached this wallet's own balances, what came back as change, what went to
+ * others and the fee. They add up: taken = all the rest. null when the payment is not ours.
+ */
+export function wentWhere(tx) {
+  const p = tx && tx.parts;
+  if (!p || tx.dropped) return null;
+  const amt = (v) => `${formatAmount(v)} ${UNIT}`;
+  const row = (k, v, testid, cls = '') => (v > 0n ? h('div', { class: `kv${cls}`, 'data-testid': testid }, h('span', { class: 'k', text: k }), h('span', { class: 'v', text: amt(v) })) : null);
+  const others = tx.counterparties && tx.counterparties.length > 1 ? t('Sent to {n} recipients', { n: tx.counterparties.length }) : tx.counterparty ? t('Sent to {who}', { who: contactNameFor(tx.counterparty) || shorten(tx.counterparty, 6, 6) }) : t('Sent to others');
+  return h(
+    'div',
+    { class: 'card went-where', 'data-testid': 'tx-parts' },
+    h('h3', { text: t('Where it went') }),
+    row(t('Taken from your public balance'), p.fromPublic, 'part-from-public', ' part-from'),
+    row(t('Taken from your private balance'), p.fromPrivate, 'part-from-private', ' part-from'),
+    row(t('To your private balance'), p.toPrivateSelf, 'part-to-private'),
+    row(t('To your public balance'), p.toPublicSelf, 'part-to-public'),
+    row(others, p.toOthers, 'part-to-others'),
+    row(t('Change back to your public balance'), p.changePublic, 'part-change-public'),
+    row(t('Change back to your private balance'), p.changePrivate, 'part-change-private'),
+    // Sent from here; the change (or a coin to this wallet's own private address) not found yet.
+    row(t('Coming back to your private balance'), p.backPrivate, 'part-back-private'),
+    row(t('Network fee'), p.fee, 'part-fee'),
+    p.changePublic > 0n || p.changePrivate > 0n || p.backPrivate > 0n ? h('p', { class: 'small', 'data-testid': 'part-change-note', text: t('A coin is spent whole: what is more than the payment and its fee comes back to you as change, in a new coin of yours.') }) : null,
+  );
+}
+
 export function statusWords(item) {
   if (item.dropped && item.letGo) return t('Let go on the word of the Firo node in use');
   if (item.dropped) return t('Did not go through: nothing left your wallet');
@@ -111,7 +141,8 @@ export default function activity(app, params = {}) {
       const name = other ? contactNameFor(other) : null;
       return [
         h('h2', { 'data-testid': 'tx-detail-title', text: txTitle(tx2) }),
-        h('div', { class: 'big-amount', text: `${txSign(tx2)}${formatAmount(tx2.amount)} ${UNIT}` }),
+        // The unit never splits across lines (owner 2026-11-18: "FIR / O").
+        h('div', { class: 'big-amount', 'data-testid': 'tx-amount' }, h('span', { text: `${txSign(tx2)}${formatAmount(tx2.amount)}` }), ' ', h('span', { class: 'unit', text: UNIT })),
         h(
           'div',
           { class: 'card' },
@@ -120,12 +151,13 @@ export default function activity(app, params = {}) {
           kv(t('Status'), statusWords(tx2), { testid: 'tx-status' }),
           kv(t('Date'), txWhen(tx2, fmtDate) || t('Not known yet'), { testid: 'tx-date' }),
           !tx2.time && tx2.timeApprox ? h('p', { class: 'small', 'data-testid': 'tx-date-note', text: t('Found while restoring: its block is known only roughly. Settings → Exact dates for restored private payments finds it exactly.') }) : null,
-          tx2.direction !== 'in' && tx2.fee > 0n && !tx2.dropped ? kv(t('Network fee'), `${formatAmount(tx2.fee)} ${UNIT}`) : null,
+          tx2.direction !== 'in' && tx2.fee > 0n && !tx2.dropped && !tx2.parts ? kv(t('Network fee'), `${formatAmount(tx2.fee)} ${UNIT}`) : null,
           other ? kv(tx2.direction === 'in' ? t('From') : t('To'), name ? `${name} · ${shorten(other, 6, 6)}` : shorten(other, 10, 8), { copy: other }) : null,
           tx2.memo ? kv(t('Memo'), tx2.memo, { testid: 'tx-memo' }) : null,
           tx2.height != null ? kv(t('Block'), tx2.height.toLocaleString('en-US')) : null,
           kv(t('Transaction ID'), shorten(tx2.txid, 10, 8), { copy: tx2.txid }),
         ),
+        wentWhere(tx2),
         // One node's word for an hour: the person may let it go (release re-audit 3 RE3-3).
         letGoOffer(tx2, { onDone: () => close() }),
         ...paymentExtras(app, tx2, { close }),

@@ -303,6 +303,12 @@ textarea.input { resize: none; min-height: 84px; }
 .kv .k { color: var(--muted); font-size: 15px; }
 .kv .v { font-weight: 600; text-align: right; word-break: normal; overflow-wrap: anywhere; }
 .big-amount { font-size: 32px; font-weight: 700; text-align: center; margin: 8px 0; word-break: break-all; }
+.big-amount .unit { white-space: nowrap; word-break: normal; }
+.went-where h3 { margin: 0 0 4px; font-size: 15px; }
+.went-where .kv .v { white-space: nowrap; overflow-wrap: normal; }
+.went-where .kv .k { min-width: 0; }
+.went-where .part-from .v { font-weight: 700; }
+.went-where .small { margin: 10px 0 0; }
 
 .progress { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
 .progress > div { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
