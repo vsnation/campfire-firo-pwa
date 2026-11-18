@@ -58,7 +58,8 @@ const oldLoader = (msg) => (msg.type === 'set-server' ? { result: 'saved', serve
 const EVM_KEY = 'https://wallet.example/__campfire_evm';
 
 function appWith(prefs) {
-  const app = { prefs: { server: 'firo', ...prefs }, locked: [], wallet: {} };
+  // An open wallet: its approvals are sealed under its secret (lib/trust.js).
+  const app = { prefs: { server: 'firo', ...prefs }, locked: [], wallet: {}, record: { id: 'aaaaaaaaaaaaaaaa' }, dbPass: 'secret' };
   app.setPrefs = async (patch) => (app.prefs = { ...app.prefs, ...patch });
   app.lock = async (why) => app.locked.push(why);
   return app;

@@ -56,7 +56,8 @@ before(async () => {
   next = join(tmp, 'next');
   // The newer release speaks another page <-> loader contract than the older one: it needs its own loader.
   const api = Number(readFileSync(join(PWA, 'src', 'sw.js'), 'utf8').match(/const LOADER_API = \/\*__LOADER_API__\*\/ (\d+);/)[1]);
-  execFileSync(process.execPath, [join(PWA, 'tools', 'build.mjs'), '--out', old, '--version', OLD_VERSION, '--loader-note', 'older release', '--quiet', '--engine', 'fake'], { cwd: PWA });
+  // --loader-min: a loader that installs this old a version (a published one installs none before its MIN_RELEASE).
+  execFileSync(process.execPath, [join(PWA, 'tools', 'build.mjs'), '--out', old, '--version', OLD_VERSION, '--loader-note', 'older release', '--loader-min', '0.0.0', '--quiet', '--engine', 'fake'], { cwd: PWA });
   execFileSync(process.execPath, [join(PWA, 'tools', 'build.mjs'), '--out', next, '--version', pkg.version, '--loader-api', String(api + 1), '--quiet', '--engine', 'fake'], { cwd: PWA });
   const loaderOf = (dir) => readFileSync(join(dir, 'lib', 'version.js'), 'utf8').match(/LOADER = "(sw-[0-9a-f]+\.js)"/)[1];
   oldLoader = loaderOf(old);

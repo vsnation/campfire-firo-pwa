@@ -245,9 +245,13 @@ export function clearReloadFlag() {
   sessionStorage.removeItem(RELOAD_KEY);
 }
 
-/** A hard reload (Shift+Reload) over an installed copy is not controlled; carry on once rather than loop. */
+/**
+ * A page not under the installed copy although one is installed: a hard reload (Shift+Reload), the
+ * developer tools' bypass, or the one reload after the first install that did not land under it. It
+ * never registers a loader of its own release over the installed one (release audit of 0.1.24: a
+ * hard reload over 0.1.23 registered 0.1.24's loader, which cannot check 0.1.23's copy).
+ */
 export async function installedButBypassed() {
-  if (sessionStorage.getItem(RELOAD_KEY) !== '1') return false;
   const reg = await navigator.serviceWorker.getRegistration();
   return Boolean(reg && reg.active);
 }

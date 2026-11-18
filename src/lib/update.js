@@ -154,6 +154,11 @@ export const updates = {
       }
       r = await askLoader({ type: 'apply-update', loaderReady: true });
     }
+    // Nothing staged any more (incomplete: dropped, to be checked again): no Update is offered.
+    if (r.result === 'incomplete' || r.result === 'none') {
+      this.available = null;
+      this.emit();
+    }
     if (r.result === 'applied') {
       const host = copyAt(r.from) ? r.from.host : null;
       this.lastCheck = { at: Date.now(), result: 'applied', version: r.version, host };

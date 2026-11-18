@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import { sealData, openData, forgetDataKeys, ETH_DATA_INFO } from '../../src/lib/eth/sealed.js';
 import { loadOutbox, addToOutbox, updateOutbox, clearOutbox, validEntry, trimOutbox, OUTBOX_MAX, inDoubt, entryWords, BROADCAST_ANSWER_MS, openApprovals } from '../../src/lib/eth/outbox.js';
 import { parseTransactions, parseTokenTransfers, mergeActivity, fetchHistory, HistoryError, PAGE, TRANSFER_TOPIC } from '../../src/lib/eth/history.js';
-import { broadcast, approvalOnItsWay, approvalPass, allowanceNotBefore, recipientProblem, transferCall, prepareSend, signAndSend, signAndBroadcastCall, prepareCall, doubtText, settledByIndex, recheckClosed, REJECTED_LOOK_MS, RESEND_WAIT_MS, followOnce, classify, findNonceTaker, maxSendable, costRose, entryFee, SendError, ETH_TRANSFER_GAS, NONCE_LOOK_MS, REFUSAL_WATCH_MS, NONCE_GONE_BLOCKS, REJECTED_FOLLOW_MS } from '../../src/lib/eth/send.js';
+import { broadcast, approvalOnItsWay, approvalPass, allowanceNotBefore, recipientProblem, transferCall, prepareSend, signAndSend, signAndBroadcastCall, prepareCall, doubtText, settledByIndex, recheckClosed, REJECTED_LOOK_MS, RESEND_WAIT_MS, followOnce, followMined, minedNotFinal, FINAL_DEPTH, FINAL_FOLLOW_MS, classify, findNonceTaker, maxSendable, costRose, entryFee, SendError, ETH_TRANSFER_GAS, NONCE_LOOK_MS, REFUSAL_WATCH_MS, NONCE_GONE_BLOCKS, REJECTED_FOLLOW_MS } from '../../src/lib/eth/send.js';
 import { ethWallet, removeEthWallet, ethPrefs, forgetEthWallet } from '../../src/lib/eth/wallet.js';
 import { saveEthKey, getEthRecord, VaultError } from '../../src/lib/eth/vault.js';
 import { hasEthWallet, ETH_OUTBOX_KEY, ETH_RECORD_KEY } from '../../src/lib/eth/record.js';
@@ -341,7 +341,8 @@ function fakeChain({ eth = ETHER, nonce = 0n, transferReturns = word(1), estimat
       case 'eth_getBlockByNumber': {
         const n = Number(BigInt(params[0]));
         if (n > st.head) return null;
-        return { number: q(n), hash: F.h(0xb000 + n), transactions: st.blocks.get(n) || [] };
+        // A height in st.reorged holds another block than the one first mined there.
+        return { number: q(n), hash: F.h((st.reorged && st.reorged.has(n) ? 0xc000 : 0xb000) + n), transactions: st.blocks.get(n) || [] };
       }
       case 'eth_feeHistory':
         // base fee 10 gwei (next block), tips 1..5 gwei -> median 3
@@ -520,6 +521,82 @@ test('send: signed with a fresh nonce, saved BEFORE it is broadcast, then pendin
   assert.equal(entryFee(done).wei, 21000n * 13n * GWEI);
   assert.equal(entryFee(done).final, true);
   await assert.rejects(signAndSend({ ...app, dbPass: null }, chain.rpc, p, { ethId, kv }), (e) => e.code === 'locked');
+});
+
+test('#8 (outside audit 2026-11-18): a mined payment is final only FINAL_DEPTH blocks deep; its block reorganised away, it waits again and its bytes go out again', async () => {
+  const { app, kv, ethId } = await walletWithKey();
+  const chain = fakeChain();
+  const p = await prepareSend(chain.rpc, { from: ME, asset: ETH, recipient: F.ALICE, amount: 1n, balances: { eth: ETHER } });
+  const r = await signAndSend(app, chain.rpc, p, { ethId, kv });
+  chain.mine(r.entry.hash);
+  let e = await followOnce(app, chain.rpc, r.entry, { ethId, kv });
+  assert.equal(e.state, 'confirmed');
+  assert.equal(e.final, false, 'in a block, not final');
+  assert.match(e.receipt.blockHash, /^0x[0-9a-f]{64}$/, 'its block is kept by hash');
+  assert.equal(minedNotFinal(e), true);
+  // A few blocks on: still followed.
+  chain.st.head += 5;
+  e = await followMined(app, chain.rpc, e, { ethId, kv });
+  assert.equal(e.state, 'confirmed');
+  assert.equal(e.final, false);
+  // A server not past its block yet (load-balanced, behind) has no word on it: nothing changes.
+  const block = Number(e.receipt.blockNumber);
+  const saved = chain.st.mined.get(r.entry.hash);
+  chain.st.mined.delete(r.entry.hash);
+  const head = chain.st.head;
+  chain.st.head = block;
+  assert.equal((await followMined(app, chain.rpc, e, { ethId, kv })).state, 'confirmed');
+  // Past it, no receipt, but its block is still there (one backend of a load-balanced server without the receipt yet): nothing changes.
+  chain.st.head = head;
+  assert.equal((await followMined(app, chain.rpc, e, { ethId, kv })).state, 'confirmed', 'no receipt alone is not a reorganisation');
+  // Its height now holds another block (a reorganisation): waiting again, and followed as an open payment.
+  chain.st.reorged = new Set([block]);
+  const sendsBefore = chain.st.sends.length;
+  e = await followMined(app, chain.rpc, e, { ethId, kv });
+  assert.equal(e.state, 'pending');
+  assert.equal(e.receipt, null);
+  assert.equal((await loadOutbox(app, { ethId, kv }))[0].state, 'pending', 'saved');
+  chain.st.latest -= 1n; // its nonce is free again on the new branch
+  e = await followOnce(app, chain.rpc, e, { ethId, kv });
+  assert.equal(chain.st.sends.length, sendsBefore + 1, 'the same signed bytes went out again');
+  assert.equal(chain.st.sends.at(-1), r.entry.raw);
+  // Mined again, then deep enough: final, and no longer followed.
+  chain.st.latest += 1n;
+  chain.st.mined.set(r.entry.hash, saved);
+  e = await followOnce(app, chain.rpc, e, { ethId, kv });
+  assert.equal(e.state, 'confirmed');
+  chain.st.head = Number(e.receipt.blockNumber) + FINAL_DEPTH.ethereum;
+  e = await followMined(app, chain.rpc, e, { ethId, kv });
+  assert.equal(e.final, true);
+  assert.equal(minedNotFinal(e), false);
+  const calls = chain.st.calls.length;
+  assert.equal(await followMined(app, chain.rpc, e, { ethId, kv }), e, 'final: nothing asked');
+  assert.equal(chain.st.calls.length, calls);
+  // One saved before 0.1.24 (no `final`) is followed for a day after it was sent, then left as it is.
+  assert.equal(minedNotFinal({ ...e, final: undefined, minedAt: undefined, createdAt: Date.now() - FINAL_FOLLOW_MS - 1 }), false);
+});
+
+test('#8 (release audit of 0.1.24): a confirmed payment whose receipt turns failed is held open and settled as any failure, never "failed" on one server\'s word', async () => {
+  const { app, kv, ethId } = await walletWithKey();
+  const chain = fakeChain();
+  const p = await prepareSend(chain.rpc, { from: ME, asset: ETH, recipient: F.ALICE, amount: 1n, balances: { eth: ETHER } });
+  const r = await signAndSend(app, chain.rpc, p, { ethId, kv });
+  chain.mine(r.entry.hash);
+  let e = await followOnce(app, chain.rpc, r.entry, { ethId, kv });
+  assert.equal(e.state, 'confirmed');
+  // The server in use now says it failed.
+  const rc = chain.st.mined.get(r.entry.hash);
+  chain.st.mined.set(r.entry.hash, { ...rc, status: '0x0' });
+  e = await followMined(app, chain.rpc, e, { ethId, kv });
+  assert.equal(e.state, 'pending', 'held open, not failed');
+  assert.ok(e.failedSeen, 'new signing waits meanwhile');
+  // A second server shows it went through: not failed.
+  const second = fakeChain();
+  second.st.mined.set(r.entry.hash, rc);
+  e = await followOnce(app, chain.rpc, e, { ethId, kv, others: [second.rpc] });
+  assert.notEqual(e.state, 'failed');
+  // A mined one is followed for FINAL_FOLLOW_MS from when it was mined, not from when it was signed.
+  assert.equal(minedNotFinal({ state: 'confirmed', receipt: {}, final: false, createdAt: 0, minedAt: Date.now() }), true);
 });
 
 test('send: a network error leaves it signed; following sends the identical bytes again, never re-signed', async () => {
@@ -943,7 +1020,9 @@ test('BM-2: the outbox learns from the index: a "Not sent" the index shows mined
   const me = ME.toLowerCase();
   const hash = hx('ac');
   const tx = { hash, from: me, to: ALICE.toLowerCase(), value: 1000n, blockNumber: 77, timestamp: 1700000000, failed: false, fee: 21000n, nonce: 7 };
-  assert.deepEqual(settledByIndex(entry({ hash, state: 'rejected', refusedAt: 5 }), [tx]), { state: 'confirmed', receipt: { blockNumber: 77, status: 1, gasUsed: null, effectiveGasPrice: null }, refusedAt: null, unsureSince: null });
+  const { minedAt, ...settled } = settledByIndex(entry({ hash, state: 'rejected', refusedAt: 5 }), [tx]);
+  assert.deepEqual(settled, { state: 'confirmed', receipt: { blockNumber: 77, blockHash: null, status: 1, gasUsed: null, effectiveGasPrice: null }, refusedAt: null, unsureSince: null, final: false });
+  assert.ok(Math.abs(minedAt - Date.now()) < 5000, 'followed from now');
   assert.equal(settledByIndex(entry({ hash, state: 'rejected' }), [{ ...tx, failed: true }]).state, 'failed');
   assert.equal(settledByIndex(entry({ hash, state: 'replaced', replacedBy: hx('ad') }), [tx]), null, 'a proven "Replaced": only the receipt undoes it (RE2-5)');
   assert.equal(settledByIndex(entry({ hash, state: 'rejected' }), [{ ...tx, blockNumber: null }]), null, 'not mined: nothing to learn');

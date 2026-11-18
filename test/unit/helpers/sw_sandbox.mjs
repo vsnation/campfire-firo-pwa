@@ -30,8 +30,8 @@ export function memoryCaches() {
  * pub: the public JWK built into this loader. scope: the app's folder. fetch(url, init): the
  * network, as the test wants it. Returns the loader's functions plus { self, caches, handlers }.
  */
-export async function loadLoader({ pub, scope = 'https://wallet.example/', name = 'sw-0000000000000000.js', fetch: net }) {
-  const { source, loaderCompat } = await loaderSource({ srcDir, pub });
+export async function loadLoader({ pub, scope = 'https://wallet.example/', name = 'sw-0000000000000000.js', fetch: net, caches: shared = null, minRelease = null }) {
+  const { source, loaderCompat } = await loaderSource({ srcDir, pub, minRelease });
   const handlers = {};
   const self = {
     registration: { scope, showNotification: async () => {} },
@@ -42,9 +42,10 @@ export async function loadLoader({ pub, scope = 'https://wallet.example/', name 
     skipWaiting: async () => {},
     clients: { claim: async () => {}, matchAll: async () => [] },
   };
-  const caches = memoryCaches();
+  // A second loader over the same storage (a worker started again): pass the first one's caches.
+  const caches = shared || memoryCaches();
   // eslint-disable-next-line no-new-func
-  const run = new Function('self', 'caches', 'fetch', `${source}\nreturn { fetchBytes, fetchVerifiedRelease, checkUpdate, applyUpdate, readState, writeState, stageRelease, pageHeaders, readEvmServers, writeEvmServer, readOwnServer, LOADER_COMPAT, LOADER_NAME, LOADER_API, META_CACHE };`);
+  const run = new Function('self', 'caches', 'fetch', `${source}\nreturn { fetchBytes, fetchVerifiedRelease, checkUpdate, applyUpdate, readState, writeState, stageRelease, pageHeaders, readEvmServers, writeEvmServer, readOwnServer, serve, LOADER_COMPAT, LOADER_NAME, LOADER_API, META_CACHE, MIN_RELEASE };`);
   const api = run(self, caches, (url, init) => net(url, init));
   return { ...api, self, caches, handlers, loaderCompat };
 }

@@ -14,7 +14,9 @@
 //     headersFor: the page policy, or the loader's own) and Cache-Control: no-cache, unchanged
 //     (a CDN that rewrites it to max-age makes first visits mix an old and a new release);
 //   - a path that is not in the release gets a 404 with the same security headers (CORS and
-//     caching aside).
+//     caching aside);
+//   - the release's signed files are also at proofs/<manifest hash>/ (and, with --kept-proofs,
+//     every published release's from 0.1.24 on: deploys must keep them).
 // Exits 1 on any problem, listing each; prints nothing secret (there is nothing secret here).
 import { readFile } from 'node:fs/promises';
 import { join, dirname, resolve } from 'node:path';
@@ -51,7 +53,7 @@ const baseType = (t) => String(t || '').split(';')[0].trim().toLowerCase();
  * base: the app's folder (https://…/ with the trailing slash). publicJwk: the release key.
  * fetchImpl(url): a GET. Returns { ok, problems: [string], release, files }.
  */
-export async function checkDeploy({ base, publicJwk, fetchImpl = fetch, concurrency = 6, onProgress = null }) {
+export async function checkDeploy({ base, publicJwk, fetchImpl = fetch, concurrency = 6, onProgress = null, proofShas: kept = [] }) {
   const root = new URL(base);
   if (!root.pathname.endsWith('/')) root.pathname += '/';
   const problems = [];
@@ -126,6 +128,23 @@ export async function checkDeploy({ base, publicJwk, fetchImpl = fetch, concurre
     if (versionJs && named !== loader) problems.push(`lib/version.js names loader ${named}, release.json ${loader}`);
   }
 
+  // The release's signed files where they stay after later releases (proofs/<manifest hash>/, from
+  // 0.1.24): the same bytes as at the top. Every published release since then too, when the list of
+  // published releases is given (they must survive later deploys: an install's loader can need them).
+  const proofShas = [release.manifest_sha256, ...(Array.isArray(kept) ? kept : [])];
+  for (const sha of [...new Set(proofShas)]) {
+    for (const f of ['release.json', 'release.sig', 'manifest.json']) {
+      const p = `proofs/${sha}/${f}`;
+      try {
+        const res = await get(p);
+        if (res.status !== 200) problems.push(`${p}: HTTP ${res.status}`);
+        else if (sha === release.manifest_sha256 && meta[f] && sha256(res.bytes) !== sha256(meta[f].bytes)) problems.push(`${p}: not the same bytes as ${f}`);
+      } catch (e) {
+        problems.push(`${p}: ${e.message}`);
+      }
+    }
+  }
+
   // A path outside the release: 404, with the security headers too.
   const missing = `__campfire_check_deploy_${Date.now().toString(36)}.txt`;
   try {
@@ -147,12 +166,21 @@ async function main() {
   };
   const base = args.find((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--')));
   if (!base || !/^https?:\/\//.test(base)) {
-    console.error('usage: node tools/check_deploy.mjs <https://address/of/the/app/> [--public <jwk>] [--concurrency 6]');
+    console.error('usage: node tools/check_deploy.mjs <https://address/of/the/app/> [--public <jwk>] [--concurrency 6] [--kept-proofs]');
     process.exit(2);
   }
   const pubPath = resolve(process.cwd(), opt('public', join(here, '..', 'keys', 'release_public.jwk')));
   const publicJwk = JSON.parse(await readFile(pubPath, 'utf8'));
-  const r = await checkDeploy({ base, publicJwk, concurrency: Number(opt('concurrency', 6)), onProgress: (d, n) => d % 50 === 0 && console.log(`check-deploy: ${d} of ${n} files`) });
+  // --kept-proofs: the address keeps every published release's signed files from 0.1.24 on (the app's own
+  // address does; its public copies hold only the newest).
+  let proofShas = [];
+  if (args.includes('--kept-proofs')) {
+    const { parsePublished } = await import('./published.mjs');
+    const { compareVersions } = await import('../src/lib/release.js');
+    const pub = parsePublished(await readFile(join(here, '..', 'deploy', 'published.json'), 'utf8'));
+    proofShas = Object.entries(pub.releases).filter(([v]) => compareVersions(v, '0.1.24') >= 0).map(([, r]) => r.manifest_sha256);
+  }
+  const r = await checkDeploy({ base, publicJwk, concurrency: Number(opt('concurrency', 6)), proofShas, onProgress: (d, n) => d % 50 === 0 && console.log(`check-deploy: ${d} of ${n} files`) });
   if (r.release) console.log(`check-deploy: ${base} serves ${r.release.app} ${r.release.version} (${r.files} files, engine ${r.release.engine || 'real'}, created ${r.release.created})`);
   for (const p of r.problems) console.log(`PROBLEM ${p}`);
   console.log(r.ok ? 'check-deploy: OK' : `check-deploy: ${r.problems.length} problem(s)`);

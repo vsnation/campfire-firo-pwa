@@ -131,3 +131,19 @@ test('a failed or cancelled passkey asks for the password again (release audit o
   await sleep(5);
   assert.deepEqual(added, ['w1']);
 });
+
+test('no PRF: Chrome on a Mac is told where the passkey went and what to turn on, not to update macOS (owner 2026-11-17)', async () => {
+  const { noPrfText } = await import('../../src/screens/passkey_setup.js');
+  const env = (userAgent, maxTouchPoints = 0) => ({ navigator: { userAgent, maxTouchPoints } });
+  const macChrome = env('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36');
+  assert.match(noPrfText(macChrome), /^Chrome kept this passkey in its own storage on this Mac.*iCloud Keychain/);
+  assert.doesNotMatch(noPrfText(macChrome), /iOS 18/);
+  const iphone = env('Mozilla/5.0 (iPhone; CPU iPhone OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1', 5);
+  assert.match(noPrfText(iphone), /needs iOS 18 or newer/);
+  const ipad = env('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Safari/605.1.15', 5);
+  assert.match(noPrfText(ipad), /needs iOS 18 or newer/);
+  const macEdge = env('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0');
+  assert.match(noPrfText(macEdge), /^This browser kept the passkey where it can't protect a key\./);
+  const winChrome = env('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36');
+  assert.match(noPrfText(winChrome), /^This browser kept the passkey/);
+});

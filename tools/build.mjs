@@ -2,7 +2,7 @@
 //
 //   node tools/build.mjs [--out dist] [--version 1.2.3] [--key <private jwk>]
 //                        [--mirrors <url,url,...>|none] [--write-deploy] [--publish]
-//   Test-only: [--loader-note <text>] [--loader-api <n>] [--engine fake] [--catalogs <dir>]
+//   Test-only: [--loader-note <text>] [--loader-api <n>] [--loader-min <version>] [--engine fake] [--catalogs <dir>]
 //              [--key <private jwk> --public <public jwk>] [--published <json>] [--test-hooks]
 //   --engine fake: a build for the browser suites, whose lib/chain.js picks the stand-in Firo
 //   engine (lib/backend_fake.js: no network, sample data). Never for a release: release.json
@@ -84,6 +84,7 @@ const committedPubPath = join(root, 'keys', 'release_public.jwk');
 const pubArg = arg('public', dev ? join(devConf, 'dev_public.jwk') : null);
 if (pubArg !== null && !dev && arg('key', null) === null) throw new Error('--public needs --key: a test build is signed with its own throwaway pair, never the release key');
 if (dev && process.argv.includes('--publish')) throw new Error('--dev: your own build is never published');
+if (arg('loader-min', null) !== null && process.argv.includes('--publish')) throw new Error('--loader-min is for tests: a published loader installs no release older than its own MIN_RELEASE');
 const pubPath = pubArg === null ? committedPubPath : resolve(process.cwd(), pubArg);
 const keyPath = arg('key', dev ? join(devConf, 'dev_key.jwk') : process.env.CAMPFIRE_FIRO_RELEASE_KEY || join(homedir(), '.config', 'campfire-firo', 'pwa_release_key.jwk'));
 const quiet = process.argv.includes('--quiet');
@@ -141,7 +142,7 @@ await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 const srcDir = join(root, 'src');
 // The loader first: its name goes into lib/version.js (tools/loader_source.mjs fills it in).
-const { source: swSrc, loaderCompat } = await loaderSource({ srcDir, pub, loaderApi: arg('loader-api', null), note: loaderNote });
+const { source: swSrc, loaderCompat } = await loaderSource({ srcDir, pub, loaderApi: arg('loader-api', null), note: loaderNote, minRelease: arg('loader-min', null) });
 const LOADER_NAME = `sw-${sha256(Buffer.from(swSrc)).slice(0, 16)}.js`;
 await writeFile(join(out, LOADER_NAME), swSrc);
 
@@ -226,6 +227,12 @@ const releaseBytes = Buffer.from(JSON.stringify(release, null, 1) + '\n');
 await writeFile(join(out, 'release.json'), releaseBytes);
 const sig = new Uint8Array(await webcrypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, signKey, releaseBytes));
 await writeFile(join(out, 'release.sig'), Buffer.from(sig).toString('base64') + '\n');
+// The same three files where they stay after later releases (proofs/<manifest hash>/; a deploy keeps
+// older ones): an installed copy whose loader lost them, or never kept them, can always get its own
+// release's again (sw.js checkedRecord), however many releases came since.
+const proofDir = join(out, 'proofs', release.manifest_sha256);
+await mkdir(proofDir, { recursive: true });
+for (const f of ['manifest.json', 'release.json', 'release.sig']) await writeFile(join(proofDir, f), await readFile(join(out, f)));
 if (publish) {
   await writeFile(publishedPath, renderPublished(withPublished(published, release)));
   log(`recorded ${version} in ${relative(process.cwd(), publishedPath)}: commit it with the deploy`);

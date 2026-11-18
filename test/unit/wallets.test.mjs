@@ -317,20 +317,27 @@ test('no balance is kept in storage (audit A-1): an old plaintext one is removed
 });
 
 test('security audit of 0.1.21: an own node or server set from another wallet is not used by this one until its password approves it', async () => {
+  const { approve, checkTrust, setApproved } = await import('../../src/lib/trust.js');
   const kv = await threeWallets();
   const list = await listWallets(kv);
   const a = list.find((r) => r.id === A);
   const c = list.find((r) => r.id === C);
-  // Wallet C (added later, its own password) sets an own node and Ethereum server.
-  await savePrefs(c, { server: 'node.attacker.test:50004', ethRpc: 'custom', ethRpcUrl: 'https://rpc.attacker.test', trusted: { firo: 'node.attacker.test:50004', ethereum: 'https://rpc.attacker.test' } }, kv);
+  // Wallet C (added later, its own password) sets an own node and Ethereum server, sealed under its secret.
+  let trusted = await approve('c-secret', C, {}, 'firo', 'node.attacker.test:50004');
+  trusted = await approve('c-secret', C, trusted, 'ethereum', 'https://rpc.attacker.test');
+  await savePrefs(c, { server: 'node.attacker.test:50004', ethRpc: 'custom', ethRpcUrl: 'https://rpc.attacker.test', trusted }, kv);
+  setApproved(C, await checkTrust('c-secret', C, (await loadPrefs(c, kv)).trusted));
   const pc = await loadPrefs(c, kv);
   assert.equal(pc.server, 'node.attacker.test:50004', 'the wallet that approved it uses it');
   assert.equal(pc.ethRpc, 'custom');
+  setApproved(null);
   const pa = await loadPrefs(a, kv);
   assert.equal(pa.server, 'firo', "the first wallet stays on Firo's nodes");
   assert.equal(pa.untrustedServer, 'node.attacker.test:50004', 'and is told what was set');
   assert.equal(pa.ethRpc, undefined, 'the listed Ethereum server');
   assert.deepEqual(pa.untrustedEvm, { ethereum: 'https://rpc.attacker.test' });
+  // Locked, C uses none either: an approval counts only once its secret checked it.
+  assert.equal((await loadPrefs(c, kv)).server, 'firo');
 });
 
 test('security audit of 0.1.21: the first start keeps the own node every existing wallet used, once', async () => {
@@ -339,5 +346,11 @@ test('security audit of 0.1.21: the first start keeps the own node every existin
   await kv.set('prefs', { ...(await kv.get('prefs')), server: 'mine.example:50004' });
   assert.equal(await migrateTrust(kv), true);
   assert.equal(await migrateTrust(kv), false, 'once');
-  for (const r of await listWallets(kv)) assert.equal((await loadPrefs(r, kv)).server, 'mine.example:50004', r.id);
+  // Kept as each wallet's approval, not sealed yet: asked about once at its next unlock (screens/own_node_confirm.js).
+  const { checkTrust } = await import('../../src/lib/trust.js');
+  for (const r of await listWallets(kv)) {
+    const p = await loadPrefs(r, kv);
+    assert.equal(p.trusted.firo, 'mine.example:50004', r.id);
+    assert.deepEqual((await checkTrust('secret', r.id, p.trusted)).unsealed, ['firo'], r.id);
+  }
 });

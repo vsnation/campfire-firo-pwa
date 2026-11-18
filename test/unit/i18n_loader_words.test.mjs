@@ -90,6 +90,11 @@ const MAP = {
   '{…}{…} is far larger than a Campfire release file.': ['{path} is far larger than a Campfire release file.', '{path} from {host} is far larger than a Campfire release file.'],
   'The download of {…}{…} was interrupted.': ['The download of {path} was interrupted.', 'The download of {path} from {host} was interrupted.'],
   'This is a test build of Campfire (sample balances, no Firo network), not a release.': same('This is a test build of Campfire (sample balances, no Firo network), not a release.'),
+  'Version {…} is older than this copy of Campfire installs.': ['Version {version} is older than this copy of Campfire installs.'],
+  'The signed files of this release were not kept.': same('The signed files of this release were not kept.'),
+  'This update was not downloaded completely. Check for updates again.': same('This update was not downloaded completely. Check for updates again.'),
+  'An update check is still under way. Tap Update again when it has finished.': same('An update check is still under way. Tap Update again when it has finished.'),
+  'The installed copy could not be checked by this loader; the loader in use keeps serving it.': "the install event's refusal: the browser discards that loader, nothing shows it",
   'Not a chain this wallet holds coins on.': same('Not a chain this wallet holds coins on.'),
   'Another server is being checked. Try again in a moment.': same('Another server is being checked. Try again in a moment.'),
 };

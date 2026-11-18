@@ -56,11 +56,11 @@ async function servePage(sw) {
 
 const connectSrc = (csp) => csp.split('; ').find((d) => d.startsWith('connect-src ')).split(' ').slice(1);
 
-test('the loader is at contract level 2 (it knows the own Ethereum / BNB Chain servers) and says so', async () => {
+test('the loader is at contract level 3 (own Ethereum / BNB Chain servers since 2; kept signed files since 3) and says so', async () => {
   const sw = await loadLoader({ pub: await testPub(), fetch: async () => new Response('', { status: 404 }) });
-  assert.equal(sw.LOADER_API, 2);
+  assert.equal(sw.LOADER_API, 3);
   const st = await ask(sw, { type: 'status' });
-  assert.equal(st.api, 2);
+  assert.equal(st.api, 3);
 });
 
 test('check-evm-server: the address checked from the worker (no address of the wallet asked), and its report handed back; nothing is saved', async () => {

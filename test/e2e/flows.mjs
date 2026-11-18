@@ -18,7 +18,8 @@ export async function createWallet(page, { password, passkey = false, shots = nu
     await page.click(tid('word-count'));
     await waitScreen(page, 'backup');
   }
-  await page.waitForSelector('[data-testid="words"] .word');
+  // The list drawn for this number of words (the 24 before a switch to 12 can still be there a moment).
+  await page.waitForFunction((n) => document.querySelectorAll('[data-testid="words"] .word').length === n, count, { timeout: 30000 });
   if (shots) await shot(page, `${shots}-02-backup-hidden`);
   if (passphrase) {
     await page.click('[data-testid="advanced"] summary');

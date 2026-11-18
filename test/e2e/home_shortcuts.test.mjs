@@ -143,16 +143,21 @@ test('private FIRO received that this node cannot confirm: Home says it is waiti
   await page.waitForFunction(() => !document.querySelector('[data-testid="private-check"]'), null, { timeout: 30000 });
 });
 
-test('Restore takes 18 words pasted from another wallet: 18 boxes, checked (PN)', async () => {
+test('Restore takes 12 or 24 words: 18 pasted are not cut to fit, and it says why (owner 2026-11-18)', async () => {
   await page.evaluate(() => window.__campfire.go('restore'));
   await waitScreen(page, 'restore');
+  assert.deepEqual(await page.$$eval('[data-testid^="count-"]', (b) => b.map((x) => x.textContent)), ['12 words', '24 words']);
   await page.fill(tid('word-1'), `${'abandon '.repeat(17)}agent`);
-  await page.waitForSelector(tid('word-18'));
-  assert.equal(await page.locator('[data-testid^="word-"]').count(), 18);
-  assert.equal(await page.getAttribute(tid('count-18'), 'aria-checked'), 'true');
+  await page.waitForSelector(tid('restore-other-length'));
+  assert.match(await page.textContent(tid('restore-other-length')), /This phrase has 18 words\. Firo PWA restores 12 or 24 words/);
+  assert.equal(await page.locator('[data-testid^="word-"]').count(), 12);
+  assert.equal(await page.inputValue(tid('word-1')), '', 'nothing of it is left in the boxes');
+  assert.equal(await page.isDisabled(tid('restore-submit')), true);
+  // 24 pasted: 24 boxes, chosen by what came. No picture: never one of recovery words.
+  await page.fill(tid('word-1'), `${'abandon '.repeat(23)}art`);
+  await page.waitForSelector(tid('word-24'));
+  assert.equal(await page.getAttribute(tid('count-24'), 'aria-checked'), 'true');
   await page.waitForFunction(() => !document.querySelector('[data-testid="restore-submit"]').disabled);
-  // No picture: never one of recovery words, not even BIP39's public test phrase.
-  // Nothing restored: back home with the phrase dropped.
   await page.evaluate(() => {
     for (const i of document.querySelectorAll('[data-testid^="word-"]')) i.value = '';
   });

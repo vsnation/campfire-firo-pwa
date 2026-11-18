@@ -48,8 +48,11 @@ export async function walletWithWords(words, passphrase = '') {
   return (await listWallets()).find((w) => w && w.wordsFp === fp) || null;
 }
 
-/** What a restore takes: any BIP39 length (another wallet may have made 15, 18 or 21 words: PN). */
-export const RESTORE_WORD_COUNTS = Object.freeze([12, 15, 18, 21, 24]);
+/** What Restore takes: 12 or 24 words, as Create makes (owner, 2026-11-18). */
+export const RESTORE_WORD_COUNTS = WORD_COUNTS;
+/** A backup file this app saved: any length an earlier version restored (15, 18 or 21 words were
+ * taken until 0.1.24), so that wallet can always be restored from its own file. */
+export const FILE_WORD_COUNTS = Object.freeze([12, 15, 18, 21, 24]);
 
 /**
  * null when `pw` may be the wallet's password (and matches `confirm`, when given), else what to
@@ -87,13 +90,13 @@ async function opened(app, record, dbPass) {
 /**
  * Creates the wallet from app.setup and seals its words under a fresh random secret, itself
  * sealed under the person's password. app.setup: {mode: 'create' | 'restore' | 'file', words
- * (array of 12 or 24; restored: any BIP39 length), passphrase, birthday (block height or null), name?, adding?}. The words
+ * (array of 12 or 24; from a backup file: any length an earlier version took), passphrase, birthday (block height or null), name?, adding?}. The words
  * leave app.setup here.
  */
 export async function createWallet(app, password) {
   const setup = app.setup;
   if (setup && setup.mode === 'watch') return createWatchWallet(app, password);
-  const counts = setup && setup.mode === 'create' ? WORD_COUNTS : RESTORE_WORD_COUNTS;
+  const counts = !setup ? [] : setup.mode === 'create' ? WORD_COUNTS : setup.mode === 'file' ? FILE_WORD_COUNTS : RESTORE_WORD_COUNTS;
   if (!setup || !Array.isArray(setup.words) || !counts.includes(setup.words.length)) throw new Error(t('No recovery words to create the wallet from.'));
   const id = toHex(randomBytes(8));
   const dbPass = newDbPassword();

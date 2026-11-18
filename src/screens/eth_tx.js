@@ -23,7 +23,7 @@ import { h, put, shorten, fmtDate } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, primary, notice, copyText } from '../lib/ui.js';
 import { ethWallet } from '../lib/eth/wallet.js';
-import { entryFee } from '../lib/eth/send.js';
+import { entryFee, minedNotFinal } from '../lib/eth/send.js';
 import { txExplorerUrl } from '../lib/eth/hosts.js';
 import { tokenBySymbol, nativeFor } from '../lib/eth/tokens.js';
 import { entryChain } from '../lib/eth/outbox.js';
@@ -33,7 +33,7 @@ import { t } from '../lib/i18n.js';
 
 const FOLLOW_MS = 4000;
 
-function texts(state, assetSym, chainName = 'Ethereum', { unsure = false, refused = false, unseen = false, failing = false } = {}) {
+function texts(state, assetSym, chainName = 'Ethereum', { unsure = false, refused = false, unseen = false, failing = false, final = true } = {}) {
   // One server says it failed; no second one has confirmed that yet (lib/eth/send.js, X7).
   if (failing && (state === 'signed' || state === 'pending'))
     return { title: t('Checking'), icon: 'clock', cls: 'wait', kind: 'warn', note: t('Don\'t send it again yet. Your {chainName} server says this payment failed, so only its network fee was spent, but no second server has confirmed that yet. If it is wrong, the payment went through. Firo PWA keeps checking, and signs nothing new on {chainName} until it knows.', { chainName }) };
@@ -49,8 +49,11 @@ function texts(state, assetSym, chainName = 'Ethereum', { unsure = false, refuse
     case 'pending':
       return { title: t('Waiting for {chainName}', { chainName }), icon: 'clock', cls: 'wait', kind: 'info', note: t('On its way. {chainName} usually takes it into a block within a minute. You can leave this screen; it carries on without the app.', { chainName }) };
     case 'confirmed':
+      // In a block, not final yet (lib/eth/send.js FINAL_DEPTH, #8): followed until it is.
+      if (!final) return { title: t('Payment confirmed'), icon: 'check', cls: 'ok', kind: 'success', note: t('{chainName} has it in a block. It becomes final within minutes; this screen keeps checking until then.', { chainName }) };
       return { title: t('Payment confirmed'), icon: 'check', cls: 'ok', kind: 'success', note: t('{chainName} has it in a block. It cannot be undone.', { chainName }) };
     case 'failed':
+      if (!final) return { title: t('Payment failed'), icon: 'close', cls: 'bad', kind: 'error', note: t("{chainName} refused it, so no {assetSym} was sent. Only the network fee was spent. Don't send it again for a few minutes: until it is final, this screen keeps checking.", { chainName, assetSym }) };
       return { title: t('Payment failed'), icon: 'close', cls: 'bad', kind: 'error', note: t('{chainName} refused it, so no {assetSym} was sent. Only the network fee was spent.', { chainName, assetSym }) };
     case 'replaced':
       // Two servers' word, neither able to show what took its place (lib/eth/send.js, R-1).
@@ -85,7 +88,7 @@ export default function ethTx(app, p = {}) {
     const amount = entry ? BigInt(entry.amount) : item ? item.amount : 0n;
     const to = entry ? entry.to : item && item.direction !== 'in' ? item.counterparty : null;
     const from = !entry && item && item.direction === 'in' ? item.counterparty : null;
-    const item2 = texts(state, asset.symbol, CHAINS[chainKey].name, { unsure: Boolean(entry && entry.unsureSince), refused: Boolean(entry && entry.refusedAt), unseen: Boolean(entry && entry.replacedUnseen), failing: Boolean(entry && entry.failedSeen) });
+    const item2 = texts(state, asset.symbol, CHAINS[chainKey].name, { unsure: Boolean(entry && entry.unsureSince), refused: Boolean(entry && entry.refusedAt), unseen: Boolean(entry && entry.replacedUnseen), failing: Boolean(entry && entry.failedSeen), final: !(entry && minedNotFinal(entry)) });
     const title = !entry && item && item.direction === 'in' ? (state === 'failed' ? t('Failed') : t('Received {symbol}', { symbol: asset.symbol })) : item2.title;
     const fee = entry ? entryFee(entry) : item && item.fee != null ? { wei: item.fee, final: true } : null;
     const block = entry && entry.receipt ? entry.receipt.blockNumber : item ? item.blockNumber : null;
@@ -114,7 +117,7 @@ export default function ethTx(app, p = {}) {
   async function follow() {
     if (dead || !w || !entry || document.visibilityState !== 'visible' || !app.dbPass) return;
     // A "Not sent" too, slowly (lib/eth/send.js recheckClosed): it is one server's word.
-    if (entry.state !== 'signed' && entry.state !== 'pending' && entry.state !== 'rejected') return;
+    if (entry.state !== 'signed' && entry.state !== 'pending' && entry.state !== 'rejected' && !minedNotFinal(entry)) return;
     try {
       await w.followOpen();
     } catch {

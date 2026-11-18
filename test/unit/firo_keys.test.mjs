@@ -150,7 +150,7 @@ test('params: paths, name rules and fees, spend versions around the chaum v2 for
   assert.throws(() => network('regtest'), /Unknown/);
 });
 
-test('PN: a restore takes any BIP39 length: 18 words made by another wallet are a phrase here', async () => {
+test('PN: the engine reads any BIP39 length, so a wallet restored from 18 words before 0.1.24 still opens (Restore itself takes 12 or 24)', async () => {
   const { validateMnemonic, FiroKeys, MNEMONIC_LENGTHS } = await import('../../src/lib/firo/keys.js');
   const { getNetwork } = await import('../../src/lib/firo/params.js').then((m) => ({ getNetwork: m.network }));
   assert.deepEqual(MNEMONIC_LENGTHS, [12, 15, 18, 21, 24]);

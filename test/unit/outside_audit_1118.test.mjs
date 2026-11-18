@@ -183,9 +183,14 @@ test('#01: the NEAR deposit address is kept with the coin, amount and refund add
   assert.match(s, /coinBtn\.disabled = busy;/);
 });
 
-test('#12: Restore offers every number of words it accepts', () => {
+test('#12: Restore offers every number of words it accepts: 12 or 24, as Create (owner 2026-11-18)', async () => {
   const s = readFileSync(join(SRC, 'screens', 'restore.js'), 'utf8');
   assert.match(/function countPicker[\s\S]*?\n}/.exec(s)[0], /RESTORE_WORD_COUNTS\.map/);
+  const { RESTORE_WORD_COUNTS, WORD_COUNTS, FILE_WORD_COUNTS } = await import('../../src/lib/session.js');
+  assert.deepEqual([...RESTORE_WORD_COUNTS], [12, 24]);
+  assert.deepEqual([...WORD_COUNTS], [12, 24]);
+  // A backup file this app saved still restores at the length an earlier version took.
+  assert.deepEqual([...FILE_WORD_COUNTS], [12, 15, 18, 21, 24]);
 });
 
 test('#9: a page not under the checked copy never opens a wallet', () => {

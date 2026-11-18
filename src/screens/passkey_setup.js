@@ -16,6 +16,22 @@ import { addPasskey } from '../lib/session.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { t } from '../lib/i18n.js';
 
+/**
+ * Why a passkey cannot protect the wallet key here, and what to do (owner, 2026-11-17: Chrome on a
+ * Mac kept the passkey in its own storage, "This passkey will only be saved on this device", which
+ * has no PRF; the message blamed the macOS version). The page cannot pick where a passkey is kept.
+ */
+export function noPrfText(env = globalThis) {
+  const nav = env.navigator || {};
+  const ua = String(nav.userAgent || '');
+  const touchMac = /Macintosh/.test(ua) && Number(nav.maxTouchPoints) > 1;
+  if (/iPhone|iPad|iPod/.test(ua) || touchMac) return t("This iPhone or iPad can't use a passkey to protect the wallet key: that needs iOS 18 or newer. Your password keeps working.");
+  if (/Macintosh/.test(ua) && /Chrome\//.test(ua) && !/Edg\/|OPR\//.test(ua)) {
+    return t("Chrome kept this passkey in its own storage on this Mac, which can't protect a key. In Chrome's Password Manager settings, turn on passkeys from iCloud Keychain (macOS 15 or newer), then try again. Your password keeps working.");
+  }
+  return t("This browser kept the passkey where it can't protect a key. Your password keeps working.");
+}
+
 export default function passkeySetup(app, params = {}) {
   const first = Boolean(params.first);
   const msg = h('div', { 'aria-live': 'polite' });
@@ -59,9 +75,11 @@ export default function passkeySetup(app, params = {}) {
       const text =
         e.code === 'cancelled'
           ? t('Face ID was cancelled. You can try again, or skip and use your password.')
-          : e.code === 'no_prf' || e.code === 'unsupported'
-            ? t("This device or browser can't use a passkey to protect the wallet key (it needs iOS 18, macOS 15 or newer). Your password keeps working.")
-            : t('That didn\'t work: {message} Your password keeps working.', { message: e.message });
+          : e.code === 'no_prf'
+            ? noPrfText()
+            : e.code === 'unsupported'
+              ? t('Face ID / Touch ID passkeys are not available in this browser. Your password keeps working.')
+              : t('That didn\'t work: {message} Your password keeps working.', { message: e.message });
       put(msg, notice(e.code === 'cancelled' ? 'info' : 'warn', text));
     }
   }

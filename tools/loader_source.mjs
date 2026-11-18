@@ -12,10 +12,11 @@ const sha256 = (b) => createHash('sha256').update(b).digest('hex');
 
 /**
  * srcDir: the src/ folder; pub: the public JWK built in; loaderApi: another page <-> loader
- * contract level (tests), else sw.js's own; note: a comment appended (tests).
+ * contract level (tests), else sw.js's own; note: a comment appended (tests); minRelease: the
+ * oldest release it installs (tests that install an old version), else sw.js's MIN_RELEASE.
  * Returns { source, loaderApi, loaderCompat }.
  */
-export async function loaderSource({ srcDir, pub, loaderApi = null, note = null }) {
+export async function loaderSource({ srcDir, pub, loaderApi = null, note = null, minRelease = null }) {
   const releaseJs = (await readFile(join(srcDir, 'lib', 'release.js'), 'utf8')).replace(/^export /gm, '');
   // Inlined after release.js, whose names it imports: that one import line goes.
   const updateSourcesJs = (await readFile(join(srcDir, 'lib', 'update_sources.js'), 'utf8')).replace(/^import \{[^}]*\} from '\.\/release\.js';\n/m, '').replace(/^export /gm, '');
@@ -37,8 +38,12 @@ export async function loaderSource({ srcDir, pub, loaderApi = null, note = null 
   // What the loader does to the pages it serves. Equal values: a page of one release runs the same under either loader.
   // The own servers' rules (Firo's, and Ethereum's / BNB Chain's with the check run before one is saved) are part of it.
   const loaderCompat = sha256(Buffer.from(JSON.stringify({ api, headers: SECURITY_HEADERS, mime: MIME, server: serverAddressJs, evmServer: evmAddressJs, evmCheck: evmCheckJs })));
+  const minMatch = swRaw.match(/const MIN_RELEASE = '(\d+\.\d+\.\d+)';/);
+  if (!minMatch) throw new Error('sw.js: MIN_RELEASE not found');
+  if (minRelease !== null && !/^\d+\.\d+\.\d+$/.test(String(minRelease))) throw new Error('--loader-min must look like 1.2.3');
   let source = swRaw
     .replace(apiMatch[0], `const LOADER_API = ${api};`)
+    .replace(minMatch[0], `const MIN_RELEASE = '${minRelease === null ? minMatch[1] : minRelease}';`)
     .replace('/*__LOADER_COMPAT__*/ null', JSON.stringify(loaderCompat))
     .replace('/*__RELEASE_PUBLIC_JWK__*/ null', JSON.stringify(pub))
     .replace('/*__SECURITY_HEADERS__*/ {}', JSON.stringify(SECURITY_HEADERS))
@@ -48,6 +53,6 @@ export async function loaderSource({ srcDir, pub, loaderApi = null, note = null 
     .replace('/*__INLINE_SERVER_ADDRESS_JS__*/', () => `// ---- inlined from lib/server_address.js\n${serverAddressJs}\n// ---- end of lib/server_address.js`)
     .replace('/*__INLINE_EVM_SERVER_JS__*/', () => `// ---- inlined from lib/evm_server_address.js\n${evmAddressJs}\n// ---- end of lib/evm_server_address.js\n// ---- inlined from lib/evm_server_check.js\n${evmCheckJs}\n// ---- end of lib/evm_server_check.js`);
   if (note !== null) source += `// ${note}\n`;
-  if (/__[A-Z_]+__/.test(source.replace(/__campfire_(state|install|server|evm)/g, ''))) throw new Error('sw.js: a placeholder was not filled');
+  if (/__[A-Z_]+__/.test(source.replace(/__campfire_(state|install|server|evm|proof)/g, ''))) throw new Error('sw.js: a placeholder was not filled');
   return { source, loaderApi: api, loaderCompat };
 }

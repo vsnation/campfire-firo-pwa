@@ -15,7 +15,9 @@ import { installRadioKeys } from './lib/radiogroup.js';
 import { navHistory } from './lib/nav.js';
 import { swSupported, isControlled, clearReloadFlag, installedButBypassed, watchLoader, loaderBehind } from './lib/loader.js';
 import { refreshPersistence } from './lib/storage.js';
-import { reconcileOwnServer } from './lib/servers.js';
+import { reconcileOwnServer, applyOwnEndpoints } from './lib/servers.js';
+import { checkTrust, setApproved, approve, TRUST_KINDS } from './lib/trust.js';
+import { EVM_SERVER_PREFS, EVM_OWN } from './lib/evm_server_address.js';
 import { BUILT, APP_VERSION } from './lib/version.js';
 import { sharedHost } from './lib/shared_host.js';
 import { toast, canAutofocus, tabbar } from './lib/ui.js';
@@ -59,6 +61,7 @@ import deleteWallet from './screens/delete_wallet.js';
 import problem from './screens/problem.js';
 import install from './screens/install.js';
 import contacts from './screens/contacts.js';
+import ownNodeConfirm from './screens/own_node_confirm.js';
 import { ETH_SCREENS } from './screens/eth_screens.js';
 import { BUY_SCREENS } from './screens/buy_screens.js';
 import { SELL_SCREENS } from './screens/sell_screens.js';
@@ -75,7 +78,7 @@ applyTheme(readTheme());
 const SCREENS = {
   welcome, watch, backup, confirmWords, restore, restoreFile, setPassword, passkeySetup, ipNotice, unlock,
   home, send, review, txStatus, receive, addresses, privatize, makePublic, bridge, activity, settings, servers, rescan, viewKey, names, nameRegister, coins, masternodes, changePassword, about, deleteWallet, problem, install,
-  contacts, notifications,
+  contacts, notifications, ownNodeConfirm,
   ...ETH_SCREENS,
   ...BUY_SCREENS,
   ...SELL_SCREENS,
@@ -128,6 +131,7 @@ export const app = {
   nav: navHistory(),
 
   runLockHooks() {
+    setApproved(null); // no own node or server approved while nothing is open (lib/trust.js)
     for (const f of this.lockHooks) {
       try {
         f();
@@ -210,6 +214,17 @@ export const app = {
    * here, so no setup step is a Back target any more.
    */
   async openWallet({ go = true } = {}) {
+    // An own node or server is used only as this wallet's secret approved it (lib/trust.js). One this
+    // device uses now whose approval does not check out (saved before approvals were sealed, or a seal
+    // that does not match) is asked about, before anything connects; one it no longer uses is dropped.
+    // One this wallet approved is set on the device again where another wallet changed it (may reopen
+    // the app).
+    const ask = await this.checkApprovals();
+    if (ask === 'reopen') return false;
+    if (ask) {
+      this.go('ownNodeConfirm', ask, { reset: true });
+      return false;
+    }
     try {
       await startOpenWallet(this);
     } catch (e) {
@@ -225,6 +240,44 @@ export const app = {
     if (!this.record.setupDone) await markSetupDone(this);
     if (go) this.go('home', {}, { reset: true });
     return true;
+  },
+
+  /**
+   * The open wallet's own node and servers, checked under its secret (openWallet): null when nothing
+   * is to be asked, 'reopen' when the app reopens on them, else {kinds, unchecked} for ownNodeConfirm.
+   */
+  async checkApprovals() {
+    const stored = await loadPrefs(this.record); // as stored now, not as read before the unlock
+    const trusted = stored.trusted && typeof stored.trusted === 'object' ? stored.trusted : {};
+    let checked;
+    let failed = false;
+    try {
+      checked = await checkTrust(this.dbPass, this.record.id, trusted);
+    } catch (e) {
+      console.warn('[campfire] own node check', e && e.message);
+      checked = { firo: null, ethereum: null, bsc: null, unsealed: [] };
+      failed = true; // nothing is dropped on a check that could not run
+    }
+    setApproved(this.record.id, checked);
+    const device = await getPrefs();
+    const inUse = (kind) => (kind === 'firo' ? device.server === trusted.firo : device[EVM_SERVER_PREFS[kind].pick] === EVM_OWN && device[EVM_SERVER_PREFS[kind].url] === trusted[kind]);
+    const notChecked = TRUST_KINDS.filter((k) => typeof trusted[k] === 'string' && trusted[k] && !checked[k]);
+    const leftOver = failed ? [] : notChecked.filter((k) => !inUse(k));
+    if (leftOver.length) {
+      let next = trusted;
+      for (const k of leftOver) next = await approve(this.dbPass, this.record.id, next, k, null);
+      await this.setPrefs({ trusted: next }).catch(() => {});
+    }
+    // What this wallet uses from now on, by what was checked (whether or not that save went through).
+    this.prefs = await loadPrefs(this.record);
+    const kinds = notChecked.filter(inUse);
+    if (kinds.length) return { kinds, unchecked: kinds.filter((k) => !checked.unsealed.includes(k)) };
+    try {
+      if (BUILT && (await applyOwnEndpoints(this))) return 'reopen';
+    } catch (e) {
+      console.warn('[campfire] own node', e && e.message);
+    }
+    return null;
   },
 
   /**

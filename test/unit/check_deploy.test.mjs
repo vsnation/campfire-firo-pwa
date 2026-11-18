@@ -33,7 +33,8 @@ async function site(priv, { engine = 'real' } = {}) {
   const manifest = Buffer.from(JSON.stringify({ app: RELEASE_APP_ID, version: '1.0.0', files: entries }));
   const release = Buffer.from(JSON.stringify({ app: RELEASE_APP_ID, version: '1.0.0', created: '2026-10-12T00:00:00.000Z', manifest_sha256: sha(manifest), file_count: entries.length, loader, engine }));
   const sig = Buffer.from(Buffer.from(await s.sign({ name: 'ECDSA', hash: 'SHA-256' }, priv, release)).toString('base64'));
-  return { loader, files: { ...files, 'manifest.json': manifest, 'release.json': release, 'release.sig': sig } };
+  const proofs = Object.fromEntries([['manifest.json', manifest], ['release.json', release], ['release.sig', sig]].map(([f, b]) => [`proofs/${sha(manifest)}/${f}`, b]));
+  return { loader, manifestSha: sha(manifest), files: { ...files, 'manifest.json': manifest, 'release.json': release, 'release.sig': sig, ...proofs } };
 }
 
 /** A host serving `files` under BASE with the production headers; tweak(rel, headers, body) may change an answer. */
@@ -105,4 +106,17 @@ test('flagged: an altered file, a missing policy, the loader without its own pol
   // Nothing published there.
   r = await checkDeploy({ base: BASE, publicJwk: k.pub, fetchImpl: host({}).fetchImpl });
   assert.match(r.problems[0], /^release: release\.json: HTTP 404/);
+});
+
+test('the signed files must also be at proofs/<manifest hash>/, and every kept release\'s with --kept-proofs', async () => {
+  const k = await signer();
+  const { files, manifestSha } = await site(k.priv);
+  const gone = { ...files };
+  delete gone[`proofs/${manifestSha}/release.sig`];
+  const r = await checkDeploy({ base: BASE, publicJwk: k.pub, fetchImpl: host(gone).fetchImpl });
+  assert.equal(r.ok, false);
+  assert.ok(r.problems.some((p) => p.startsWith(`proofs/${manifestSha}/release.sig: HTTP 404`)), r.problems.join('; '));
+  const older = 'ab'.repeat(32);
+  const r2 = await checkDeploy({ base: BASE, publicJwk: k.pub, fetchImpl: host(files).fetchImpl, proofShas: [older] });
+  assert.ok(r2.problems.some((p) => p.startsWith(`proofs/${older}/release.json: HTTP 404`)), 'an earlier release\'s are looked for too');
 });

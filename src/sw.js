@@ -13,6 +13,15 @@
  * release verified. Progress is written to the meta cache, where the page
  * reads it to show "x of y files checked".
  *
+ * The signed files themselves (release.json, release.sig, manifest.json) are kept beside the copy,
+ * and checked again each time this worker starts: what it serves, and each file's SHA-256, comes
+ * only from them, never from a list kept in the cache (outside security audit 2026-11-18, #6:
+ * whoever could write this site's storage could change both a file and the hash it was checked
+ * against). A copy whose signed files are missing (one installed by an earlier loader) gets them
+ * from an update source once; one whose signed files do not check out is not opened. A release
+ * older than MIN_RELEASE is never installed or served, so the copy cannot be set back to one made
+ * before these checks.
+ *
  * Installed: every app file comes from the verified copy and nothing else.
  * A path that is not in the release gets a 404 from here, never a network
  * request, so the app keeps working when its web address is down, returns 404
@@ -92,14 +101,29 @@ const MAX_META_BYTES = 4 * 1024 * 1024; // release.json, release.sig or manifest
 // 2: the person's own Ethereum / BNB Chain servers ("check-evm-server", "set-evm-server", their
 //    origins in connect-src). A page of this release asks for those; a level-1 loader answers
 //    "unknown request", and the page says to reopen the app (the Update moves it to this loader).
-const LOADER_API = /*__LOADER_API__*/ 2;
+// 3: keeps each release's signed files and checks them at every start (outside security audit
+//    2026-11-18, #6): raised so that an Update moves to this loader at once, from the own address.
+const LOADER_API = /*__LOADER_API__*/ 3;
 // Hash of what this loader does to pages (security headers, MIME types, the
 // own-server policy, LOADER_API), filled in by the build; release.json carries the
 // same value for the release's own loader (see loaderCompatible()).
 const LOADER_COMPAT = /*__LOADER_COMPAT__*/ null;
 const LOADER_NAME = self.location.pathname.split('/').pop();
+// The oldest release this loader installs or serves: the first that kept its signed files beside
+// the copy. Raised only with the loader (it is part of its bytes; tests build with --loader-min).
+const MIN_RELEASE = '0.1.24';
+const PROOF_FILES = ['release.json', 'release.sig', 'manifest.json'];
+const PROOF_PREFIX = new URL('__campfire_proof/', scopeUrl).href;
+const proofKey = (manifestSha, file) => `${PROOF_PREFIX}${manifestSha}/${file}`;
 
 let stateCache = null;
+let stateLoading = null;
+let stateWrites = 0; // a load that began before a write never replaces what the write left
+// The installed copy as this worker checked it at start: 'ok', 'damaged' (its signed files do not
+// check out: nothing is opened) or 'unchecked' (they are missing and no update source gave them yet).
+let currentCheck = 'ok';
+let lastProofTry = 0;
+const PROOF_RETRY_MS = 20000;
 let ownServerCache; // the person's own server "host:port", null for Firo's servers; undefined until read
 let evmServersCache; // {ethereum, bsc}: the person's own servers' origins (or null each); undefined until read
 let evmCheckRunning = false; // a "check-evm-server" under way (one at a time)
@@ -114,16 +138,149 @@ function mimeFor(path) {
 
 async function readState() {
   if (stateCache) return stateCache;
-  const c = await caches.open(META_CACHE);
-  const r = await c.match(STATE_KEY);
-  stateCache = r ? await r.json() : { current: null, pending: null };
-  return stateCache;
+  if (!stateLoading) stateLoading = loadState().finally(() => (stateLoading = null));
+  return stateLoading;
 }
 
-async function writeState(st) {
+/**
+ * The state as stored, with the installed copy (and a staged update) rebuilt from their signed
+ * files, checked again now: the version, the cache, every file's hash and the update sources come
+ * from those, not from what the cache says about them.
+ */
+async function loadState() {
+  await lastWrite; // a write under way lands first
+  const writesBefore = stateWrites;
   const c = await caches.open(META_CACHE);
-  await c.put(STATE_KEY, new Response(JSON.stringify(st), { headers: { 'Content-Type': 'application/json' } }));
+  const r = await c.match(STATE_KEY);
+  let st = null;
+  try {
+    st = r ? await r.json() : null;
+  } catch {
+    st = null;
+  }
+  if (!st || typeof st !== 'object') st = { current: null, pending: null };
+  if (st.current) {
+    const got = await checkedRecord(st.current, { fetchMissing: true });
+    currentCheck = got.check;
+    if (got.record) st = { ...st, current: got.record };
+  } else currentCheck = 'ok';
+  if (st.pending) {
+    const got = await checkedRecord(st.pending, { fetchMissing: false });
+    st = { ...st, pending: got.check === 'ok' ? got.record : null };
+  }
+  if (stateWrites !== writesBefore && stateCache) return stateCache;
   stateCache = st;
+  return st;
+}
+
+/** release.json, its signature and manifest.json kept for a release (by its manifest's hash). */
+async function saveProof(raw, manifestSha) {
+  const c = await caches.open(META_CACHE);
+  for (const f of PROOF_FILES) await c.put(proofKey(manifestSha, f), new Response(raw[f], { headers: { 'Content-Type': 'application/octet-stream' } }));
+}
+
+async function readProof(manifestSha) {
+  if (typeof manifestSha !== 'string' || !/^[0-9a-f]{64}$/.test(manifestSha)) return null;
+  const c = await caches.open(META_CACHE);
+  const out = {};
+  for (const f of PROOF_FILES) {
+    const hit = await c.match(proofKey(manifestSha, f));
+    if (!hit) return null;
+    out[f] = new Uint8Array(await hit.arrayBuffer());
+  }
+  return out;
+}
+
+/** A stand-in-engine build is refused here unless this address is a test host (engineAllowed). */
+function engineHere(release) {
+  if (!engineAllowed(release, self.location.hostname)) throw new ReleaseError('test_build', 'This is a test build of Campfire (sample balances, no Firo network), not a release.');
+}
+
+/**
+ * May this loader install or serve the release? (Signed already.) Throws when not: a stand-in build
+ * off a test host, or one older than MIN_RELEASE. Asked at the first install and at every start; an
+ * update check never stages an older release than the one installed anyway, and a copy that still
+ * serves an older one only has nothing newer (not a refusal).
+ */
+function allowedHere(release) {
+  engineHere(release);
+  if (compareVersions(release.version, MIN_RELEASE) < 0) throw new ReleaseError('downgrade', `Version ${release.version} is older than this copy of Campfire installs.`);
+}
+
+/** What the state keeps of a verified release; only `from` and `verifiedAt` come from elsewhere. */
+function releaseRecord(release, manifest) {
+  const files = {};
+  for (const f of manifest.files) files[f.path] = f.sha256;
+  return {
+    version: release.version,
+    cache: cacheNameFor(release),
+    files,
+    manifestSha: release.manifest_sha256,
+    created: createdOf(release), // the release's signed date, for "released ..." and the age warning
+    // Where the next check looks, from the signed release; the loader that ships with it; and
+    // what that loader does to pages (see loaderCompatible()).
+    sources: releaseSources(release),
+    loader: typeof release.loader === 'string' ? release.loader : null,
+    loaderCompat: typeof release.loader_compat === 'string' ? release.loader_compat : null,
+  };
+}
+
+async function recordFromProof(proof) {
+  const release = await verifyReleaseSignature(proof['release.json'], new TextDecoder().decode(proof['release.sig']), RELEASE_PUBLIC_JWK);
+  const manifest = await verifyManifest(release, proof['manifest.json']);
+  allowedHere(release);
+  return releaseRecord(release, manifest);
+}
+
+/**
+ * A stored release record, checked: {check: 'ok', record} rebuilt from its signed files. When those
+ * are missing (a copy installed by an earlier loader, which kept none) or do not check out, and
+ * fetchMissing: the same release (by its manifest's hash) from this app's own address or a built-in
+ * copy, verified like any other. Else {check: 'unchecked'} (missing) or {check: 'damaged'}; the
+ * installed copy is asked about again at the next page opened, at most every PROOF_RETRY_MS.
+ */
+async function checkedRecord(rec, { fetchMissing }) {
+  const keep = { from: rec.from || null, verifiedAt: rec.verifiedAt || null };
+  const proof = await readProof(rec.manifestSha);
+  const check = proof ? 'damaged' : 'unchecked';
+  if (proof) {
+    try {
+      const record = await recordFromProof(proof);
+      if (record.manifestSha === rec.manifestSha) return { check: 'ok', record: { ...record, ...keep } };
+    } catch {
+      // not the signed files: asked for again below
+    }
+  }
+  if (!fetchMissing || !/^[0-9a-f]{64}$/.test(String(rec.manifestSha))) return { check };
+  lastProofTry = Date.now();
+  // Where every release's signed files stay (proofs/<manifest hash>/, kept on the address after
+  // later releases), then wherever the newest release is published.
+  const listed = Array.isArray(rec.sources) ? rec.sources.filter((x) => typeof x === 'string') : BUILTIN_SOURCES;
+  const bases = [new URL(`proofs/${rec.manifestSha}/`, scopeUrl).href, ...updateSources({ own: scopeUrl.href, builtins: listed }).map((x) => x.url)];
+  for (const base of bases) {
+    try {
+      const rel = await fetchVerifiedRelease(base, { timeoutMs: PROBE_TIMEOUT_MS });
+      if (rel.release.manifest_sha256 !== rec.manifestSha) continue;
+      allowedHere(rel.release);
+      await saveProof(rel.raw, rec.manifestSha);
+      return { check: 'ok', record: { ...releaseRecord(rel.release, rel.manifest), ...keep } };
+    } catch {
+      // the next source
+    }
+  }
+  return { check };
+}
+
+let lastWrite = Promise.resolve();
+async function writeState(st) {
+  stateWrites++;
+  const done = (async () => {
+    const c = await caches.open(META_CACHE);
+    await c.put(STATE_KEY, new Response(JSON.stringify(st), { headers: { 'Content-Type': 'application/json' } }));
+    stateCache = st;
+  })();
+  lastWrite = done.catch(() => {});
+  return done;
 }
 
 async function readOwnServer() {
@@ -271,10 +428,11 @@ async function fetchBytes(base, path, { signal = null, timeoutMs = FILE_TIMEOUT_
  * host (engineAllowed): at first install and in every update check.
  */
 async function fetchVerifiedRelease(base, { signal = null, timeoutMs = FILE_TIMEOUT_MS } = {}) {
-  const rel = await readRelease((path) => fetchBytes(base, path, { signal, timeoutMs, max: MAX_META_BYTES }), RELEASE_PUBLIC_JWK);
-  if (!engineAllowed(rel.release, self.location.hostname))
-    throw new ReleaseError('test_build', 'This is a test build of Campfire (sample balances, no Firo network), not a release.');
-  return rel;
+  const raw = {};
+  const rel = await readRelease(async (path) => (raw[path] = await fetchBytes(base, path, { signal, timeoutMs, max: MAX_META_BYTES })), RELEASE_PUBLIC_JWK);
+  engineHere(rel.release);
+  // The signed files as they came: kept beside the copy, checked again at every start.
+  return { ...rel, raw };
 }
 
 const cacheNameFor = (release) => `campfire-${release.version}-${release.manifest_sha256.slice(0, 16)}`;
@@ -286,7 +444,8 @@ const cacheNameFor = (release) => `campfire-${release.version}-${release.manifes
  * is never served until it has become state.current (first install, every
  * file verified) or state.pending and then current (Update button).
  */
-async function stageRelease({ release, manifest }, { base = scopeUrl, signal = null, report = null } = {}) {
+async function stageRelease({ release, manifest, raw }, { base = scopeUrl, signal = null, report = null } = {}) {
+  if (!raw || PROOF_FILES.some((f) => !raw[f])) throw new ReleaseError('malformed', 'The signed files of this release were not kept.');
   const cacheName = cacheNameFor(release);
   const st = await readState();
   if (st.staging !== cacheName) await writeState({ ...st, staging: cacheName });
@@ -342,32 +501,43 @@ async function stageRelease({ release, manifest }, { base = scopeUrl, signal = n
     if (signal) signal.removeEventListener('abort', onOuterAbort);
   }
   if (failure) throw failure;
-  const map = {};
-  for (const f of files) map[f.path] = f.sha256;
-  return {
-    version: release.version,
-    cache: cacheName,
-    files: map,
-    manifestSha: release.manifest_sha256,
-    created: createdOf(release), // the release's signed date, for "released ..." and the age warning
-    verifiedAt: Date.now(),
-    // Where the next check looks, from the signed release; the loader that ships with it; and
-    // what that loader does to pages (see loaderCompatible()).
-    sources: releaseSources(release),
-    loader: typeof release.loader === 'string' ? release.loader : null,
-    loaderCompat: typeof release.loader_compat === 'string' ? release.loader_compat : null,
-  };
+  await saveProof(raw, release.manifest_sha256);
+  return { ...releaseRecord(release, manifest), verifiedAt: Date.now() };
 }
 
 async function cleanup(st) {
   const keep = new Set([META_CACHE, st.current && st.current.cache, st.pending && st.pending.cache, st.staging].filter(Boolean));
   for (const name of await caches.keys()) if (name.startsWith('campfire-') && !keep.has(name)) await caches.delete(name);
+  // Signed files of releases no longer installed or staged (a staging run keeps its own until it ends).
+  const shas = new Set([st.current && st.current.manifestSha, st.pending && st.pending.manifestSha].filter(Boolean));
+  const meta = await caches.open(META_CACHE);
+  for (const req of await meta.keys()) {
+    const url = typeof req === 'string' ? req : req.url;
+    if (!url.startsWith(PROOF_PREFIX)) continue;
+    const sha = url.slice(PROOF_PREFIX.length).split('/')[0];
+    if (!shas.has(sha) && !st.staging) await meta.delete(url);
+  }
 }
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
-      const st = await readState();
+      let st = await readState();
+      // A copy installed by another loader that this one cannot check (its signed files missing and
+      // no source giving them, or not checking out): while that loader still serves it, this one
+      // does not take over, and it keeps doing so (release audit of 0.1.24: a hard reload over 0.1.23,
+      // or a move to this loader after the address moved on, left a copy that never opened again).
+      // With no loader serving (its registration gone, the cache left behind), that copy cannot be
+      // used by anyone: it is set aside and a checked copy installed as on a first open.
+      if (st.current && currentCheck !== 'ok') {
+        if (self.registration.active) {
+          await writeProgress({ state: 'failed', error: { code: 'unchecked', message: 'The installed copy could not be checked by this loader; the loader in use keeps serving it.' } });
+          throw new ReleaseError('unreachable', 'The installed copy could not be checked by this loader; the loader in use keeps serving it.');
+        }
+        await writeState({ ...st, current: null, pending: null, staging: null });
+        currentCheck = 'ok';
+        st = await readState();
+      }
       if (!st.current) {
         // First install: nothing is served until a signed release verified.
         installAbort = new AbortController();
@@ -375,6 +545,7 @@ self.addEventListener('install', (event) => {
         try {
           await writeProgress({ state: 'checking', done: 0, total: 0, doneBytes: 0, totalBytes: 0, error: null });
           const rel = await fetchVerifiedRelease(scopeUrl, { signal });
+          allowedHere(rel.release);
           let last = null;
           const current = await stageRelease(rel, { signal, report: (p) => writeProgress((last = p)) });
           const now = await readState();
@@ -414,8 +585,23 @@ function withHeaders(resp, path, base = SECURITY_HEADERS) {
 }
 
 async function serve(request, path) {
-  const st = await readState();
-  if (!st.current) return fetch(request); // not installed yet: no page is controlled by this worker then
+  let st = await readState();
+  if (!st.current) {
+    // A worker that took over always has a copy: none means this site's storage was cleared under it.
+    // Nothing is fetched unchecked: it lets go, and the next open installs a checked copy again.
+    self.registration.unregister().catch(() => {});
+    return new Response('Campfire is no longer set up on this device (its stored copy is gone). Open Campfire again to set it up.', {
+      status: 503,
+      headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' },
+    });
+  }
+  // Its signed files were missing or did not check out, and no source gave them yet: asked again when a page opens.
+  if (currentCheck !== 'ok' && request.mode === 'navigate' && Date.now() - lastProofTry > PROOF_RETRY_MS) {
+    stateCache = null;
+    st = await readState();
+  }
+  if (currentCheck === 'damaged') return changedHere();
+  if (currentCheck === 'unchecked') return notCheckedYet();
   if (path !== null && Object.prototype.hasOwnProperty.call(st.current.files, path)) {
     const cache = await caches.open(st.current.cache);
     const hit = await cache.match(new URL(path, scopeUrl).href);
@@ -435,6 +621,12 @@ const notInRelease = () => new Response('Not part of this Campfire release.', { 
 const changedHere = () =>
   new Response('A file of this copy of Campfire was changed on this device after it was checked, so it was not opened. Reinstall Campfire from its address; your wallet comes back with its recovery words or backup file.', {
     status: 500,
+    headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' },
+  });
+
+const notCheckedYet = () =>
+  new Response('Campfire checks the signature of this copy once more after an update, and could not reach its address to do it. Connect to the internet and open Campfire again.', {
+    status: 503,
     headers: { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' },
   });
 
@@ -529,9 +721,23 @@ async function checkUpdate({ added = [], progress = null } = {}) {
  * page then moves to it right after the reload. Otherwise it stays staged.
  */
 async function applyUpdate({ loaderReady = false } = {}) {
+  // A check under way may be downloading into a cache this switch would clean up, and may stage a
+  // newer release than the one the person tapped: nothing is switched until it has ended (release
+  // audit of 0.1.24: an Update tapped then left a staged release with no files).
+  if (updateRun) return { result: 'busy', reason: 'An update check is still under way. Tap Update again when it has finished.' };
   const st = await readState();
   if (!st.pending) return { result: 'none' };
   const p = st.pending;
+  // Every file of it is there, or it is not switched to.
+  const cache = await caches.open(p.cache);
+  for (const path of Object.keys(p.files)) {
+    if (!(await cache.match(new URL(path, scopeUrl).href))) {
+      const next = { ...st, pending: null };
+      await writeState(next);
+      await cleanup(next);
+      return { result: 'incomplete', reason: 'This update was not downloaded completely. Check for updates again.' };
+    }
+  }
   const compatible = loaderCompatible({ loader: p.loader, loader_compat: p.loaderCompat }, { name: LOADER_NAME, compat: LOADER_COMPAT });
   if (!compatible && !loaderReady) {
     const l = releaseLoaderOf(p);
@@ -584,6 +790,7 @@ self.addEventListener('message', (event) => {
             pendingFrom: (st.pending && st.pending.from) || null,
             pendingCreated: (st.pending && st.pending.created) || null,
             currentFiles: st.current ? Object.keys(st.current.files).length : 0,
+            currentChecked: st.current ? currentCheck : null,
             releaseLoader: releaseLoaderOf(st.current),
             sources: st.current ? updateSources({ own: scopeUrl.href, builtins: Array.isArray(st.current.sources) ? st.current.sources : BUILTIN_SOURCES }).map((x) => ({ host: x.host, kind: x.kind })) : [],
             lastRefusal: st.lastRefusal || null,

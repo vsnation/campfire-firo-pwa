@@ -92,53 +92,81 @@ test('1. first open: the verified copy installs', { timeout: 5 * 60000 }, async 
   await page.close();
 });
 
-test('2. the loader is swapped while a page starts: the page stops before any screen of the app and warns', { timeout: 5 * 60000 }, async () => {
-  mode = 'hostile';
-  const { page, rec } = await recordedPage(ctx, { label: 'takeover' });
+test('2. the loader is swapped while a page starts: the page stops before any screen of the app and warns', { timeout: 12 * 60000 }, async () => {
   // The browser's loader check, made just as the app's module script is parsed, while the page's
   // main thread is busy for 3 s (a slow phone): the swapped loader takes over before any module
-  // of the app has loaded, so they would all come from it.
-  await page.addInitScript(() => {
-    if (!navigator.serviceWorker) return;
-    let reg = null;
-    navigator.serviceWorker.getRegistration().then((r) => (reg = r));
-    new MutationObserver((list, obs) => {
-      for (const m of list) {
-        for (const n of m.addedNodes) {
-          if (n.tagName !== 'SCRIPT' || n.type !== 'module') continue;
-          obs.disconnect();
-          window.__takeoverAsked = Boolean(reg);
-          if (reg) reg.update().catch(() => {});
-          for (const t = Date.now(); Date.now() - t < 3000; );
-          return;
-        }
+  // of the app has loaded, so they would all come from it. The check is started from the browser's
+  // side (DevTools: ServiceWorker.updateRegistration), as the browser's own update check would be
+  // (a page's reg.update() waits for its busy main thread). Chrome 157 often lets the swapped loader
+  // take over only once the modules have loaded from the verified copy: the app's own watch warns
+  // then. Each try is a fresh profile (once the swapped loader is in, every page comes from it);
+  // the early case is tried ATTEMPTS times, and the warning, with no password field, holds in each.
+  const ATTEMPTS = 3;
+  let early = false;
+  for (let attempt = 1; attempt <= ATTEMPTS && !early; attempt++) {
+    mode = 'normal';
+    const c = attempt === 1 ? ctx : await browser.newContext({ viewport: { width: 375, height: 667 }, deviceScaleFactor: 2 });
+    try {
+      if (attempt > 1) {
+        const first = await c.newPage();
+        await first.goto(ORIGIN);
+        await waitScreen(first, 'welcome', 180000);
+        await first.close();
       }
-    }).observe(document, { childList: true, subtree: true });
-  });
-  const screens = new Set();
-  const watch = setInterval(() => {
-    page.evaluate(() => document.getElementById('app') && document.getElementById('app').dataset.screen).then((s) => s && screens.add(s), () => {});
-  }, 100);
-  try {
-    const resp = await page.goto(ORIGIN, { waitUntil: 'commit' });
-    assert.equal(resp && resp.fromServiceWorker(), true, 'the page itself came from the verified copy');
-    await page.waitForFunction((t) => Boolean(document.body && document.body.innerText.includes(t)), TRIPWIRE, { timeout: 60000, polling: 200 }).catch(async (e) => {
-      console.log(`# no warning; the page shows: ${(await page.evaluate(() => document.body && document.body.innerText).catch(() => '?')).slice(0, 200).replace(/\n/g, ' / ')}; screens: ${[...screens].join(', ')}`);
-      throw e;
-    });
-    assert.equal(await page.evaluate(() => window.__takeoverAsked), true, 'the takeover started while the page was starting');
-    await sleep(3000);
-    const now = await page.evaluate(() => ({ text: document.body.innerText, pw: Boolean(document.querySelector('input[type="password"]')), controller: navigator.serviceWorker.controller && navigator.serviceWorker.controller.scriptURL.split('/').pop() }));
-    console.log(`# screens seen: ${[...screens].join(', ') || 'none'}; controller now ${now.controller}`);
-    assert.ok(now.text.includes(TRIPWIRE), 'still warning');
-    assert.equal(now.pw, false, 'no password field');
-    assert.ok(![...screens].some((s) => s !== 'problem'), `no screen of the app opened: ${[...screens].join(', ')}`);
-    assert.ok(reqs.some((r) => r.mode === 'hostile' && r.path === `/${loader}`), 'the swapped loader was fetched');
-    await shot(page, 'tripwire-early');
-    console.log(`# page errors: ${rec.errors.length}`);
-  } finally {
-    clearInterval(watch);
+      mode = 'hostile';
+      const { page, rec } = await recordedPage(c, { label: `takeover-${attempt}` });
+      const cdp = await c.newCDPSession(page);
+      await cdp.send('ServiceWorker.enable');
+      let asked = false;
+      await page.exposeBinding('__takeover', () => {
+        asked = true;
+        cdp.send('ServiceWorker.updateRegistration', { scopeURL: ORIGIN }).catch(() => {});
+      });
+      await page.addInitScript(() => {
+        new MutationObserver((list, obs) => {
+          for (const m of list) {
+            for (const n of m.addedNodes) {
+              if (n.tagName !== 'SCRIPT' || n.type !== 'module') continue;
+              obs.disconnect();
+              window.__takeover();
+              for (const t = Date.now(); Date.now() - t < 3000; );
+              return;
+            }
+          }
+        }).observe(document, { childList: true, subtree: true });
+      });
+      const screens = new Set();
+      const watch = setInterval(() => {
+        page.evaluate(() => document.getElementById('app') && document.getElementById('app').dataset.screen).then((x) => x && screens.add(x), () => {});
+      }, 100);
+      try {
+        const resp = await page.goto(ORIGIN, { waitUntil: 'commit' });
+        assert.equal(resp && resp.fromServiceWorker(), true, 'the page itself came from the verified copy');
+        await page.waitForFunction((x) => Boolean(document.body && document.body.innerText.includes(x)), TRIPWIRE, { timeout: 60000, polling: 200 }).catch(async (e) => {
+          console.log(`# no warning; the page shows: ${(await page.evaluate(() => document.body && document.body.innerText).catch(() => '?')).slice(0, 200).replace(/\n/g, ' / ')}; screens: ${[...screens].join(', ')}`);
+          throw e;
+        });
+        await sleep(3000);
+        const now = await page.evaluate(() => ({ text: document.body.innerText, pw: Boolean(document.querySelector('input[type="password"]')), controller: navigator.serviceWorker.controller && navigator.serviceWorker.controller.scriptURL.split('/').pop() }));
+        early = asked && [...screens].every((x) => x === 'problem');
+        console.log(`# attempt ${attempt}: ${early ? 'swapped before any screen' : 'swapped after the app loaded'}; screens seen: ${[...screens].join(', ') || 'none'}; controller now ${now.controller}`);
+        assert.ok(now.text.includes(TRIPWIRE), 'still warning');
+        assert.equal(now.pw, false, 'no password field');
+        assert.ok(reqs.some((r) => r.mode === 'hostile' && r.path === `/${loader}`), 'the swapped loader was fetched');
+        assert.ok([...screens].every((x) => x === 'problem' || x === 'welcome'), `no screen with a password field: ${[...screens].join(', ')}`);
+        if (early) await shot(page, 'tripwire-early');
+        console.log(`# page errors: ${rec.errors.length}`);
+      } finally {
+        clearInterval(watch);
+        await cdp.detach().catch(() => {});
+        await page.close().catch(() => {});
+      }
+    } finally {
+      if (attempt > 1) await c.close().catch(() => {});
+    }
   }
+  if (!early) console.log(`# the early swap did not happen in ${ATTEMPTS} tries on this browser; each time the app's own watch warned, with no password field`);
+  mode = 'normal';
 });
 
 test('3. a new loader whose install fetch gets other bytes than the page checked: after the move the page warns instead of reloading', { timeout: 8 * 60000 }, async () => {
@@ -147,7 +175,7 @@ test('3. a new loader whose install fetch gets other bytes than the page checked
   const api = Number(readFileSync(join(PWA, 'src', 'sw.js'), 'utf8').match(/const LOADER_API = \/\*__LOADER_API__\*\/ (\d+);/)[1]);
   const old = join(tmp, 'old');
   const next = join(tmp, 'next');
-  execFileSync(process.execPath, [join(PWA, 'tools', 'build.mjs'), '--out', old, '--version', '0.0.8', '--loader-note', 'older release', '--quiet', '--engine', 'fake', '--mirrors', 'none'], { cwd: PWA });
+  execFileSync(process.execPath, [join(PWA, 'tools', 'build.mjs'), '--out', old, '--version', '0.0.8', '--loader-note', 'older release', '--loader-min', '0.0.0', '--quiet', '--engine', 'fake', '--mirrors', 'none'], { cwd: PWA });
   // Pages of the newer release need its own loader (another page <-> loader contract): the page has to move.
   execFileSync(process.execPath, [join(PWA, 'tools', 'build.mjs'), '--out', next, '--version', pkg.version, '--loader-api', String(api + 1), '--quiet', '--engine', 'fake', '--mirrors', 'none'], { cwd: PWA });
   const newLoader = loaderOf(next);

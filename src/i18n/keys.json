@@ -5657,6 +5657,29 @@
       "lib/loader_words.js"
     ]
   },
+  "Version {version} is older than this copy of Campfire installs.": {
+    "where": [
+      "lib/loader_words.js"
+    ],
+    "placeholders": [
+      "version"
+    ]
+  },
+  "The signed files of this release were not kept.": {
+    "where": [
+      "lib/loader_words.js"
+    ]
+  },
+  "This update was not downloaded completely. Check for updates again.": {
+    "where": [
+      "lib/loader_words.js"
+    ]
+  },
+  "An update check is still under way. Tap Update again when it has finished.": {
+    "where": [
+      "lib/loader_words.js"
+    ]
+  },
   "unknown request": {
     "where": [
       "lib/loader_words.js"
@@ -7801,6 +7824,7 @@
   "Check for updates": {
     "where": [
       "lib/update_ui.js",
+      "screens/home.js",
       "screens/settings.js"
     ]
   },
@@ -9334,6 +9358,7 @@
       "screens/contacts.js",
       "screens/eth_privacy.js",
       "screens/eth_servers.js",
+      "screens/own_node_confirm.js",
       "screens/passkey_setup.js",
       "screens/servers.js",
       "screens/settings.js"
@@ -11149,6 +11174,7 @@
       "screens/contacts.js",
       "screens/eth_privacy.js",
       "screens/eth_servers.js",
+      "screens/own_node_confirm.js",
       "screens/passkey_setup.js",
       "screens/servers.js",
       "screens/settings.js"
@@ -14648,6 +14674,14 @@
       "screens/tx_status.js"
     ]
   },
+  "{chainName} has it in a block. It becomes final within minutes; this screen keeps checking until then.": {
+    "where": [
+      "screens/eth_tx.js"
+    ],
+    "placeholders": [
+      "chainName"
+    ]
+  },
   "{chainName} has it in a block. It cannot be undone.": {
     "where": [
       "screens/eth_tx.js"
@@ -14659,6 +14693,15 @@
   "Payment failed": {
     "where": [
       "screens/eth_tx.js"
+    ]
+  },
+  "{chainName} refused it, so no {assetSym} was sent. Only the network fee was spent. Don't send it again for a few minutes: until it is final, this screen keeps checking.": {
+    "where": [
+      "screens/eth_tx.js"
+    ],
+    "placeholders": [
+      "assetSym",
+      "chainName"
     ]
   },
   "{chainName} refused it, so no {assetSym} was sent. Only the network fee was spent.": {
@@ -15459,6 +15502,11 @@
     ]
   },
   "Write down your recovery words. ": {
+    "where": [
+      "screens/home.js"
+    ]
+  },
+  "Firo PWA restores 12 or 24 words: keep the backup file too.": {
     "where": [
       "screens/home.js"
     ]
@@ -17015,6 +17063,94 @@
       "screens/one_tab.js"
     ]
   },
+  "Your own Firo node: {address}": {
+    "where": [
+      "screens/own_node_confirm.js"
+    ],
+    "placeholders": [
+      "address"
+    ]
+  },
+  "Your own Ethereum server: {address}": {
+    "where": [
+      "screens/own_node_confirm.js"
+    ],
+    "placeholders": [
+      "address"
+    ]
+  },
+  "Your own BNB Chain server: {address}": {
+    "where": [
+      "screens/own_node_confirm.js"
+    ],
+    "placeholders": [
+      "address"
+    ]
+  },
+  "Keep using it": {
+    "where": [
+      "screens/own_node_confirm.js"
+    ]
+  },
+  "That did not work: {message}": {
+    "where": [
+      "screens/own_node_confirm.js"
+    ],
+    "placeholders": [
+      "message"
+    ]
+  },
+  "Use the public ones": {
+    "where": [
+      "screens/own_node_confirm.js"
+    ]
+  },
+  "Your own node": {
+    "where": [
+      "screens/own_node_confirm.js",
+      "screens/servers.js"
+    ]
+  },
+  "This wallet is set to use the following, but its approval of it doesn't check out:": {
+    "where": [
+      "screens/own_node_confirm.js"
+    ]
+  },
+  "This wallet was set to use:": {
+    "where": [
+      "screens/own_node_confirm.js"
+    ]
+  },
+  "An approval is sealed with your password; this one may have been changed on this device. Nothing connects until you answer.": {
+    "where": [
+      "screens/own_node_confirm.js"
+    ]
+  },
+  "Firo PWA now seals this choice with your password, and asks once for one saved before. Nothing connects until you answer.": {
+    "where": [
+      "screens/own_node_confirm.js"
+    ]
+  },
+  "Don't recognise it? Choose the public ones: someone with this device's data may have put it there.": {
+    "where": [
+      "screens/own_node_confirm.js"
+    ]
+  },
+  "This iPhone or iPad can't use a passkey to protect the wallet key: that needs iOS 18 or newer. Your password keeps working.": {
+    "where": [
+      "screens/passkey_setup.js"
+    ]
+  },
+  "Chrome kept this passkey in its own storage on this Mac, which can't protect a key. In Chrome's Password Manager settings, turn on passkeys from iCloud Keychain (macOS 15 or newer), then try again. Your password keeps working.": {
+    "where": [
+      "screens/passkey_setup.js"
+    ]
+  },
+  "This browser kept the passkey where it can't protect a key. Your password keeps working.": {
+    "where": [
+      "screens/passkey_setup.js"
+    ]
+  },
   "Turn on Face ID": {
     "where": [
       "screens/passkey_setup.js"
@@ -17035,7 +17171,7 @@
       "screens/passkey_setup.js"
     ]
   },
-  "This device or browser can't use a passkey to protect the wallet key (it needs iOS 18, macOS 15 or newer). Your password keeps working.": {
+  "Face ID / Touch ID passkeys are not available in this browser. Your password keeps working.": {
     "where": [
       "screens/passkey_setup.js"
     ]
@@ -17650,6 +17786,11 @@
       "screens/restore.js"
     ]
   },
+  "A phrase of 15, 18 or 21 words can't be restored here: open it in the wallet that made it.": {
+    "where": [
+      "screens/restore.js"
+    ]
+  },
   "Restore my wallet": {
     "where": [
       "screens/restore.js"
@@ -17702,6 +17843,30 @@
     ]
   },
   "Word {n}": {
+    "where": [
+      "screens/restore.js"
+    ],
+    "placeholders": [
+      "n"
+    ]
+  },
+  "This phrase has {n} words. Firo PWA restores 12 or 24 words: open this phrase in the wallet that made it, and send the FIRO to a Firo PWA wallet from there.": {
+    "where": [
+      "screens/restore.js"
+    ],
+    "placeholders": [
+      "n"
+    ]
+  },
+  "That has {n} words. A recovery phrase here has 12 or 24: check what was copied, and paste only the words.": {
+    "where": [
+      "screens/restore.js"
+    ],
+    "placeholders": [
+      "n"
+    ]
+  },
+  "{n} words were pasted, more than the boxes left have room for. Paste the whole phrase into the first box.": {
     "where": [
       "screens/restore.js"
     ],
@@ -19289,11 +19454,6 @@
       "other": "Encrypted: only the receiver can read it. Up to {n} characters in English; a letter of another script, or an emoji, counts as 2 to 4."
     }
   },
-  "Your own node": {
-    "where": [
-      "screens/servers.js"
-    ]
-  },
   "The host and its secure WebSocket (wss) port. Without a port, 50004.": {
     "where": [
       "screens/servers.js"
@@ -19733,6 +19893,11 @@
     ]
   },
   "Watch-only: the keys it was made with": {
+    "where": [
+      "screens/settings.js"
+    ]
+  },
+  "An encrypted file: Firo PWA restores 12 or 24 words": {
     "where": [
       "screens/settings.js"
     ]

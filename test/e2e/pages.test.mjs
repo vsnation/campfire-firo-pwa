@@ -212,7 +212,8 @@ test('an older release (installed, with a wallet) takes this one through Check f
     const v = pkg.version.split('.').map(Number);
     oldVersion = v[2] > 0 ? `${v[0]}.${v[1]}.${v[2] - 1}` : `${v[0]}.${Math.max(0, v[1] - 1)}.99`;
     if (compareVersions(oldVersion, pkg.version) >= 0) oldVersion = '0.0.1';
-    execFileSync(process.execPath, [join(PWA, 'tools', 'build.mjs'), '--out', old, '--version', oldVersion, '--loader-note', 'older release', '--quiet', '--engine', 'fake'], { cwd: PWA });
+    // --loader-min: a loader that installs this old a version (a published one installs none before its MIN_RELEASE).
+    execFileSync(process.execPath, [join(PWA, 'tools', 'build.mjs'), '--out', old, '--version', oldVersion, '--loader-note', 'older release', '--loader-min', '0.0.0', '--quiet', '--engine', 'fake'], { cwd: PWA });
   }
   const oldLoader = readFileSync(join(old, 'lib', 'version.js'), 'utf8').match(/LOADER = "(sw-[0-9a-f]+\.js)"/)[1];
   // Update to this tree, or to the next patch after the public one when it is already this version or later.

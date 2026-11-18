@@ -162,7 +162,7 @@ export default function ethHome(app, params = {}) {
   const visible = () => document.visibilityState === 'visible' && app.dbPass && !dead;
   const timer = setInterval(() => visible() && refresh(), REFRESH_MS);
   const follower = setInterval(() => {
-    if (visible() && w && w.state.outbox.some((e) => e.state === 'signed' || e.state === 'pending')) w.followOpen().catch(() => {});
+    if (visible() && w && w.needsFollow()) w.followOpen().catch(() => {});
   }, FOLLOW_MS);
   const onVis = () => visible() && refresh();
   document.addEventListener('visibilitychange', onVis);

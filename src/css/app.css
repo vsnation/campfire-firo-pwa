@@ -741,6 +741,8 @@ details.more.card { padding: 12px 16px; }
 .segmented .seg-s { font-size: 12px; font-weight: 500; color: var(--muted); }
 .segmented.small .seg { min-height: 36px; font-size: 14px; }
 .count-pick .small { margin: 0 0 6px; }
+.own-node-list p { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.own-node-list p + p { margin-top: 8px; }
 .count-pick .segmented .seg { padding: 6px 4px; font-variant-numeric: tabular-nums; }
 div.field { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 500; color: var(--text-2); }
 

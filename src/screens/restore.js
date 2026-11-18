@@ -1,5 +1,5 @@
 /* Restore (step 1 of 2)
- * Spec: ONE job: enter the recovery words (12, 15, 18, 21 or 24).
+ * Spec: ONE job: enter the recovery words (12 or 24).
  *       Primary CTA: "Restore my wallet".
  *       Taps from app open: 1 (Welcome -> Restore), then typing or one paste.
  * Exit-intent reasons and answers:
@@ -21,9 +21,11 @@ import { heightForDate } from '../lib/heights.js';
 import { t, tn } from '../lib/i18n.js';
 
 const WORDS = new Set(wordlist);
+/** Other BIP39 lengths: a whole phrase of one is never cut to 12 or 24 boxes. */
+const OTHER_LENGTHS = [15, 18, 21];
 
-/** The number of recovery words: every length Restore accepts (12, 15, 18, 21, 24), so a paper
- * backup of 15, 18 or 21 words can be typed in word by word too (outside audit 2026-11-18, #12). */
+/** "12 words" / "24 words": the lengths Restore takes, as Create makes (owner, 2026-11-18), under a
+ * visible label (outside audit 2026-11-18, #12). */
 function countPicker(count, onPick) {
   return h(
     'div',
@@ -33,9 +35,11 @@ function countPicker(count, onPick) {
       'div',
       { class: 'segmented', role: 'radiogroup', 'aria-labelledby': 'count-pick-label' },
       ...RESTORE_WORD_COUNTS.map((n) =>
-        h('button', { type: 'button', class: `seg${n === count ? ' on' : ''}`, role: 'radio', 'aria-checked': String(n === count), 'aria-label': tn({ one: '{n} word', other: '{n} words' }, n), 'data-testid': `count-${n}`, onclick: () => onPick(n) }, String(n)),
+        h('button', { type: 'button', class: `seg${n === count ? ' on' : ''}`, role: 'radio', 'aria-checked': String(n === count), 'data-testid': `count-${n}`, onclick: () => onPick(n) }, tn({ one: '{n} word', other: '{n} words' }, n)),
       ),
     ),
+    // A paper of 15, 18 or 21 words must not be typed in part: its first 12 can be another wallet's.
+    h('p', { class: 'hint', 'data-testid': 'restore-lengths-hint', text: t("A phrase of 15, 18 or 21 words can't be restored here: open it in the wallet that made it.") }),
   );
 }
 
@@ -145,11 +149,32 @@ export default function restore(app) {
   }
 
   function fill(start, parts) {
-    // A whole phrase pasted: its length (12, 15, 18, 21 or 24) is decided by what came (PN: another
-    // wallet's 18 words had no boxes here).
+    // A whole phrase of 15, 18 or 21 words: not cut to fit the boxes, said why (Restore takes 12 or 24).
+    if (OTHER_LENGTHS.includes(parts.length)) {
+      for (const x of inputs) x.value = '';
+      inputs[0].focus();
+      put(msg, h('div', { 'data-testid': 'restore-other-length' }, notice('warn', t('This phrase has {n} words. Firo PWA restores 12 or 24 words: open this phrase in the wallet that made it, and send the FIRO to a Firo PWA wallet from there.', { n: parts.length }))));
+      cta.disabled = true;
+      return;
+    }
+    // A whole phrase pasted: 12 or 24 boxes, by what came.
     if (start === 0 && RESTORE_WORD_COUNTS.includes(parts.length) && parts.length !== count) {
       setCount(parts.length, parts);
       inputs[count - 1].focus();
+      return;
+    }
+    // More words than the boxes have room for (a stray word copied with them, a label): never cut
+    // to fit, which could make a valid phrase of another wallet (release audit of 0.1.24).
+    if (parts.length > count || (parts.length < count && start + parts.length > count)) {
+      put(
+        msg,
+        h(
+          'div',
+          { 'data-testid': 'restore-too-many' },
+          notice('warn', parts.length > count ? t('That has {n} words. A recovery phrase here has 12 or 24: check what was copied, and paste only the words.', { n: parts.length }) : t('{n} words were pasted, more than the boxes left have room for. Paste the whole phrase into the first box.', { n: parts.length })),
+        ),
+      );
+      cta.disabled = true;
       return;
     }
     const from = parts.length >= count ? 0 : start;

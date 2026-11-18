@@ -22,7 +22,7 @@
 import { h, put } from '../lib/dom.js';
 import { icon } from '../lib/icons.js';
 import { screen, toast, openSheet, primary, textButton, notice } from '../lib/ui.js';
-import { hasPasskey, removePasskey } from '../lib/session.js';
+import { hasPasskey, removePasskey, RESTORE_WORD_COUNTS } from '../lib/session.js';
 import { passkeyAvailable } from '../lib/passkey.js';
 import { confirmIdentity } from '../lib/auth_ui.js';
 import { lastCheckText } from '../lib/update.js';
@@ -177,7 +177,7 @@ export default function settings(app) {
       inline('clock', t('Auto-lock'), t('Also in the background'), lockSel),
       faceRowBox,
       row('key', t('Change password'), null, () => app.go('changePassword'), { 'data-testid': 'change-password' }),
-      row('file', t('Backup'), app.record.watchOnly ? t('Watch-only: the keys it was made with') : tn({ one: 'Your {n} recovery word, or an encrypted file', other: 'Your {n} recovery words, or an encrypted file' }, app.record.words || 24), () => app.go('backup'), { 'data-testid': 'backup-row' }),
+      row('file', t('Backup'), app.record.watchOnly ? t('Watch-only: the keys it was made with') : RESTORE_WORD_COUNTS.includes(app.record.words || 24) ? tn({ one: 'Your {n} recovery word, or an encrypted file', other: 'Your {n} recovery words, or an encrypted file' }, app.record.words || 24) : t('An encrypted file: Firo PWA restores 12 or 24 words'), () => app.go('backup'), { 'data-testid': 'backup-row' }),
     ),
     h('p', { class: 'section-title', text: t('Payments') }),
     h(

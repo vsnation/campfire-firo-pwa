@@ -231,7 +231,9 @@ test('a deposit address is refused unless signed by 1Click and exactly what was 
 });
 
 test('D-14: a signed quote for another deadline, or an old one, is refused: no deposit address from it', async () => {
-  // 1Click's signature covers the deadline asked for and the time it quoted; both are checked against this request.
+  // The request's deadline is checked to be ours, but 1Click's signature does not cover it (the
+  // quote's own deadline takes its place in the signed message: outside audit 2026-11-18, #10):
+  // freshness rests on the signed timestamp and the quote's signed deadline.
   const signedByOneClick = async () => true;
   const later = fixtureClient('quote_btc_real.json', (m) => ((m.quoteRequest.deadline = new Date(Date.parse(m.quoteRequest.deadline) + 60000).toISOString()), m), signedByOneClick);
   await assert.rejects(later.c.quote(askOf(later.j, BTC)), (e) => e instanceof OneClickError && e.code === 'mismatch', 'a quote made for another request');
@@ -250,6 +252,14 @@ test('D-14: a signed quote for another deadline, or an old one, is refused: no d
   await assert.rejects(dryOld.c.quote(askOf(dryOld.j, BTC)), (x) => x.code === 'stale', 'a price-only quote too');
   const noTime = fixtureClient('quote_btc_real.json', (m) => ((m.timestamp = 'yesterday'), m), signedByOneClick);
   await assert.rejects(noTime.c.quote(askOf(noTime.j, BTC)), (x) => x.code === 'stale' || x.code === 'unexpected');
+  // A quote whose own signed deadline has passed: no address from it.
+  const closed = fixtureClient('quote_btc_real.json', (m) => ((m.quote.deadline = new Date(Date.parse(m.quoteRequest.deadline) - 3600000 - 1000).toISOString()), m), signedByOneClick);
+  await assert.rejects(closed.c.quote(askOf(closed.j, BTC)), (x) => x.code === 'stale');
+  const noDeadline = fixtureClient('quote_btc_real.json', (m) => (delete m.quote.deadline, m), signedByOneClick);
+  await assert.rejects(noDeadline.c.quote(askOf(noDeadline.j, BTC)), (x) => x.code === 'stale' || x.code === 'unexpected');
+  // Timestamped far ahead of this device's clock (a clock behind would take an old quote as new): stale.
+  const ahead = fixtureClient('quote_btc_real.json', (m) => ((m.timestamp = new Date(Date.parse(m.quoteRequest.deadline) - 3600000 + QUOTE_MAX_AGE_MS + 1000).toISOString()), m), signedByOneClick);
+  await assert.rejects(ahead.c.quote(askOf(ahead.j, BTC)), (x) => x.code === 'stale');
   // A few minutes of clock difference either way is not stale.
   const skewed = fixtureClient('quote_btc_real.json', (m) => ((m.timestamp = new Date(Date.parse(m.quoteRequest.deadline) - 3600000 + 4 * 60000).toISOString()), m), signedByOneClick);
   assert.ok((await skewed.c.quote(askOf(skewed.j, BTC))).depositAddress);
