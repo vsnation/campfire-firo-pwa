@@ -1,6 +1,6 @@
 {
  "app": "campfire-firo-pwa",
- "version": "0.1.26",
+ "version": "0.1.27",
  "files": [
   {
    "path": "app.js",
@@ -9,8 +9,8 @@
   },
   {
    "path": "css/app.css",
-   "sha256": "7ef9d71b2b985835edbabde0141af88e3ddd6701f09bee4167f306b6000d68bb",
-   "size": 55042
+   "sha256": "5664756b90870c390e10f1e6c41aa067e18f52fe8bf378f63b43ab0068f9ad99",
+   "size": 57244
   },
   {
    "path": "css/payments.css",
@@ -44,53 +44,53 @@
   },
   {
    "path": "i18n/de.json",
-   "sha256": "67eca88824283b663a9a53ba693d56365283e56194e6fb81709b804a026ad229",
-   "size": 400236
+   "sha256": "a0c42218d413d484a6b8a7429d034885088d31b53778a606abc31d244f651f00",
+   "size": 399601
   },
   {
    "path": "i18n/es.json",
-   "sha256": "4a513e52bbb685f4049e9950db628483ae156b7c7073e8f530a4a33e68070380",
-   "size": 390206
+   "sha256": "11d6874592cba0dc0116b8cc48e56089fe8b93822d4a9c18d3439bfd902a212f",
+   "size": 389665
   },
   {
    "path": "i18n/fr.json",
-   "sha256": "c845fb1d30303452afbc4ae12cd0fa7808cce68ab1466f42f7225dd5da37754c",
-   "size": 404597
+   "sha256": "36cb592ea820769bbe388658a4960598eaedaca604e7a534f2f0bc348f1b9b16",
+   "size": 404019
   },
   {
    "path": "i18n/ja.json",
-   "sha256": "f0a203d1a72cae59c4a01e2d0e81b7d4f587f41f2722a0b728e223898bb289a8",
-   "size": 451337
+   "sha256": "4b19f55217b04081358a1116b046cfc786107d3bd40ab750f65a96c6b6b64a05",
+   "size": 450750
   },
   {
    "path": "i18n/ko.json",
-   "sha256": "622c92129427b5b8c1b65437f99fc9fd5a5172ed2092077433b89dcef038ad07",
-   "size": 404447
+   "sha256": "9598a31e791d40ec0e865ad0d40d1bbcc387adcd0b6184d4516b7951dd55a1ce",
+   "size": 403854
   },
   {
    "path": "i18n/pt-BR.json",
-   "sha256": "a2b1b338524993e561fec6f60a56c46a8e4742ecccd3b042daccb49ceacd787c",
-   "size": 386984
+   "sha256": "b1f90091e6de8592aebb300d3acf6655ee3f1ba81a7825f8174a748b6fd2ea7c",
+   "size": 386401
   },
   {
    "path": "i18n/ru.json",
-   "sha256": "3c2e60faec502761f771e00f4bb39f1dad7511b75b11b5d4383e47aa1c975468",
-   "size": 532971
+   "sha256": "88c1435ca4148fbc1dd250ef01030c198afe462c657f9cde05c0eb333af91252",
+   "size": 532216
   },
   {
    "path": "i18n/tr.json",
-   "sha256": "851eeb3284fedd340ad0a359053bf90ca4cd57fd1b527c9919be3bf4cc25cef9",
-   "size": 388612
+   "sha256": "cbe7cbbaece1fb9fe6be1233c73a2fdc8d057e54cdb94a196497d4b552f5171d",
+   "size": 388034
   },
   {
    "path": "i18n/vi.json",
-   "sha256": "e63948d8b60d5e672931b8c8173ad4bc9be0b6048179a591b4af49fb8b284444",
-   "size": 421428
+   "sha256": "4fc629ea49c877f69a41c4c4ccc340e5a355e0daeb37b9c148a87c4aaffe04fe",
+   "size": 420712
   },
   {
    "path": "i18n/zh-Hans.json",
-   "sha256": "e20ef3394422a745237fcb4d2367b77f6d616c019681e666dea31806756f15e1",
-   "size": 366496
+   "sha256": "370a52c91f68d17ccae2324d3f3cb8d20bb0257d214d7f68e540af287b5b11b7",
+   "size": 365940
   },
   {
    "path": "icons/firo-pwa-192.png",
@@ -444,8 +444,8 @@
   },
   {
    "path": "lib/firo/backend.js",
-   "sha256": "b8f1912e050a603e1a5b178a6f55912e96e64cfb795eb1e0d329259a17e2b106",
-   "size": 220811
+   "sha256": "f1650e03f04c67dc113735ba0d16915199ac9f92484c8ea9d9652340f9224497",
+   "size": 221081
   },
   {
    "path": "lib/firo/bytes.js",
@@ -554,8 +554,8 @@
   },
   {
    "path": "lib/icons.js",
-   "sha256": "da7fe61e59c3b087c94510746e3c584c00b8ca588f10b8dd236c626ebecbca22",
-   "size": 5157
+   "sha256": "9b5bc9656aef8aebeb21b8c56ac0972ee97fa683e14bf2176d8086bd4dff3940",
+   "size": 5418
   },
   {
    "path": "lib/install_prompt.js",
@@ -854,7 +854,7 @@
   },
   {
    "path": "lib/version.js",
-   "sha256": "1557aeaadb96f313b658d3cc0f3eaaf581657b974077cb1c1eff0ea1459d3244",
+   "sha256": "c11f04d971e1cd810df5fd7c17914b06a83a87c2ae8f1c7b17914f89565dc613",
    "size": 1086
   },
   {
@@ -894,8 +894,8 @@
   },
   {
    "path": "screens/activity.js",
-   "sha256": "b41f115f9c47891aafbdb61ad56523c5cb945ddabae2dcb847c6035c872416b1",
-   "size": 11667
+   "sha256": "aeb5364f504acee92941eedc4158e7cf42b092071453032499dd3eb16cfbc65a",
+   "size": 13975
   },
   {
    "path": "screens/add_wallet.js",

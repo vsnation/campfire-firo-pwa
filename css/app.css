@@ -304,11 +304,32 @@ textarea.input { resize: none; min-height: 84px; }
 .kv .v { font-weight: 600; text-align: right; word-break: normal; overflow-wrap: anywhere; }
 .big-amount { font-size: 32px; font-weight: 700; text-align: center; margin: 8px 0; word-break: break-all; }
 .big-amount .unit { white-space: nowrap; word-break: normal; }
-.went-where h3 { margin: 0 0 4px; font-size: 15px; }
-.went-where .kv .v { white-space: nowrap; overflow-wrap: normal; }
-.went-where .kv .k { min-width: 0; }
-.went-where .part-from .v { font-weight: 700; }
-.went-where .small { margin: 10px 0 0; }
+.flow { padding: 14px 16px; }
+.flow-from, .flow-to { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+.flow-ico { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex: none; background: var(--surface-2); color: var(--muted); }
+.flow-ico svg { width: 18px; height: 18px; }
+.flow-ico.private { background: var(--tx-in-bg); color: var(--tx-in); }
+.flow-ico.public { background: var(--tx-self-bg); color: var(--tx-self); }
+.flow-ico.others { background: var(--tx-out-bg); color: var(--tx-out); }
+.flow-name { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; font-weight: 600; }
+.flow-body { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 4px 0; }
+.flow-line { display: flex; align-items: center; gap: 8px; width: 100%; }
+.flow-amt { margin-left: auto; font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.flow-amt.in { color: var(--success); }
+.flow-amt .unit { margin-left: 4px; font-weight: 500; font-size: 13px; color: var(--muted); }
+.flow-to.fee .flow-name, .flow-to.fee .flow-amt { color: var(--muted); font-weight: 500; }
+/* The arrows: a line down from the balance it left, a branch with an arrowhead to each place. */
+.flow-branches { list-style: none; margin: 0 0 0 16px; padding: 0 0 0 22px; }
+.flow-branches > li { position: relative; }
+.flow-branches > li::before { content: ''; position: absolute; left: -22px; top: 0; bottom: 0; border-left: 2px solid var(--border); }
+.flow-branches > li:last-child::before { bottom: 50%; }
+.flow-branches > li::after { content: ''; position: absolute; left: -22px; top: 50%; width: 14px; border-top: 2px solid var(--border); }
+.flow-branches > .flow-to > .flow-ico { position: relative; }
+.flow-branches > .flow-to > .flow-ico::before { content: ''; position: absolute; left: -9px; top: 50%; margin-top: -5px; border: 5px solid transparent; border-left: 6px solid var(--muted); border-right: 0; }
+.flow-tag { display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 2px 8px; border-radius: 13px; border: 0; background: var(--surface-2); color: var(--text); font: inherit; font-size: 12px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.flow-tag svg { width: 14px; height: 14px; flex: none; }
+.flow-tag svg:last-child { color: var(--muted); }
+.flow-tip { margin: 8px 0 0; }
 
 .progress { height: 8px; background: var(--surface-2); border-radius: 4px; overflow: hidden; }
 .progress > div { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s; }
