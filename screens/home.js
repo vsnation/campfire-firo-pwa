@@ -34,7 +34,7 @@ import { keepingAwake, startKeepingAwake, stopKeepingAwake, onKeepAwakeChange, s
 import { formatAmount, UNIT } from '../lib/amount.js';
 import { wallet, txTitle, txSign, txSide, isPendingTx, SIDE_WORDS, txWhen } from '../lib/wallet.js';
 import { copyAt } from '../lib/update.js';
-import { applyUpdate } from '../lib/update_ui.js';
+import { applyUpdate, runUpdateCheck } from '../lib/update_ui.js';
 import { chainSwitch } from './eth_screens.js';
 import { openBuy } from './buy_screens.js';
 import { openSell } from './sell_screens.js';
@@ -47,7 +47,7 @@ import { moneyOf, priceQuestion, shouldAsk } from './fiat_ui.js';
 import { firoPrice } from '../lib/fiat.js';
 import { store, rawStore } from '../lib/store.js';
 import { walletKey } from '../lib/wallet_scope.js';
-import { wordsReminderDue, WORDS_REMINDER_SNOOZE_MS } from '../lib/session.js';
+import { wordsReminderDue, WORDS_REMINDER_SNOOZE_MS, RESTORE_WORD_COUNTS } from '../lib/session.js';
 import { t, tn, sentences } from '../lib/i18n.js';
 import { pauseReason } from '../lib/sync.js';
 import { loaderText } from '../lib/loader_words.js';
@@ -410,7 +410,13 @@ export default function home(app) {
             { class: 'grow' },
             h('strong', { text: t('One step left to finish the update. ') }),
             t('Until then, a connection this version added may be refused. Finishing reloads the app; you unlock again after it.'),
-            h('div', { class: 'btn-row prompt-actions' }, h('button', { class: 'btn btn-primary btn-small', 'data-testid': 'update-finish', onclick: () => location.reload() }, t('Finish now'))),
+            h(
+              'div',
+              { class: 'btn-row prompt-actions' },
+              h('button', { class: 'btn btn-primary btn-small', 'data-testid': 'update-finish', onclick: () => location.reload() }, t('Finish now')),
+              // A move that keeps not finishing (the address no longer has this version's signed files): a newer one moves it.
+              h('button', { class: 'btn btn-secondary btn-small', 'data-testid': 'update-finish-check', onclick: () => runUpdateCheck(app) }, t('Check for updates')),
+            ),
           ),
         ),
       );
@@ -457,7 +463,12 @@ export default function home(app) {
           'div',
           { class: 'grow' },
           h('strong', { text: t('Write down your recovery words. ') }),
-          sentences(tn({ one: 'This wallet came from a backup file. Its {n} word brings it back without the file or its password.', other: 'This wallet came from a backup file. Its {n} words bring it back without the file or its password.' }, app.record.words || 24), evictable),
+          sentences(
+            tn({ one: 'This wallet came from a backup file. Its {n} word brings it back without the file or its password.', other: 'This wallet came from a backup file. Its {n} words bring it back without the file or its password.' }, app.record.words || 24),
+            // Restore takes 12 or 24 words (0.1.24): a wallet an earlier version restored at 15, 18 or 21 is said so.
+            RESTORE_WORD_COUNTS.includes(app.record.words || 24) ? null : t('Firo PWA restores 12 or 24 words: keep the backup file too.'),
+            evictable,
+          ),
           h(
             'div',
             { class: 'btn-row prompt-actions' },

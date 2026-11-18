@@ -179,9 +179,21 @@ export default function backup(app) {
   const status = h('p', { class: 'small', text: t('Making your words…') });
   const pass = passphraseField(setup, { onChange: () => (cta.disabled = !revealed || !pass.ok()) });
 
+  // Still this screen's words: no switch to the other number of words, and the same setup. A switch
+  // made while the words were being made (a tap on "Use 12 words instead" right as the screen opened)
+  // once let the late list of the screen left behind become the words kept, while the new screen
+  // showed others: the confirm step then asked for words never shown.
+  const stillMine = () => app.setup === setup && (setup.count === 12 ? 12 : 24) === count;
   (async () => {
     try {
-      if (!setup.words || setup.words.length !== count) setup.words = (await keys()).generateMnemonic(count).split(' ');
+      if (!setup.words || setup.words.length !== count) {
+        const made = (await keys()).generateMnemonic(count).split(' ');
+        if (!stillMine() || (setup.words && setup.words.length === count)) {
+          made.fill('');
+          if (!stillMine()) return;
+        } else setup.words = made;
+      }
+      if (!stillMine()) return;
       reveal.fill(setup.words);
       status.textContent = '';
     } catch (e) {
